@@ -9,7 +9,11 @@ use regex::Regex;
 use crate::{finding::Finding, rule::Rule};
 
 pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
-    let Some(pat) = rule.regex.as_deref() else { return Vec::new() };
+    // YAML block literal `|` keeps a trailing newline, which the regex
+    // crate treats as a literal \n requirement. Trim any surrounding
+    // whitespace so rule authors don't have to remember `|-` every time.
+    let Some(pat) = rule.regex.as_deref().map(str::trim) else { return Vec::new() };
+    if pat.is_empty() { return Vec::new() }
 
     let re = match Regex::new(pat) {
         Ok(r)  => r,
