@@ -58,8 +58,11 @@ pub fn match_rule(
             column:     start.column + 1,
             end_line:   end.row + 1,
             end_column: end.column + 1,
+            start_byte: node.start_byte(),
+            end_byte:   node.end_byte(),
             snippet,
             fix_recipe: rule.fix_recipe.clone(),
+            fix:        rule.fix.clone(),
             cwe:        rule.cwe.clone(),
         });
     }

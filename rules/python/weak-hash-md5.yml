@@ -11,3 +11,4 @@ message: |
   usedforsecurity=False keyword (Python 3.9+).
 regex: |
   \bhashlib\.(md5|sha1)\b
+fix: 'hashlib.sha256'
