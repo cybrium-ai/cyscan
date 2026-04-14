@@ -30,24 +30,31 @@ pub fn emit(findings: &[Finding]) -> io::Result<()> {
     }).collect();
 
     let results_json: Vec<_> = findings.iter().map(|f| {
+        // SARIF forbids startLine=0. Supply-chain findings attach to
+        // whole lockfiles and have no line info; emit a file-only
+        // physicalLocation (spec-legal) in that case.
+        let physical = if f.line == 0 {
+            json!({ "artifactLocation": { "uri": f.file.to_string_lossy() } })
+        } else {
+            json!({
+                "artifactLocation": { "uri": f.file.to_string_lossy() },
+                "region": {
+                    "startLine":   f.line,
+                    "startColumn": f.column,
+                    "endLine":     f.end_line,
+                    "endColumn":   f.end_column,
+                    "snippet":     { "text": f.snippet },
+                }
+            })
+        };
         json!({
             "ruleId": f.rule_id,
             "level":  sarif_level(f.severity),
             "message": { "text": f.message },
-            "locations": [{
-                "physicalLocation": {
-                    "artifactLocation": { "uri": f.file.to_string_lossy() },
-                    "region": {
-                        "startLine":   f.line,
-                        "startColumn": f.column,
-                        "endLine":     f.end_line,
-                        "endColumn":   f.end_column,
-                        "snippet":     { "text": f.snippet },
-                    }
-                }
-            }],
+            "locations": [{ "physicalLocation": physical }],
             "properties": {
-                "fix_recipe": f.fix_recipe,
+                "fix_recipe":        f.fix_recipe,
+                "packageCoordinate": package_coordinate(f),
             }
         })
     }).collect();
@@ -79,6 +86,19 @@ fn sarif_level(s: Severity) -> &'static str {
         Severity::Medium                    => "warning",
         Severity::Low | Severity::Info      => "note",
     }
+}
+
+/// Canonical coordinate string the platform reachability engine uses
+/// to join cyscan findings with its advisory-symbol index. Returns
+/// None for source-code findings.
+fn package_coordinate(f: &Finding) -> Option<String> {
+    // Cheap heuristic: supply-chain findings have our CBR-SUPPLY- or
+    // CBR-DEP- prefix, a line=0 location, and a `name@version` snippet.
+    if f.line != 0 { return None; }
+    if !(f.rule_id.starts_with("CBR-SUPPLY-") || f.rule_id.starts_with("CBR-DEP-")) {
+        return None;
+    }
+    Some(f.snippet.clone())
 }
 
 fn security_score(s: Severity) -> f64 {

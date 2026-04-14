@@ -12,3 +12,4 @@ pub mod matcher;
 pub mod output;
 pub mod rule;
 pub mod scanner;
+pub mod supply;

@@ -1,0 +1,10 @@
+github.com/stretchr/testify
+github.com/sirupsen/logrus
+github.com/spf13/cobra
+github.com/spf13/viper
+github.com/gin-gonic/gin
+github.com/gorilla/mux
+github.com/pkg/errors
+github.com/google/uuid
+github.com/go-sql-driver/mysql
+github.com/lib/pq
