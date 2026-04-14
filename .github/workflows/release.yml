@@ -1,0 +1,210 @@
+# Build cyscan for every supported target and publish binaries + a
+# Homebrew formula on tag push.
+#
+# Drop this file at `.github/workflows/release.yml` inside the
+# `cybrium-ai/cyscan` repo (root-layout — Cargo.toml is at the root).
+#
+# Trigger:
+#   git tag v0.1.0       # note: NO "cyscan-" prefix in the standalone repo
+#   git push origin v0.1.0
+#
+# Required repo secrets on cybrium-ai/cyscan:
+#   HOMEBREW_TAP_TOKEN  — fine-grained PAT with Contents:write on
+#                          cybrium-ai/homebrew-cli (same tap the
+#                          `cybrium` CLI uses; adds a second formula).
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version to release (without the v prefix)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: x86_64-apple-darwin,       os: macos-latest }
+          - { target: aarch64-apple-darwin,      os: macos-latest }
+          - { target: x86_64-unknown-linux-gnu,  os: ubuntu-latest }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-latest }
+          - { target: x86_64-pc-windows-msvc,    os: windows-latest }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compile tooling (Linux aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          mkdir -p ~/.cargo
+          cat >> ~/.cargo/config.toml <<'EOF'
+          [target.aarch64-unknown-linux-gnu]
+          linker = "aarch64-linux-gnu-gcc"
+          EOF
+
+      - name: Cargo build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package archive
+        shell: bash
+        run: |
+          VERSION="${{ steps.ver.outputs.tag }}"
+          TARGET="${{ matrix.target }}"
+          STAGE="dist/cyscan_${VERSION}_${TARGET}"
+          mkdir -p "$STAGE"
+
+          if [[ "$TARGET" == *"windows"* ]]; then
+            cp "target/${TARGET}/release/cyscan.exe" "$STAGE/"
+          else
+            cp "target/${TARGET}/release/cyscan" "$STAGE/"
+          fi
+
+          # Ship the bundled rule pack alongside the binary so the
+          # default scan works out of the box.
+          cp -r rules     "$STAGE/rules"
+          cp    README.md "$STAGE/"
+          cp    LICENSE 2>/dev/null || true
+
+          cd dist
+          if [[ "$TARGET" == *"windows"* ]]; then
+            7z a "cyscan_${VERSION}_${TARGET}.zip" "cyscan_${VERSION}_${TARGET}/"
+          else
+            tar -czf "cyscan_${VERSION}_${TARGET}.tar.gz" "cyscan_${VERSION}_${TARGET}/"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cyscan-${{ matrix.target }}
+          path: dist/cyscan_${{ steps.ver.outputs.tag }}_${{ matrix.target }}.*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release + Homebrew formula
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Compute checksums
+        id: sums
+        run: |
+          cd artifacts
+          sha256sum cyscan_* > SHA256SUMS
+          cat SHA256SUMS
+          {
+            echo "darwin_arm64_sha=$(awk '/aarch64-apple-darwin/ {print $1}' SHA256SUMS)"
+            echo "darwin_amd64_sha=$(awk '/x86_64-apple-darwin/  {print $1}' SHA256SUMS)"
+            echo "linux_arm64_sha=$(awk  '/aarch64-unknown-linux-gnu/ {print $1}' SHA256SUMS)"
+            echo "linux_amd64_sha=$(awk  '/x86_64-unknown-linux-gnu/  {print $1}' SHA256SUMS)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.tag }}
+          name:     cyscan v${{ steps.ver.outputs.tag }}
+          generate_release_notes: true
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
+            artifacts/SHA256SUMS
+
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: cybrium-ai/homebrew-cli
+          token:      ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path:       homebrew-cli
+
+      - name: Render + commit Formula/cyscan.rb
+        run: |
+          VERSION="${{ steps.ver.outputs.tag }}"
+          BASE="https://github.com/cybrium-ai/cyscan/releases/download/v${VERSION}"
+
+          cat > homebrew-cli/Formula/cyscan.rb <<RUBY
+          class Cyscan < Formula
+            desc     "Cybrium Scan — fast multi-language SAST engine"
+            homepage "https://github.com/cybrium-ai/cyscan"
+            license  "Apache-2.0"
+            version  "${VERSION}"
+
+            on_macos do
+              on_arm do
+                url    "${BASE}/cyscan_${VERSION}_aarch64-apple-darwin.tar.gz"
+                sha256 "${{ steps.sums.outputs.darwin_arm64_sha }}"
+              end
+              on_intel do
+                url    "${BASE}/cyscan_${VERSION}_x86_64-apple-darwin.tar.gz"
+                sha256 "${{ steps.sums.outputs.darwin_amd64_sha }}"
+              end
+            end
+
+            on_linux do
+              on_arm do
+                url    "${BASE}/cyscan_${VERSION}_aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "${{ steps.sums.outputs.linux_arm64_sha }}"
+              end
+              on_intel do
+                url    "${BASE}/cyscan_${VERSION}_x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "${{ steps.sums.outputs.linux_amd64_sha }}"
+              end
+            end
+
+            def install
+              bin.install "cyscan"
+              (prefix/"rules").install Dir["rules/*"]
+            end
+
+            test do
+              system "#{bin}/cyscan", "--version"
+            end
+          end
+          RUBY
+
+          cd homebrew-cli
+          git config user.name  "cybrium-bot"
+          git config user.email "bot@cybrium.ai"
+          git add Formula/cyscan.rb
+          git commit -m "cyscan: bump to v${VERSION}" || echo "no changes"
+          git push
