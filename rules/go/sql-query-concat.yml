@@ -1,0 +1,12 @@
+id:         CBR-GO-SQL-QUERY-CONCAT
+title:      "SQL query assembled by string concatenation"
+severity:   high
+languages:  [go]
+cwe:        [CWE-89]
+fix_recipe: CWE-89-PARAMETERIZE
+message: |
+  db.Query / Exec receiving a concatenated string is a classic
+  SQL-injection sink. Use placeholder parameters: db.Query("SELECT
+  * FROM users WHERE id = $1", id).
+regex: |
+  \bdb\.(Query|QueryRow|QueryContext|Exec|ExecContext)\s*\([^)]*\+

@@ -1,0 +1,12 @@
+id:         CBR-JS-JWT-ALG-NONE
+title:      "JWT signed with alg=none"
+severity:   critical
+languages:  [javascript, typescript]
+cwe:        [CWE-345, CWE-287]
+message: |
+  A JWT with algorithm "none" is effectively unsigned — the server
+  will accept any token the attacker mints. Pin an asymmetric or
+  HMAC algorithm (RS256 / ES256 / HS256) and reject "none" on
+  verification.
+regex: |
+  algorithm\s*:\s*['"]none['"]
