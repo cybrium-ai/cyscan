@@ -1,0 +1,12 @@
+# Deliberately-vulnerable tokio pin.
+version = 3
+
+[[package]]
+name = "tokio"
+version = "1.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "serde"
+version = "1.0.200"
+source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -68,6 +68,42 @@ fn fix_patches_files_and_writes_backups() {
         .stdout(predicate::str::contains("CBR-SECRETS-AWS-KEY").not());
 }
 
+#[test]
+fn supply_detects_advisories_typosquat_and_policy() {
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let target = format!("{manifest}/tests/fixtures/lockfiles");
+    let rules  = format!("{manifest}/rules");
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["supply", &target, "--rules", &rules, "--format", "text"])
+        .assert()
+        // npm advisory (event-stream)
+        .stdout(predicate::str::contains("GHSA-mh6f-8j2x-4483"))
+        // pypi advisory (urllib3)
+        .stdout(predicate::str::contains("GHSA-vqm2-6jp7-jqvx"))
+        // crates advisory (tokio 1.7.3)
+        .stdout(predicate::str::contains("GHSA-w36q-p22w-6q94"))
+        // typosquat: `reakt` vs `react`
+        .stdout(predicate::str::contains("CBR-SUPPLY-TYPOSQUAT"))
+        // user policy rule from rules/supply/
+        .stdout(predicate::str::contains("CBR-DEP-EVENT-STREAM-MALWARE"));
+}
+
+#[test]
+fn supply_no_advisories_flag_skips_osv() {
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let target = format!("{manifest}/tests/fixtures/lockfiles");
+    let rules  = format!("{manifest}/rules");
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["supply", &target, "--rules", &rules, "--no-advisories", "--format", "text"])
+        .assert()
+        // Policy + typosquat still fire.
+        .stdout(predicate::str::contains("CBR-DEP-EVENT-STREAM-MALWARE"))
+        // But no GHSA-prefixed advisory findings.
+        .stdout(predicate::str::contains("GHSA-").not());
+}
+
 fn copy_tree(src: &std::path::Path, dst: &std::path::Path) {
     for entry in std::fs::read_dir(src).unwrap() {
         let entry = entry.unwrap();

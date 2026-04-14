@@ -5,7 +5,7 @@ use std::{fs, path::Path};
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::{finding::Severity, lang::Lang};
+use crate::{finding::Severity, lang::Lang, supply::policy::DependencyPolicy};
 
 /// A single detection rule as authored in YAML.
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -13,6 +13,9 @@ pub struct Rule {
     pub id:        String,
     pub title:     String,
     pub severity:  Severity,
+    /// Source-code rules declare which languages they apply to. Policy
+    /// rules (`dependency:` set) may leave this empty.
+    #[serde(default)]
     pub languages: Vec<Lang>,
     /// Tree-sitter query — structured, language-aware pattern.
     #[serde(default)]
@@ -29,6 +32,10 @@ pub struct Rule {
     /// by the fix subcommand.
     #[serde(default)]
     pub fix:       Option<String>,
+    /// Supply-chain policy block — rule applies to lockfile dependencies
+    /// rather than source code. Mutually exclusive with regex / query.
+    #[serde(default)]
+    pub dependency: Option<DependencyPolicy>,
     #[serde(default)]
     pub cwe:       Vec<String>,
 }
@@ -37,6 +44,13 @@ impl Rule {
     pub fn validate(&self) -> Result<()> {
         if self.id.is_empty() {
             bail!("rule has empty id");
+        }
+        let is_policy = self.dependency.is_some();
+        if is_policy {
+            if self.query.is_some() || self.regex.is_some() {
+                bail!("rule {}: dependency rule cannot also declare query/regex", self.id);
+            }
+            return Ok(());
         }
         if self.languages.is_empty() {
             bail!("rule {}: no languages declared", self.id);

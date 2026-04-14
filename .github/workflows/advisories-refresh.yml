@@ -1,0 +1,93 @@
+# Nightly job: pulls the full OSV database, filters to our ecosystems,
+# and commits the trimmed snapshot back to main. If the snapshot
+# changed meaningfully it also cuts a patch release so Homebrew users
+# pick it up on their next `brew upgrade`.
+
+name: Refresh OSV advisory snapshot
+
+on:
+  schedule:
+    - cron: "17 3 * * *"   # 03:17 UTC — after OSV's daily rebuild
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Download OSV archive
+        run: |
+          mkdir -p osv-raw
+          for eco in crates.io npm PyPI Go; do
+            slug=$(echo "$eco" | tr '[:upper:]' '[:lower:]' | sed 's/\./-/g')
+            curl -fsSL "https://osv-vulnerabilities.storage.googleapis.com/${eco}/all.zip" \
+              -o "osv-raw/${slug}.zip"
+            mkdir -p "osv-raw/${slug}"
+            unzip -q "osv-raw/${slug}.zip" -d "osv-raw/${slug}"
+          done
+
+      - name: Build trimmed snapshot
+        run: |
+          mkdir -p rules/advisories
+          python3 - <<'PY'
+          import json, os, pathlib
+          KEEP = ["id", "summary", "details", "affected", "severity"]
+          def trim(adv):
+              out = {k: adv[k] for k in KEEP if k in adv}
+              # Strip OSV affected-entry fields we never read; keeps
+              # snapshot small and shipable.
+              for aff in out.get("affected", []):
+                  aff.pop("database_specific", None)
+                  aff.pop("ecosystem_specific_full", None)
+              return out
+          for eco in ["crates.io", "npm", "PyPI", "Go"]:
+              slug = eco.lower().replace(".", "-")
+              src = pathlib.Path("osv-raw") / slug
+              dst = pathlib.Path("rules/advisories") / f"{slug}.jsonl"
+              with dst.open("w") as f:
+                  for p in sorted(src.glob("*.json")):
+                      adv = json.loads(p.read_text())
+                      f.write(json.dumps(trim(adv), separators=(",", ":")) + "\n")
+              print(f"{eco}: wrote {dst}")
+          PY
+
+      - name: Commit snapshot if changed
+        id: commit
+        run: |
+          git config user.name  "cybrium-bot"
+          git config user.email "bot@cybrium.ai"
+          git add rules/advisories/
+          if git diff --staged --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Only cut a release when the delta crosses a meaningful
+          # threshold — single-entry churn from OSV republication
+          # doesn't warrant a new binary release every day.
+          added=$(git diff --staged --numstat rules/advisories/ | awk '{s+=$1} END {print s+0}')
+          echo "added_lines=$added" >> "$GITHUB_OUTPUT"
+          git commit -m "advisories: refresh OSV snapshot ($added new lines)"
+          git push
+          if [ "$added" -ge 50 ]; then
+            echo "cut_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cut_release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cut patch release
+        if: steps.commit.outputs.cut_release == 'true'
+        run: |
+          CURRENT=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          IFS=. read -r MA MI PA <<< "$CURRENT"
+          NEXT="${MA}.${MI}.$((PA + 1))"
+          sed -i "s/^version     = \"${CURRENT}\"/version     = \"${NEXT}\"/" Cargo.toml
+          git add Cargo.toml
+          git commit -m "release: v${NEXT} (advisory snapshot refresh)"
+          git tag "v${NEXT}"
+          git push
+          git push --tags
