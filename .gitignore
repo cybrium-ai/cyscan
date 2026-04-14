@@ -1,0 +1,13 @@
+# Cargo build artefacts
+/target/
+**/*.rs.bk
+
+# Lockfile — we do want this in git for reproducible builds
+# !Cargo.lock
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
