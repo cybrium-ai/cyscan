@@ -125,22 +125,29 @@ fn load_pack(path: Option<&std::path::Path>) -> Result<RulePack> {
     RulePack::load_dir(&path).with_context(|| format!("loading rules from {}", path.display()))
 }
 
-/// Best-effort resolution of the bundled rules directory. Looks at:
-///   1. `$CYSCAN_RULES` env var
-///   2. `rules/` next to the binary (expected in CI-built archives)
-///   3. `rules/` next to Cargo.toml (dev mode)
+/// Best-effort resolution of the bundled rules directory.
+///
+/// Search order (first hit wins):
+///   1. `$CYSCAN_RULES` env var (explicit override)
+///   2. `<exe_dir>/rules`             — tarball layout (bin + rules side-by-side)
+///   3. `<exe_dir>/../rules`          — Homebrew layout (bin/ + rules/ under prefix)
+///   4. `<exe_dir>/../share/cyscan/rules` — FHS-friendly Linux package layout
+///   5. `<CARGO_MANIFEST_DIR>/rules`  — cargo run / dev mode
 fn bundled_rules_path() -> PathBuf {
     if let Ok(p) = std::env::var("CYSCAN_RULES") {
         return PathBuf::from(p);
     }
     if let Ok(exe) = std::env::current_exe() {
         if let Some(dir) = exe.parent() {
-            let candidate = dir.join("rules");
-            if candidate.exists() {
-                return candidate;
+            for rel in ["rules", "../rules", "../share/cyscan/rules"] {
+                let candidate = dir.join(rel);
+                if candidate.exists() {
+                    // Canonicalise so downstream error messages don't print
+                    // path fragments full of `..`
+                    return candidate.canonicalize().unwrap_or(candidate);
+                }
             }
         }
     }
-    // dev mode — workspace-relative
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("rules")
 }
