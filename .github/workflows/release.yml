@@ -162,6 +162,7 @@ jobs:
           VERSION="${{ steps.ver.outputs.tag }}"
           BASE="https://github.com/cybrium-ai/cyscan/releases/download/v${VERSION}"
 
+          mkdir -p homebrew-cli/Formula
           cat > homebrew-cli/Formula/cyscan.rb <<RUBY
           class Cyscan < Formula
             desc     "Cybrium Scan — fast multi-language SAST engine"
