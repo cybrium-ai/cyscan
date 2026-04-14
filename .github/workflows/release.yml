@@ -25,7 +25,8 @@ on:
         required: true
 
 permissions:
-  contents: write
+  contents:   write
+  id-token:   write   # Cosign keyless signing — GitHub OIDC identifies the workflow
 
 jobs:
   build:
@@ -139,6 +140,36 @@ jobs:
             echo "linux_amd64_sha=$(awk  '/x86_64-unknown-linux-gnu/  {print $1}' SHA256SUMS)"
           } >> "$GITHUB_OUTPUT"
 
+      # Sign every release artefact with Cosign's keyless mode. The
+      # GitHub OIDC token identifies the workflow run; no long-lived
+      # signing key is ever stored anywhere. Verifiers check the
+      # ephemeral certificate chain + Rekor transparency log.
+      #
+      # Users verify a downloaded binary with:
+      #
+      #   cosign verify-blob \
+      #     --certificate-identity-regexp '^https://github.com/cybrium-ai/cyscan/' \
+      #     --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
+      #     --signature cyscan_X_TARGET.tar.gz.sig \
+      #     --certificate cyscan_X_TARGET.tar.gz.pem \
+      #     cyscan_X_TARGET.tar.gz
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign release artefacts (keyless)
+        working-directory: artifacts
+        env:
+          COSIGN_YES: "true"
+        run: |
+          for f in cyscan_*.tar.gz cyscan_*.zip SHA256SUMS; do
+            [ -f "$f" ] || continue
+            echo "signing $f"
+            cosign sign-blob \
+              --output-certificate "$f.pem" \
+              --output-signature "$f.sig" \
+              "$f"
+          done
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
@@ -149,6 +180,8 @@ jobs:
             artifacts/*.tar.gz
             artifacts/*.zip
             artifacts/SHA256SUMS
+            artifacts/*.sig
+            artifacts/*.pem
 
       - name: Checkout Homebrew tap
         uses: actions/checkout@v4
