@@ -24,6 +24,11 @@ pub struct Rule {
     pub message:   String,
     #[serde(default)]
     pub fix_recipe: Option<String>,
+    /// Literal replacement text spliced over the matched range when
+    /// `cyscan fix` is invoked. Rules without a `fix:` block are skipped
+    /// by the fix subcommand.
+    #[serde(default)]
+    pub fix:       Option<String>,
     #[serde(default)]
     pub cwe:       Vec<String>,
 }

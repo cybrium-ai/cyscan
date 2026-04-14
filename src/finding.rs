@@ -81,9 +81,19 @@ pub struct Finding {
     pub column:     usize,
     pub end_line:   usize,
     pub end_column: usize,
+    /// Byte offsets into the scanned file — used by `cyscan fix` to splice
+    /// replacement text precisely. Not serialised (internal use only).
+    #[serde(skip)]
+    pub start_byte: usize,
+    #[serde(skip)]
+    pub end_byte:   usize,
     pub snippet:    String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fix_recipe: Option<String>,
+    /// Literal replacement text carried over from the rule. Skipped from
+    /// JSON/SARIF — the `fix` subcommand consumes it directly.
+    #[serde(skip)]
+    pub fix:        Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cwe:        Vec<String>,
 }

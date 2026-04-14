@@ -6,6 +6,7 @@
 
 pub mod cli;
 pub mod finding;
+pub mod fixer;
 pub mod lang;
 pub mod matcher;
 pub mod output;

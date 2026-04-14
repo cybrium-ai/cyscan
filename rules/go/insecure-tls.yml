@@ -11,3 +11,4 @@ message: |
   specific ServerName / RootCAs if pinning was the intent.
 regex: |
   InsecureSkipVerify\s*:\s*true
+fix: 'InsecureSkipVerify: false'
