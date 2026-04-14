@@ -5,7 +5,7 @@ use std::{path::PathBuf, process::ExitCode};
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::{finding::Severity, output, rule::RulePack, scanner};
+use crate::{finding::Severity, fixer, output, rule::RulePack, scanner};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -44,6 +44,35 @@ enum Cmd {
         /// Parallelism override. Default = rayon's detected CPU count.
         #[arg(long)]
         jobs: Option<usize>,
+    },
+
+    /// Apply autofixes for every finding whose rule has a `fix:` block.
+    Fix {
+        /// Target path (file or directory).
+        #[arg(default_value = ".")]
+        target: PathBuf,
+
+        /// Rule pack directory. Same resolution as `scan`.
+        #[arg(long, short = 'r')]
+        rules: Option<PathBuf>,
+
+        /// Print a unified diff per finding — write nothing.
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Prompt y/n/s/q per finding.
+        #[arg(long)]
+        interactive: bool,
+
+        /// Skip writing `<file>.cyscan-bak` before rewriting.
+        #[arg(long)]
+        no_backup: bool,
+
+        /// Exit with non-zero status if any finding at or above this
+        /// severity was left unfixed (no `fix:` block, skipped overlap,
+        /// declined in interactive mode).
+        #[arg(long)]
+        fail_on: Option<Severity>,
     },
 
     /// Inspect the configured rule pack.
@@ -96,6 +125,34 @@ pub fn run() -> Result<ExitCode> {
 
             let fail_hit = match fail_on {
                 Some(min) => findings.iter().any(|f| f.severity >= min),
+                None      => false,
+            };
+            Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
+        }
+
+        Cmd::Fix { target, rules, dry_run, interactive, no_backup, fail_on } => {
+            let pack = load_pack(rules.as_deref())?;
+            let findings = scanner::run(&target, &pack)?;
+            let total = findings.len();
+
+            let report = fixer::apply(findings, fixer::FixOptions {
+                dry_run,
+                interactive,
+                backup: !no_backup,
+            })?;
+
+            eprintln!(
+                "fix: {} patched, {} fixed, {} skipped (no fix), {} skipped (overlap), {} aborted; {} findings remain",
+                report.files_patched,
+                report.findings_fixed,
+                report.findings_skipped_no_fix,
+                report.findings_skipped_overlap,
+                report.files_aborted,
+                total - report.findings_fixed,
+            );
+
+            let fail_hit = match fail_on {
+                Some(min) => report.remaining.iter().any(|f| f.severity >= min),
                 None      => false,
             };
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))

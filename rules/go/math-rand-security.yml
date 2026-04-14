@@ -9,3 +9,4 @@ message: |
   resets, or CSRF cookies. Import crypto/rand and use rand.Read.
 regex: |
   "math/rand"
+fix: '"crypto/rand"'

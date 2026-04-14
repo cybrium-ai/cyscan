@@ -24,8 +24,13 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
     };
 
     let mut out = Vec::new();
-    for (line_ix, line) in source.lines().enumerate() {
-        for m in re.find_iter(line) {
+    // Track byte offset of each line start so we can report absolute byte
+    // ranges for the fixer. `source.lines()` strips newlines, so we walk
+    // the source manually to keep offsets honest on \r\n and \n alike.
+    let mut line_start = 0usize;
+    for (line_ix, line) in source.split_inclusive('\n').enumerate() {
+        let trimmed = line.trim_end_matches(['\r', '\n']);
+        for m in re.find_iter(trimmed) {
             out.push(Finding {
                 rule_id:    rule.id.clone(),
                 title:      rule.title.clone(),
@@ -36,11 +41,15 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
                 column:     m.start() + 1,
                 end_line:   line_ix + 1,
                 end_column: m.end() + 1,
-                snippet:    line.trim().to_string(),
+                start_byte: line_start + m.start(),
+                end_byte:   line_start + m.end(),
+                snippet:    trimmed.trim().to_string(),
                 fix_recipe: rule.fix_recipe.clone(),
+                fix:        rule.fix.clone(),
                 cwe:        rule.cwe.clone(),
             });
         }
+        line_start += line.len();
     }
     out
 }

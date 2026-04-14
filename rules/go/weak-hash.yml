@@ -10,3 +10,4 @@ message: |
   use golang.org/x/crypto/bcrypt or argon2.
 regex: |
   "crypto/(md5|sha1)"
+fix: '"crypto/sha256"'
