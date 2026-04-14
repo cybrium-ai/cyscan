@@ -1,6 +1,6 @@
 [package]
 name        = "cyscan"
-version     = "0.2.0"
+version     = "0.3.0"
 edition     = "2021"
 description = "Cybrium Scan — fast multi-language SAST engine"
 license     = "Apache-2.0"
@@ -43,6 +43,10 @@ env_logger  = "0.11"
 
 # Colour output for the text reporter — honours NO_COLOR by default
 colored     = "2"
+
+# Supply-chain parsers. toml for Cargo.lock, semver for version ranges.
+toml        = { version = "0.8", default-features = false, features = ["parse"] }
+semver      = "1"
 
 # SARIF shape types — we emit SARIF manually via serde_json rather than
 # dragging in the sarif crate, which is heavy and overkill for v0.1.

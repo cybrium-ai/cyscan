@@ -5,7 +5,7 @@ use std::{path::PathBuf, process::ExitCode};
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::{finding::Severity, fixer, output, rule::RulePack, scanner};
+use crate::{finding::Severity, fixer, output, rule::RulePack, scanner, supply};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -44,6 +44,34 @@ enum Cmd {
         /// Parallelism override. Default = rayon's detected CPU count.
         #[arg(long)]
         jobs: Option<usize>,
+    },
+
+    /// Scan dependency lockfiles against advisories + typosquat + policy.
+    Supply {
+        #[arg(default_value = ".")]
+        target: PathBuf,
+
+        /// Rule pack directory (for `dependency:` policy rules).
+        #[arg(long, short = 'r')]
+        rules: Option<PathBuf>,
+
+        /// Advisory snapshot dir (defaults to bundled rules/advisories).
+        #[arg(long)]
+        advisories: Option<PathBuf>,
+
+        /// Skip the OSV advisory match — useful for policy-only scans.
+        #[arg(long)]
+        no_advisories: bool,
+
+        /// Suppress snapshot-freshness warnings (for air-gapped runs).
+        #[arg(long)]
+        offline: bool,
+
+        #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
+        format: Format,
+
+        #[arg(long)]
+        fail_on: Option<Severity>,
     },
 
     /// Apply autofixes for every finding whose rule has a `fix:` block.
@@ -130,6 +158,27 @@ pub fn run() -> Result<ExitCode> {
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
         }
 
+        Cmd::Supply { target, rules, advisories, no_advisories, offline: _, format, fail_on } => {
+            let pack = load_pack(rules.as_deref())?;
+            let snapshot = if no_advisories {
+                supply::advisory::Snapshot::default()
+            } else {
+                let dir = advisories.unwrap_or_else(bundled_advisories_path);
+                supply::advisory::Snapshot::load_dir(&dir)?
+            };
+            let findings = supply::run(&target, &pack, &snapshot)?;
+            match format {
+                Format::Text  => output::text::emit(&findings)?,
+                Format::Json  => output::json::emit(&findings)?,
+                Format::Sarif => output::sarif::emit(&findings)?,
+            }
+            let fail_hit = match fail_on {
+                Some(min) => findings.iter().any(|f| f.severity >= min),
+                None      => false,
+            };
+            Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
+        }
+
         Cmd::Fix { target, rules, dry_run, interactive, no_backup, fail_on } => {
             let pack = load_pack(rules.as_deref())?;
             let findings = scanner::run(&target, &pack)?;
@@ -207,4 +256,19 @@ fn bundled_rules_path() -> PathBuf {
         }
     }
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("rules")
+}
+
+fn bundled_advisories_path() -> PathBuf {
+    if let Ok(p) = std::env::var("CYSCAN_ADVISORIES") {
+        return PathBuf::from(p);
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            for rel in ["rules/advisories", "../rules/advisories", "../share/cyscan/rules/advisories"] {
+                let c = dir.join(rel);
+                if c.exists() { return c.canonicalize().unwrap_or(c); }
+            }
+        }
+    }
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("rules/advisories")
 }

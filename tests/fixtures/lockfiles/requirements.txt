@@ -1,0 +1,4 @@
+# Pinned pip requirements — intentionally includes a vulnerable urllib3.
+urllib3==1.26.5
+Jinja2==3.0.0
+requests==2.28.0
