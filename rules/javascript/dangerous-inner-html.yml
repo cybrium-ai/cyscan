@@ -1,0 +1,15 @@
+id:        CBR-JS-XSS-INNER-HTML
+title:     "Assignment to innerHTML / outerHTML"
+severity:  medium
+languages: [javascript, typescript]
+cwe:       [CWE-79]
+fix_recipe: CWE-79-CONTEXTUAL-ESCAPE
+message: |
+  Writing unsanitised data to innerHTML / outerHTML injects raw HTML
+  into the DOM — attacker-controlled input can execute script. Prefer
+  textContent, or sanitise with DOMPurify before setting innerHTML.
+query: |
+  (assignment_expression
+    left: (member_expression
+            property: (property_identifier) @prop
+            (#match? @prop "^(innerHTML|outerHTML)$"))) @write
