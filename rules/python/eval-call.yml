@@ -1,0 +1,15 @@
+id:         CBR-PY-CODE-EVAL
+title:      "Use of eval() / exec() on dynamic input"
+severity:   critical
+languages:  [python]
+cwe:        [CWE-95, CWE-94]
+fix_recipe: CBR-CODE-AVOID-EVAL
+message: |
+  Calling eval() or exec() executes arbitrary Python supplied by the
+  caller. If any part of the argument is attacker-influenced the
+  process is fully compromised. Replace with ast.literal_eval or an
+  explicit parser.
+query: |
+  (call
+    function: (identifier) @fn
+    (#match? @fn "^(eval|exec)$")) @call

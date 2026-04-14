@@ -1,0 +1,13 @@
+id:         CBR-PY-WEAK-HASH-MD5-SHA1
+title:      "MD5 / SHA-1 used for a security context"
+severity:   medium
+languages:  [python]
+cwe:        [CWE-327, CWE-328]
+fix_recipe: CWE-916-STRONG-HASH
+message: |
+  MD5 and SHA-1 are broken for cryptographic use. For password
+  storage use argon2 or bcrypt. For integrity use SHA-256 or BLAKE2.
+  If this hash is only for a non-security cache key, add a
+  usedforsecurity=False keyword (Python 3.9+).
+regex: |
+  \bhashlib\.(md5|sha1)\b

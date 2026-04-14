@@ -1,0 +1,13 @@
+id:         CBR-GO-TLS-INSECURE-SKIP-VERIFY
+title:      "tls.Config{InsecureSkipVerify: true}"
+severity:   high
+languages:  [go]
+cwe:        [CWE-295]
+fix_recipe: CBR-TLS-VERIFY
+message: |
+  Disabling TLS certificate verification turns the TLS session into
+  opportunistic encryption — no integrity guarantee against an
+  on-path attacker. Fix the root CA trust store instead; add
+  specific ServerName / RootCAs if pinning was the intent.
+regex: |
+  InsecureSkipVerify\s*:\s*true

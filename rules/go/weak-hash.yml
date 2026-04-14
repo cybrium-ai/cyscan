@@ -1,0 +1,12 @@
+id:         CBR-GO-WEAK-HASH
+title:      "crypto/md5 or crypto/sha1 imported for security"
+severity:   medium
+languages:  [go]
+cwe:        [CWE-327, CWE-328]
+fix_recipe: CWE-916-STRONG-HASH
+message: |
+  MD5 and SHA-1 are broken for any cryptographic purpose. Swap for
+  crypto/sha256 or golang.org/x/crypto/blake2b. For password storage
+  use golang.org/x/crypto/bcrypt or argon2.
+regex: |
+  "crypto/(md5|sha1)"
