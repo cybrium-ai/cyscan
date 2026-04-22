@@ -108,6 +108,12 @@ enum Cmd {
         #[command(subcommand)]
         cmd: RulesCmd,
     },
+
+    /// Check for updates and self-update the binary.
+    Update,
+
+    /// Show version and check for updates.
+    Version,
 }
 
 #[derive(Debug, Subcommand)]
@@ -219,6 +225,16 @@ pub fn run() -> Result<ExitCode> {
         Cmd::Rules { cmd: RulesCmd::Validate { rules } } => {
             let pack = load_pack(rules.as_deref())?;
             println!("✓ {} rule(s) parsed cleanly", pack.rules().len());
+            Ok(ExitCode::from(0))
+        }
+
+        Cmd::Update => {
+            self_update::update("cybrium-ai/cyscan", "cyscan")?;
+            Ok(ExitCode::from(0))
+        }
+
+        Cmd::Version => {
+            self_update::version("cybrium-ai/cyscan");
             Ok(ExitCode::from(0))
         }
     }

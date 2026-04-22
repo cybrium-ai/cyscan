@@ -12,4 +12,5 @@ pub mod matcher;
 pub mod output;
 pub mod rule;
 pub mod scanner;
+pub mod self_update;
 pub mod supply;
