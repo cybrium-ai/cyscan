@@ -138,8 +138,27 @@ pub enum Format {
     Sarif,
 }
 
+fn print_banner() {
+    eprintln!("\x1b[35m");
+    eprintln!(r#"   ___  _   _  ___   ___    _    _  _ "#);
+    eprintln!(r#"  / __|| | | |/ __| / __|  /_\  | \| |"#);
+    eprintln!(r#" | (__ | |_| |\__ \| (__  / _ \ | .` |"#);
+    eprintln!(r#"  \___| \__, ||___/ \___|/_/ \_\|_|\_|"#);
+    eprintln!(r#"        |___/                         "#);
+    eprintln!("\x1b[0m");
+    eprintln!(
+        "  \x1b[35m\x1b[1mcyscan\x1b[0m v{} — \x1b[2mCybrium AI SAST Engine\x1b[0m",
+        env!("CARGO_PKG_VERSION")
+    );
+    eprintln!();
+}
+
 pub fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
+    match &cli.cmd {
+        Cmd::Scan { .. } | Cmd::Supply { .. } | Cmd::Fix { .. } => print_banner(),
+        _ => {}
+    }
     match cli.cmd {
         Cmd::Scan { target, rules, format, fail_on, jobs } => {
             if let Some(n) = jobs {
