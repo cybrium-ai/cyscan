@@ -1,9 +1,0 @@
-id:        CBR-PYTH-USE_CLICK_SECHO
-title:     "Use Click Secho"
-severity:  critical
-languages: ['python']
-source:    semgrep/use-click-secho
-message: |
-  Use `click.secho($X)` instead. It combines click.echo() and click.style().
-pattern: |
-  click.echo(click.style($X, ...))

@@ -1,9 +1,0 @@
-id:        CBR-GENE-DETECT_GENERIC_AI_ANTHPROP
-title:     "Detect Generic Ai Anthprop"
-severity:  medium
-languages: ['generic']
-source:    semgrep/detect-generic-ai-anthprop
-message: |
-  Possibly found usage of AI: Anthropic
-pattern: |
-  anthropic

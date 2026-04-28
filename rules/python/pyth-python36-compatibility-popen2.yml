@@ -1,9 +1,0 @@
-id:        CBR-PYTH-PYTHON36_COMPATIBILITY_POPEN2
-title:     "Python36 Compatibility Popen2"
-severity:  critical
-languages: ['python']
-source:    semgrep/python36-compatibility-Popen2
-message: |
-  the `encoding` argument to Popen is only available on Python 3.6+
-pattern: |
-  subprocess.Popen(encoding=$X, ...)

@@ -1,9 +1,0 @@
-id:        CBR-PYTH-SYNC_SLEEP_IN_ASYNC_CODE
-title:     "Sync Sleep In Async Code"
-severity:  high
-languages: ['python']
-source:    semgrep/sync-sleep-in-async-code
-message: |
-  Synchronous time.sleep in async code will block the event loop and not allow other tasks to execute. Use asyncio.sleep() instead.
-pattern: |
-  time.sleep(...)

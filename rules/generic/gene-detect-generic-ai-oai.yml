@@ -1,9 +1,0 @@
-id:        CBR-GENE-DETECT_GENERIC_AI_OAI
-title:     "Detect Generic Ai Oai"
-severity:  medium
-languages: ['generic']
-source:    semgrep/detect-generic-ai-oai
-message: |
-  Possibly found usage of AI: OpenAI
-pattern: |
-  openai

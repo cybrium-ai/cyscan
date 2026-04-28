@@ -1,9 +1,0 @@
-id:        CBR-PYTH-DJANGO_COMPAT_2_0_ASSERT_REDIR
-title:     "Django Compat 2 0 Assert Redirects Helper"
-severity:  high
-languages: ['python']
-source:    semgrep/django-compat-2_0-assert-redirects-helper
-message: |
-  The host argument to assertRedirects is removed in Django 2.0.
-pattern: |
-  $X.assertRedirects(..., host=$Y, ...)

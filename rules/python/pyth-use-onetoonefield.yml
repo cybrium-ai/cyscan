@@ -1,9 +1,0 @@
-id:        CBR-PYTH-USE_ONETOONEFIELD
-title:     "Use Onetoonefield"
-severity:  high
-languages: ['python']
-source:    semgrep/use-onetoonefield
-message: |
-  Use 'django.db.models.OneToOneField' instead of 'ForeignKey' with unique=True. 'OneToOneField' is used to create one-to-one relationships.
-pattern: |
-  $F = django.db.models.ForeignKey(..., unique=True, ...)

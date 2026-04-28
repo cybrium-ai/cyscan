@@ -1,9 +1,0 @@
-id:        CBR-TERR-GCP_GKE_NODEPOOL_SECURE_BOOT_F
-title:     "Gcp Gke Nodepool Secure Boot For Shielded Nodes"
-severity:  high
-languages: ['terraform']
-source:    semgrep/gcp-gke-nodepool-secure-boot-for-shielded-nodes
-message: |
-  Ensure Secure Boot for Shielded GKE Nodes is Enabled	
-pattern: |
-  resource

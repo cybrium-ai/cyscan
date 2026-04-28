@@ -1,9 +1,0 @@
-id:        CBR-PYTH-PYTHON37_COMPATIBILITY_IPV4NET
-title:     "Python37 Compatibility Ipv4Network1"
-severity:  critical
-languages: ['python']
-source:    semgrep/python37-compatibility-ipv4network1
-message: |
-  IPv4Network.subnet_of is only available on Python 3.7+ and is therefore not backwards compatible. Instead, check if the subnet is in 'subnets'.
-pattern: |
-  ipaddress.IPv4Network.subnet_of($X)

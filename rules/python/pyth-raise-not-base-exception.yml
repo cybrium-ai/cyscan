@@ -1,9 +1,0 @@
-id:        CBR-PYTH-RAISE_NOT_BASE_EXCEPTION
-title:     "Raise Not Base Exception"
-severity:  critical
-languages: ['python']
-source:    semgrep/raise-not-base-exception
-message: |
-  In Python3, a runtime `TypeError` will be thrown if you attempt to raise an object or class which does not inherit from `BaseException`
-pattern: |
-  raise "..."

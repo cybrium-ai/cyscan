@@ -1,9 +1,0 @@
-id:        CBR-TERR-GCP_POSTGRESQL_LOG_CHECKPOINTS
-title:     "Gcp Postgresql Log Checkpoints"
-severity:  high
-languages: ['terraform']
-source:    semgrep/gcp-postgresql-log-checkpoints
-message: |
-  Ensure PostgreSQL database 'log_checkpoints' flag is set to 'on'
-pattern: |
-  resource

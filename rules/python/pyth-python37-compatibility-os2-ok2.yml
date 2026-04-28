@@ -1,9 +1,0 @@
-id:        CBR-PYTH-PYTHON37_COMPATIBILITY_OS2_OK2
-title:     "Python37 Compatibility Os2 Ok2"
-severity:  critical
-languages: ['python']
-source:    semgrep/python37-compatibility-os2-ok2
-message: |
-  os.pwritev() is only available on Python 3.3+ and is therefore not backwards compatible. Instead, use a combination of pwrite() and writev().
-pattern: |
-  os.pwritev(...)

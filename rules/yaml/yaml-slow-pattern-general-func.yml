@@ -1,9 +1,0 @@
-id:        CBR-YAML-SLOW_PATTERN_GENERAL_FUNC
-title:     "Slow Pattern General Func"
-severity:  high
-languages: ['yaml']
-source:    semgrep/slow-pattern-general-func
-message: |
-  Using patterns like `function (...) {...}` is too general it will probably slow down the rule performance.
-regex: |
-  function[^{]*{[\s\n]*\.\.\.[\s\n]*}

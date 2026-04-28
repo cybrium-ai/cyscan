@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_SQLSERVER_THREAT_DETECTI
-title:     "Azure Sqlserver Threat Detection Types"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-sqlserver-threat-detection-types
-message: |
-  Ensure that Threat Detection types is set to All
-pattern: |
-  resource

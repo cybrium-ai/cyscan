@@ -1,9 +1,0 @@
-id:        CBR-SWIF-DETECT_APPLE_CORE_ML
-title:     "Detect Apple Core Ml"
-severity:  medium
-languages: ['swift']
-source:    semgrep/detect-apple-core-ml
-message: |
-  Possibly found usage of AI: Apple CoreML
-pattern: |
-  VNCoreMLModel(...)

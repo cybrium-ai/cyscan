@@ -1,9 +1,0 @@
-id:        CBR-JAVA-NO_STRING_EQEQ
-title:     "No String Eqeq"
-severity:  high
-languages: ['java']
-source:    semgrep/no-string-eqeq
-message: |
-  Strings should not be compared with '=='. This is a reference comparison operator. Use '.equals()' instead.
-pattern: |
-  $X == (String $Y)

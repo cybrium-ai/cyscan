@@ -1,9 +1,0 @@
-id:        CBR-PYTH-IDENTICAL_IS_COMPARISON
-title:     "Identical Is Comparison"
-severity:  critical
-languages: ['python']
-source:    semgrep/identical-is-comparison
-message: |
-  Found identical comparison using is. Ensure this is what you intended.
-pattern: |
-  $S is $S

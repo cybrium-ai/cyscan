@@ -1,9 +1,0 @@
-id:        CBR-GO-HARDCODED_EQ_TRUE_OR_FALSE
-title:     "Hardcoded Eq True Or False"
-severity:  medium
-languages: ['go']
-source:    semgrep/hardcoded-eq-true-or-false
-message: |
-  Detected useless if statement. 'if (True)' and 'if (False)' always result in the same behavior, and therefore is not necessary in the code. Remove the 'if (False)' expression completely or just the 'if (True)' comparison depending on which expression is in the code.
-pattern: |
-  if (true) { ... }

@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_SYNAPSE_WORKSCAPE_ENABLE
-title:     "Azure Synapse Workscape Enables Managed Virtual Network"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-synapse-workscape-enables-managed-virtual-network
-message: |
-  Ensure that Azure Synapse workspaces enables managed virtual networks
-pattern: |
-  resource

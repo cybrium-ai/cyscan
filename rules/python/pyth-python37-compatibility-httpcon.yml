@@ -1,9 +1,0 @@
-id:        CBR-PYTH-PYTHON37_COMPATIBILITY_HTTPCON
-title:     "Python37 Compatibility Httpconn"
-severity:  critical
-languages: ['python']
-source:    semgrep/python37-compatibility-httpconn
-message: |
-  Found usage of the 'blocksize' argument in a HTTPConnection call. This is only available on Python 3.7+ and is therefore not backwards compatible. Remove this in order for this code to work in Python 3.6 and below.
-pattern: |
-  http.client.HTTPConnection(blocksize=$X,...)

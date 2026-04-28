@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_STORAGE_ACCOUNT_ENABLES_
-title:     "Azure Storage Account Enables Secure Transfer"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-storage-account-enables-secure-transfer
-message: |
-  Ensure that storage account enables secure transfer
-pattern: |
-  resource
