@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_DEFENDERON_SERVERS
-title:     "Azure Defenderon Servers"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-defenderon-servers
-message: |
-  Ensure that Azure Defender is set to On for Servers
-pattern: |
-  resource

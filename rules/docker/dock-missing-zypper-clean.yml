@@ -1,9 +1,0 @@
-id:        CBR-DOCK-MISSING_ZYPPER_CLEAN
-title:     "Missing Zypper Clean"
-severity:  high
-languages: ['docker']
-source:    semgrep/missing-zypper-clean
-message: |
-  This zypper command does not end with '&& zypper clean'. Running 'zypper clean' will remove cached data and reduce package size. (This must be performed in the same RUN step.)
-pattern: |
-  RUN ... zypper $COMMAND ...

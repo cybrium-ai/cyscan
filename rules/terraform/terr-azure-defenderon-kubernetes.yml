@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_DEFENDERON_KUBERNETES
-title:     "Azure Defenderon Kubernetes"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-defenderon-kubernetes
-message: |
-  Ensure that Azure Defender is set to On for Kubernetes
-pattern: |
-  resource

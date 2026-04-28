@@ -1,9 +1,0 @@
-id:        CBR-YAML-METADATA_CWE_PROHIBITED_OR_DIS
-title:     "Metadata Cwe Prohibited Or Discouraged"
-severity:  critical
-languages: ['yaml']
-source:    semgrep/metadata-cwe-prohibited-or-discouraged
-message: |
-  Vulnerability mapping for this CWE is discouraged or prohibited.
-pattern: |
-  cwe: $CWE

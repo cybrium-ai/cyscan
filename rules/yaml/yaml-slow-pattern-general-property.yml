@@ -1,9 +1,0 @@
-id:        CBR-YAML-SLOW_PATTERN_GENERAL_PROPERTY
-title:     "Slow Pattern General Property"
-severity:  high
-languages: ['yaml']
-source:    semgrep/slow-pattern-general-property
-message: |
-  Using patterns like `$X.$Y` may be too general and may slow down the rule performance.
-regex: |
-  \$[A-Z]*\.\$[A-Z]*

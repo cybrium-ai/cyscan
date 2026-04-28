@@ -1,9 +1,0 @@
-id:        CBR-PYTH-DJANGO_COMPAT_2_0_SIGNALS_WEAK
-title:     "Django Compat 2 0 Signals Weak"
-severity:  high
-languages: ['python']
-source:    semgrep/django-compat-2_0-signals-weak
-message: |
-  The weak argument to django.dispatch.signals.Signal.disconnect() is removed in Django 2.0.
-pattern: |
-  django.dispatch.signals.Signal.disconnect(..., weak=$X, ...)

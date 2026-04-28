@@ -1,9 +1,0 @@
-id:        CBR-TERR-GCP_GKE_SECURE_BOOT_FOR_SHIELD
-title:     "Gcp Gke Secure Boot For Shielded Nodes"
-severity:  high
-languages: ['terraform']
-source:    semgrep/gcp-gke-secure-boot-for-shielded-nodes
-message: |
-  Ensure Secure Boot for Shielded GKE Nodes is Enabled	
-pattern: |
-  resource

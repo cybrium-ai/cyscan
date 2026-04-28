@@ -1,9 +1,0 @@
-id:        CBR-JAVA-JAVASCRIPT_CONFIRM
-title:     "Javascript Confirm"
-severity:  high
-languages: ['javascript', 'typescript']
-source:    semgrep/javascript-confirm
-message: |
-  found confirm() call; should this be in production code?
-pattern: |
-  confirm(...)

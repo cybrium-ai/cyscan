@@ -1,9 +1,0 @@
-id:        CBR-PYTH-DJANGO_COMPAT_2_0_ASSIGNMENT_T
-title:     "Django Compat 2 0 Assignment Tag"
-severity:  high
-languages: ['python']
-source:    semgrep/django-compat-2_0-assignment-tag
-message: |
-  The assignment_tag helper is removed in Django 2.0.
-pattern: |
-  $X.assignment_tag(...)

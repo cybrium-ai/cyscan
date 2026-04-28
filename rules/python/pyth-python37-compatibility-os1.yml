@@ -1,9 +1,0 @@
-id:        CBR-PYTH-PYTHON37_COMPATIBILITY_OS1
-title:     "Python37 Compatibility Os1"
-severity:  critical
-languages: ['python']
-source:    semgrep/python37-compatibility-os1
-message: |
-  os.preadv() is only available on Python 3.7+ and is therefore not backwards compatible. Instead, use a combination of os.readv() and os.pread().
-pattern: |
-  os.preadv(...)

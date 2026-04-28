@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_DEFENDERON_CONTAINER_REG
-title:     "Azure Defenderon Container Registry"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-defenderon-container-registry
-message: |
-  Ensure that Azure Defender is set to On for Container
-pattern: |
-  resource
