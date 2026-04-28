@@ -1,0 +1,10 @@
+id:        CBR-SCAL-SCALA_SLICK_SQL_NON_LITERAL
+title:     "Scala Slick Sql Non Literal"
+severity:  critical
+languages: ['scala']
+cwe:       ['CWE-89']
+source:    semgrep/scala-slick-sql-non-literal
+message: |
+  Detected a formatted string in a SQL statement. This could lead to SQL injection if variables in the SQL statement are not properly sanitized. Avoid using `#$variable` and use `$variable` in `sql"..."` strings instead.
+pattern: |
+  sql"..."

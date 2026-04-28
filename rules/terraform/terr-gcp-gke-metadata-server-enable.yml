@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_GKE_METADATA_SERVER_ENABLE
+title:     "Gcp Gke Metadata Server Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-gke-metadata-server-enabled
+message: |
+  Ensure the GKE Metadata Server is Enabled	
+pattern: |
+  resource

@@ -1,0 +1,11 @@
+id:        CBR-PYTH-DJANGO_DB_MODEL_SAVE_SUPER
+title:     "Django Db Model Save Super"
+severity:  high
+languages: ['python']
+source:    semgrep/django-db-model-save-super
+message: |
+  Detected a django model `$MODEL` is not calling super().save() inside of the save method.
+pattern: |
+  def save(self, ...):
+    ...
+  

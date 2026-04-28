@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_SQLSERVER_EMAIL_ALERTS_T
+title:     "Azure Sqlserver Email Alerts Toadmins Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-sqlserver-email-alerts-toadmins-enabled
+message: |
+  Ensure that Email service and co-administrators is Enabled for MSSQL servers
+pattern: |
+  resource

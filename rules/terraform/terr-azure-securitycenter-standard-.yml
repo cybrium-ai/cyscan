@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_SECURITYCENTER_STANDARD_
+title:     "Azure Securitycenter Standard Pricing"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-securitycenter-standard-pricing
+message: |
+  Ensure that standard pricing tier is selected
+pattern: |
+  resource

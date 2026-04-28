@@ -1,0 +1,10 @@
+id:        CBR-GENE-CLAUDE_SETTINGS_AUTO_ENABLE_MC
+title:     "Claude Settings Auto Enable Mcp Generic"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-862']
+source:    semgrep/claude-settings-auto-enable-mcp-generic
+message: |
+  "enableAllProjectMcpServers" is set to true in settings. This automatically enables all MCP servers defined in project configuration without user confirmation, allowing malicious repositories to register arbitrary MCP servers that execute code on your machine. Remove this setting or set it to false so that MCP servers require explicit approval.
+regex: |
+  "enableAllProjectMcpServers"\s*:\s*true

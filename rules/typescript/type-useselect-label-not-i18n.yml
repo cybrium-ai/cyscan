@@ -1,0 +1,9 @@
+id:        CBR-TYPE-USESELECT_LABEL_NOT_I18N
+title:     "Useselect Label Not I18N"
+severity:  high
+languages: ['typescript', 'javascript']
+source:    semgrep/useselect-label-not-i18n
+message: |
+  React useSelect() label is not internationalized - '$LABEL'. You should support different langauges in your website or app with internationalization. Instead, use packages such as `i18next` to internationalize your elements.
+pattern: |
+  useSelect($X1, $X2, '$LABEL', $X4)

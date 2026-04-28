@@ -1,0 +1,10 @@
+id:        CBR-JAVA-EXPRESS_COOKIE_SESSION_NO_HTTP
+title:     "Express Cookie Session No Httponly"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-522']
+source:    semgrep/express-cookie-session-no-httponly
+message: |
+  Default session middleware settings: `httpOnly` not set. It ensures the cookie is sent only over HTTP(S), not client JavaScript, helping to protect against cross-site scripting attacks.
+pattern: |
+  $SESSION(...)

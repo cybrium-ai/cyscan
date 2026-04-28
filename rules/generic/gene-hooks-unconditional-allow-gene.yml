@@ -1,0 +1,10 @@
+id:        CBR-GENE-HOOKS_UNCONDITIONAL_ALLOW_GENE
+title:     "Hooks Unconditional Allow Generic"
+severity:  critical
+languages: ['generic']
+cwe:       ['CWE-862']
+source:    semgrep/hooks-unconditional-allow-generic
+message: |
+  Hook unconditionally allows tool execution by outputting a permissionDecision of "allow" without any conditional check. This bypasses the entire permission system. Add a conditional check to validate the tool or command before allowing.
+regex: |
+  permissionDecision.*allow

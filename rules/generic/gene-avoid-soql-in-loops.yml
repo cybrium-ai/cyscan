@@ -1,0 +1,10 @@
+id:        CBR-GENE-AVOID_SOQL_IN_LOOPS
+title:     "Avoid Soql In Loops"
+severity:  critical
+languages: ['generic']
+source:    semgrep/avoid-soql-in-loops
+message: |
+  Database class methods, DML operations, SOQL queries, SOSL queries, Approval class methods, Email sending, async scheduling or queueing within loops can cause governor limit exceptions. Instead, try to batch up the data into a list and invoke the operation once on that list of data outside the loop.
+pattern: |
+  $OBJECTS = [...SELECT...FROM...];
+  

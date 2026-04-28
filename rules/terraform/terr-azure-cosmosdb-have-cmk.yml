@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_COSMOSDB_HAVE_CMK
+title:     "Azure Cosmosdb Have Cmk"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-320']
+source:    semgrep/azure-cosmosdb-have-cmk
+message: |
+  Ensure that Cosmos DB accounts have customer-managed keys to encrypt data at rest
+pattern: |
+  resource

@@ -1,0 +1,15 @@
+id:        CBR-TERR-AWS_EBS_UNENCRYPTED
+title:     "Aws Ebs Unencrypted"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-320']
+source:    semgrep/aws-ebs-unencrypted
+message: |
+  The AWS EBS is unencrypted. The AWS EBS encryption protects data in the EBS.
+pattern: |
+  resource "aws_ebs_encryption_by_default" $ANYTHING {
+    ...
+    enabled = false
+    ...
+  }
+  

@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_PROJECT_MEMBER_DEFAULT_SER
+title:     "Gcp Project Member Default Service Account Iam Binding"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-project-member-default-service-account-iam-binding
+message: |
+  Ensure Default Service account is not used at a project level
+pattern: |
+  resource

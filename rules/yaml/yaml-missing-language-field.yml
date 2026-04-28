@@ -1,0 +1,9 @@
+id:        CBR-YAML-MISSING_LANGUAGE_FIELD
+title:     "Missing Language Field"
+severity:  high
+languages: ['yaml']
+source:    semgrep/missing-language-field
+message: |
+  Please include a 'languages' field for your rule!
+pattern: |
+  id: $RULEID

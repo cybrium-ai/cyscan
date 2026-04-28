@@ -1,0 +1,10 @@
+id:        CBR-PHP-EVAL_USE
+title:     "Eval Use"
+severity:  critical
+languages: ['php']
+cwe:       ['CWE-78']
+source:    semgrep/eval-use
+message: |
+  Evaluating non-constant commands. This can lead to command injection.
+pattern: |
+  eval(...);

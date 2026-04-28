@@ -1,0 +1,11 @@
+id:        CBR-RUBY-JSON_ENTITY_ESCAPE
+title:     "Json Entity Escape"
+severity:  high
+languages: ['ruby']
+cwe:       ['CWE-79']
+source:    semgrep/json-entity-escape
+message: |
+  Checks if HTML escaping is globally disabled for JSON output. This could lead to XSS.
+pattern: |
+  ActiveSupport.escape_html_entities_in_json = false
+  

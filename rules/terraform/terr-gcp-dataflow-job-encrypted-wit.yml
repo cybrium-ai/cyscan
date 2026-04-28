@@ -1,0 +1,13 @@
+id:        CBR-TERR-GCP_DATAFLOW_JOB_ENCRYPTED_WIT
+title:     "Gcp Dataflow Job Encrypted With Cmk"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-320']
+source:    semgrep/gcp-dataflow-job-encrypted-with-cmk
+message: |
+  Ensure data flow jobs are encrypted with Customer Supplied Encryption Keys (CSEK)
+pattern: |
+  resource "google_dataflow_job" $ANYTHING {
+    ...
+  }
+  

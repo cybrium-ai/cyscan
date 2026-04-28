@@ -1,0 +1,15 @@
+id:        CBR-TERR-AWS_LAMBDA_PERMISSION_UNRESTRI
+title:     "Aws Lambda Permission Unrestricted Source Arn"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-732']
+source:    semgrep/aws-lambda-permission-unrestricted-source-arn
+message: |
+  The AWS Lambda permission has an AWS service principal but does not specify a source ARN. If you grant permission to a service principal without specifying the source, other accounts could potentially configure resources in their account to invoke your Lambda function. Set the source_arn value to the ARN of the AWS resource that invokes the function, eg. an S3 bucket, CloudWatch Events Rule, API Gateway, or SNS topic.
+pattern: |
+  resource "aws_lambda_permission" $ANYTHING {
+    ...
+    principal = "$PRINCIPAL"
+    ...
+  }
+  

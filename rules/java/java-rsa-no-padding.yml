@@ -1,0 +1,10 @@
+id:        CBR-JAVA-RSA_NO_PADDING
+title:     "Rsa No Padding"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-326']
+source:    semgrep/rsa-no-padding
+message: |
+  Using RSA without OAEP mode weakens the encryption.
+pattern: |
+  $CIPHER.getInstance("=~/RSA/[Nn][Oo][Nn][Ee]/NoPadding/")

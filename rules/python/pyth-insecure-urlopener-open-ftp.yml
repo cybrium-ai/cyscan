@@ -1,0 +1,10 @@
+id:        CBR-PYTH-INSECURE_URLOPENER_OPEN_FTP
+title:     "Insecure Urlopener Open Ftp"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-319']
+source:    semgrep/insecure-urlopener-open-ftp
+message: |
+  Detected an insecure transmission channel. 'URLopener.open(...)' is being used with 'ftp://'. Use SFTP instead. urllib does not support SFTP, so consider using a library which supports SFTP.
+pattern: |
+  urllib.request.URLopener(...).open("=~/[Ff][Tt][Pp]://.*/", ...)

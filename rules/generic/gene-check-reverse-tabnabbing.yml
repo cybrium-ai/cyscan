@@ -1,0 +1,11 @@
+id:        CBR-GENE-CHECK_REVERSE_TABNABBING
+title:     "Check Reverse Tabnabbing"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-1022']
+source:    semgrep/check-reverse-tabnabbing
+message: |
+  Setting an anchor target of `_blank` without the `noopener` or `noreferrer` attribute allows reverse tabnabbing on Internet Explorer, Opera, and Android Webview.
+pattern: |
+  _blank
+  

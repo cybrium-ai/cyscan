@@ -1,0 +1,13 @@
+id:        CBR-JAVA-USE_SNAKEYAML_CONSTRUCTOR
+title:     "Use Snakeyaml Constructor"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-502']
+source:    semgrep/use-snakeyaml-constructor
+message: |
+  Used SnakeYAML org.yaml.snakeyaml.Yaml() constructor with no arguments, which is vulnerable to deserialization attacks. Use the one-argument Yaml(...) constructor instead, with SafeConstructor or a custom Constructor as the argument.
+pattern: |
+  $Y = new org.yaml.snakeyaml.Yaml();
+  ...
+  $Y.load(...);
+  

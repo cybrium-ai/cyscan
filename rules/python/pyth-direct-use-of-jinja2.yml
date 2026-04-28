@@ -1,0 +1,10 @@
+id:        CBR-PYTH-DIRECT_USE_OF_JINJA2
+title:     "Direct Use Of Jinja2"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-79']
+source:    semgrep/direct-use-of-jinja2
+message: |
+  Detected direct use of jinja2. If not done properly, this may bypass HTML escaping which opens up the application to cross-site scripting (XSS) vulnerabilities. Prefer using the Flask method 'render_template()' and templates with a '.html' extension in order to prevent XSS.
+pattern: |
+  jinja2.Environment(...)

@@ -1,0 +1,15 @@
+id:        CBR-JAVA-UNVALIDATED_REDIRECT
+title:     "Unvalidated Redirect"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-601']
+source:    semgrep/unvalidated-redirect
+message: |
+  Application redirects to a destination URL specified by a user-supplied parameter that is not validated. This could direct users to malicious locations. Consider using an allowlist to validate URLs.
+pattern: |
+  $X $METHOD(...,HttpServletResponse $RES,...,String $URL,...) {
+    ...
+    $RES.sendRedirect($URL);
+    ...
+  }
+  

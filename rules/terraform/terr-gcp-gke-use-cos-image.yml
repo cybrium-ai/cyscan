@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_GKE_USE_COS_IMAGE
+title:     "Gcp Gke Use Cos Image"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-gke-use-cos-image
+message: |
+  Ensure Container-Optimized OS (cos) is used for Kubernetes Engine Clusters Node image
+pattern: |
+  resource

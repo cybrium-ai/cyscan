@@ -1,0 +1,13 @@
+id:        CBR-PYTH-PYRAMID_CSRF_CHECK_DISABLED
+title:     "Pyramid Csrf Check Disabled"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-352']
+source:    semgrep/pyramid-csrf-check-disabled
+message: |
+  CSRF protection is disabled for this view. This is a security risk.
+pattern: |
+  $REQUIRE_CSRF
+fix: |
+  True
+  

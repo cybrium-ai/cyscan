@@ -1,0 +1,13 @@
+id:        CBR-PYTH-MISSING_HASH_WITH_EQ
+title:     "Missing Hash With Eq"
+severity:  high
+languages: ['python']
+source:    semgrep/missing-hash-with-eq
+message: |
+  Class `$A` has defined `__eq__` which means it should also have defined `__hash__`; 
+pattern: |
+  class A(...):
+    ...
+    def __eq__(self, $O): ...
+    ...
+  

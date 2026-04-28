@@ -1,0 +1,11 @@
+id:        CBR-PYTH-BATCH_IMPORT
+title:     "Batch Import"
+severity:  high
+languages: ['python']
+source:    semgrep/batch-import
+message: |
+  Rather than adding one element at a time, consider batch loading to improve performance.
+pattern: |
+  for $X in $Y:
+    db.session.add($Z)
+  

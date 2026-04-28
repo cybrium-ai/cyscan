@@ -1,0 +1,9 @@
+id:        CBR-PYTH-DETECT_LANGCHAIN
+title:     "Detect Langchain"
+severity:  medium
+languages: ['python']
+source:    semgrep/detect-langchain
+message: |
+  Possibly found usage of AI tooling: LangChain
+pattern: |
+  import langchain_openai

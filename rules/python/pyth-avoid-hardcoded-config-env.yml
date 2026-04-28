@@ -1,0 +1,10 @@
+id:        CBR-PYTH-AVOID_HARDCODED_CONFIG_ENV
+title:     "Avoid Hardcoded Config Env"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-489']
+source:    semgrep/avoid_hardcoded_config_ENV
+message: |
+  Hardcoded variable `ENV` detected. Set this by using FLASK_ENV environment variable
+pattern: |
+  $M.update(ENV="=~/^development|production$/")

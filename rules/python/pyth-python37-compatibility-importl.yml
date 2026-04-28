@@ -1,0 +1,9 @@
+id:        CBR-PYTH-PYTHON37_COMPATIBILITY_IMPORTL
+title:     "Python37 Compatibility Importlib"
+severity:  critical
+languages: ['python']
+source:    semgrep/python37-compatibility-importlib
+message: |
+  source_hash' is only available on Python 3.7+. This does not work in lower versions, and therefore is not backwards compatible. Instead, use another hash function.
+pattern: |
+  importlib.source_hash()

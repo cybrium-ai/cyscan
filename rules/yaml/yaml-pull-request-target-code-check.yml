@@ -1,0 +1,15 @@
+id:        CBR-YAML-PULL_REQUEST_TARGET_CODE_CHECK
+title:     "Pull Request Target Code Checkout"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-829']
+source:    semgrep/pull-request-target-code-checkout
+message: |
+  This GitHub Actions workflow file uses `pull_request_target` and checks out code from the incoming pull request. When using `pull_request_target`, the Action runs in the context of the target repository, which includes access to all repository secrets. Normally, this is safe because the Action only runs code from the target repository, not the incoming PR. However, by checking out the incoming PR code, you're now using the incoming code for the rest of the action. You may be inadvertently execut
+pattern: |
+  ...
+  uses: "$ACTION"
+  with:
+    ...
+    ref: $EXPR
+  

@@ -1,0 +1,10 @@
+id:        CBR-JAVA-ANTHROPIC_MISSING_REFUSAL_CHEC
+title:     "Anthropic Missing Refusal Check Javascript"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-1188']
+source:    semgrep/anthropic-missing-refusal-check-javascript
+message: |
+  Anthropic response content accessed without checking stop_reason. Check response.stop_reason to handle cases where the model stops unexpectedly (e.g., due to max_tokens or content filtering).
+pattern: |
+  $RESP.content

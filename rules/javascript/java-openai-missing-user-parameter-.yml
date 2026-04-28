@@ -1,0 +1,10 @@
+id:        CBR-JAVA-OPENAI_MISSING_USER_PARAMETER_
+title:     "Openai Missing User Parameter Javascript"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-778']
+source:    semgrep/openai-missing-user-parameter-javascript
+message: |
+  OpenAI chat completion created without a 'user' parameter. Including a unique user identifier helps OpenAI detect and prevent abuse. See https://platform.openai.com/docs/guides/safety-best-practices
+pattern: |
+  $CLIENT.chat.completions.create({...})

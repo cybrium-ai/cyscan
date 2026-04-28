@@ -1,0 +1,10 @@
+id:        CBR-PYTH-SSL_WRAP_SOCKET_IS_DEPRECATED
+title:     "Ssl Wrap Socket Is Deprecated"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-326']
+source:    semgrep/ssl-wrap-socket-is-deprecated
+message: |
+  'ssl.wrap_socket()' is deprecated. This function creates an insecure socket without server name indication or hostname matching. Instead, create an SSL context using 'ssl.SSLContext()' and use that to wrap a socket.
+pattern: |
+  ssl.wrap_socket(...)

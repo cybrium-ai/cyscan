@@ -1,0 +1,10 @@
+id:        CBR-PYTH-ANTHROPIC_MISSING_SYSTEM_PROMP
+title:     "Anthropic Missing System Prompt Python"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-1188']
+source:    semgrep/anthropic-missing-system-prompt-python
+message: |
+  Anthropic messages.create() called without a 'system' parameter. A system prompt helps set behavioral guidelines and safety boundaries for the model.
+pattern: |
+  $CLIENT.messages.create(...)

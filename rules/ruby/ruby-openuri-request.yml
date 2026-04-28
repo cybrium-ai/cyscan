@@ -1,0 +1,11 @@
+id:        CBR-RUBY-OPENURI_REQUEST
+title:     "Openuri Request"
+severity:  high
+languages: ['ruby']
+cwe:       ['CWE-319']
+source:    semgrep/openuri-request
+message: |
+  Checks for requests to http and ftp (unencrypted) sites using OpenURI.
+pattern: |
+  URI.open('=~/[hH][tT][tT][pP]://.*/', ...)
+  

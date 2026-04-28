@@ -1,0 +1,10 @@
+id:        CBR-YAML-DUPLICATE_ID
+title:     "Duplicate Id"
+severity:  critical
+languages: ['yaml']
+source:    semgrep/duplicate-id
+message: |
+  The 'id' field $X was used multiple times. The 'id' field needs to be unique.
+pattern: |
+  id: $X
+  

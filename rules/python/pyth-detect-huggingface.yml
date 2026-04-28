@@ -1,0 +1,9 @@
+id:        CBR-PYTH-DETECT_HUGGINGFACE
+title:     "Detect Huggingface"
+severity:  medium
+languages: ['python']
+source:    semgrep/detect-huggingface
+message: |
+  Possibly found usage of AI: HuggingFace
+pattern: |
+  import huggingface_hub

@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_POSTGRESQL_THREAT_DETECT
+title:     "Azure Postgresql Threat Detection Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-postgresql-threat-detection-enabled
+message: |
+  Ensure that PostgreSQL server enables Threat detection policy
+pattern: |
+  resource

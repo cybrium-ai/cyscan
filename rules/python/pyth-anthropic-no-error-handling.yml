@@ -1,0 +1,10 @@
+id:        CBR-PYTH-ANTHROPIC_NO_ERROR_HANDLING
+title:     "Anthropic No Error Handling"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-754']
+source:    semgrep/anthropic-no-error-handling
+message: |
+  Anthropic API call without error handling. Wrap API calls in try/except to handle rate limits, API errors, and network issues gracefully.
+pattern: |
+  $CLIENT.messages.create(...)

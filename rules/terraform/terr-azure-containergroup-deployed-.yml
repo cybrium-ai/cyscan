@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_CONTAINERGROUP_DEPLOYED_
+title:     "Azure Containergroup Deployed Into Virtualnetwork"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/azure-containergroup-deployed-into-virtualnetwork
+message: |
+  Ensure that Azure Container group is deployed into virtual network
+pattern: |
+  resource

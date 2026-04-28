@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_MYSQL_LOCAL_IN_FILE_OFF
+title:     "Gcp Mysql Local In File Off"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-mysql-local-in-file-off
+message: |
+  Ensure MySQL database 'local_infile' flag is set to 'off'
+pattern: |
+  resource

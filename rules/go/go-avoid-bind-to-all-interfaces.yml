@@ -1,0 +1,10 @@
+id:        CBR-GO-AVOID_BIND_TO_ALL_INTERFACES
+title:     "Avoid Bind To All Interfaces"
+severity:  high
+languages: ['go']
+cwe:       ['CWE-200']
+source:    semgrep/avoid-bind-to-all-interfaces
+message: |
+  Detected a network listener listening on 0.0.0.0 or an empty string. This could unexpectedly expose the server publicly as it binds to all available interfaces. Instead, specify another IP address that is not 0.0.0.0 nor the empty string.
+pattern: |
+  tls.Listen($NETWORK, "=~/^0.0.0.0:.*$/", ...)
