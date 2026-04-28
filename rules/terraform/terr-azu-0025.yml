@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0025
+title:     "Database auditing retention period should be longer than 90 days"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-database-retention-period-set
+message: |
+  When Auditing is configured for a SQL database, if the retention period is not set, the retention will be unlimited.
+  
+  If the retention period is to be explicitly set, it should be set for no less than 90 days.
+  
+  Remediation: Set retention periods of database auditing to greater than 90 days
+pattern: |
+  resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

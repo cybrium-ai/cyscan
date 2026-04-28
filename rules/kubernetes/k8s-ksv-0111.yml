@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0111
+title:     "User with admin access"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-693']
+source:    trivy/kubernetes-cluster-admin0-role-only-used-where-required
+message: |
+  Either cluster-admin or those granted powerful permissions.
+  
+  Remediation: Remove binding for clusterrole 'cluster-admin', 'admin' or 'edit'
+pattern: |
+  name:\s*cluster-admin

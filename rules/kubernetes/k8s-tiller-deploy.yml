@@ -1,0 +1,12 @@
+id:        CBR-K8S-TILLER-DEPLOY
+title:     "Tiller (Helm v2) deployment detected"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-tiller-deployment
+message: |
+  Tiller (Helm v2 server) is deployed in the cluster. Tiller has full cluster access and is a known attack vector.
+  
+  Remediation: Upgrade to Helm v3, which does not require Tiller.
+pattern: |
+  name:\s*tiller-deploy

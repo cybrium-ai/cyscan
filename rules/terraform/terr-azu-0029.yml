@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0029
+title:     "Ensure database firewalls do not permit public access"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/azure-database-no-public-firewall-access
+message: |
+  Azure services can be allowed access through the firewall using a start and end IP address of 0.0.0.0. No other end ip address should be combined with a start of 0.0.0.0
+  
+  Remediation: Don't use wide ip ranges for the sql firewall
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

@@ -1,0 +1,12 @@
+id:        CBR-K8S-NO-LIVENESS-PROBE
+title:     "Container without liveness probe"
+severity:  low
+languages: ['yaml']
+cwe:       ['CWE-693']
+source:    trivy/kubernetes-missing-liveness-probe
+message: |
+  Container does not define a liveness probe. Without it, Kubernetes cannot detect and restart unhealthy containers.
+  
+  Remediation: Add a livenessProbe to the container spec.
+pattern: |
+  containers:\s*\n\s+-\s+name:

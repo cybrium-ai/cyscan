@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0070
+title:     "RDP Access Is Not Restricted"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/google-compute-no-open-rdp-access
+message: |
+  Firewall rules should restrict RDP (TCP/3389) access to specific IP ranges. Open RDP access can be a security risk.
+  
+  Remediation: Restrict RDP (TCP port 3389) ingress in firewall rules. Only allow trusted IP ranges or use Identity-Aware Proxy for RDP access.
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

@@ -1,0 +1,12 @@
+id:        CBR-DOCK-EXPOSE-SSH
+title:     "Dockerfile exposes SSH port 22"
+severity:  high
+languages: ['docker']
+cwe:       ['CWE-200']
+source:    trivy/docker-port22
+message: |
+  Dockerfile exposes port 22 (SSH). Containers should not run SSH servers.
+  
+  Remediation: Remove EXPOSE 22 and use kubectl exec or docker exec for container access.
+pattern: |
+  ^\s*EXPOSE\s+22\b

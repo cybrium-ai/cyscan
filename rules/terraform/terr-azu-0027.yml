@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0027
+title:     "Auditing should be enabled on Azure SQL Databases"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-database-enable-audit
+message: |
+  Auditing helps you maintain regulatory compliance, understand database activity, and gain insight into discrepancies and anomalies that could indicate business concerns or suspected security violations.
+  
+  Remediation: Enable auditing on Azure SQL databases
+pattern: |
+  resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0050
+title:     "Redis cluster should have backup retention turned on"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-elasticache-enable-backup-retention
+message: |
+  Redis clusters should have a snapshot retention time to ensure that they are backed up and can be restored if required.
+  
+  Remediation: Configure snapshot retention for redis cluster
+pattern: |
+  backup_retention_period\s*=\s*0

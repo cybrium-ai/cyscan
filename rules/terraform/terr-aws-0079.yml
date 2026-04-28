@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0079
+title:     "There is no encryption specified or encryption is disabled on the RDS Cluster."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-rds-encrypt-cluster-storage-data
+message: |
+  Encryption should be enabled for an RDS Aurora cluster.
+  When enabling encryption by setting the kms_key_id, the storage_encrypted must also be set to true.
+  
+  Remediation: Enable encryption for RDS clusters
+pattern: |
+  encrypted\s*=\s*false

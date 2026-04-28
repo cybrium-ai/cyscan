@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0047
+title:     "Do not allow privilege escalation from node proxy"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-no-privilege-escalation-from-node-proxy
+message: |
+  Check whether role permits privilege escalation from node proxy
+  
+  Remediation: Create a role which does not permit privilege escalation from node proxy
+pattern: |
+  allowPrivilegeEscalation:\s*true

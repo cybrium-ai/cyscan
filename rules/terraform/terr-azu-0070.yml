@@ -1,0 +1,13 @@
+id:        CBR-TERR-AZU-0070
+title:     "App Service Using Unsupported Python Version"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-200']
+source:    trivy/azure-appservice-supported-python-version
+message: |
+  Using an unsupported Python runtime in Azure App Service may expose applications to security vulnerabilities
+  as these versions no longer receive security patches. This check ensures Python versions are still supported by the Python Foundation.
+  
+  Remediation: Update to a supported Python version (3.9 or higher). Consider migrating from azurerm_app_service to azurerm_linux_web_app for access to modern Python versions.
+pattern: |
+  resource\s+"azurerm_app_service"

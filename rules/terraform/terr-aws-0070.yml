@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0070
+title:     "MQ Broker should have audit logging enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/aws-mq-enable-audit-logging
+message: |
+  Logging should be enabled to allow tracing of issues and activity to be investigated more fully. Logs provide additional information and context which is often invalauble during investigation
+  
+  Remediation: Enable audit logging
+pattern: |
+  (?:logging|access_logs)\s*\{

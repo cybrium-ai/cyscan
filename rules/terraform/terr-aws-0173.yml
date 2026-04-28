@@ -1,0 +1,16 @@
+id:        CBR-TERR-AWS-0173
+title:     "Default security group should restrict all traffic"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-276']
+source:    trivy/aws-ec2-restrict-all-in-default-sg
+message: |
+  Configuring all VPC default security groups to restrict all traffic will encourage least
+  
+  privilege security group development and mindful placement of AWS resources into
+  
+  security groups which will in-turn reduce the exposure of those resources.
+  
+  Remediation: Configure default security group to restrict all traffic
+pattern: |
+  resource\s+"aws_instance"

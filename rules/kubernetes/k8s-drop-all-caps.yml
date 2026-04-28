@@ -1,0 +1,12 @@
+id:        CBR-K8S-DROP-ALL-CAPS
+title:     "Containers should drop all capabilities"
+severity:  low
+languages: ['yaml']
+cwe:       ['CWE-250']
+source:    trivy/kubernetes-drop-default-capabilities
+message: |
+  Container does not drop all Linux capabilities. Capabilities grant fine-grained root privileges.
+  
+  Remediation: Add drop: ["ALL"] under securityContext.capabilities and only add back required ones.
+pattern: |
+  capabilities:\s*\n\s+(?!.*drop)

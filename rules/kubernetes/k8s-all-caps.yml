@@ -1,0 +1,12 @@
+id:        CBR-K8S-ALL-CAPS
+title:     "Container adds ALL capabilities"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-250']
+source:    trivy/kubernetes-capabilities-added-all
+message: |
+  Container grants ALL capabilities, equivalent to running as --privileged.
+  
+  Remediation: Drop ALL capabilities and add back only the specific ones needed.
+pattern: |
+  add:\s*\n\s*-\s*(?:ALL|"ALL")

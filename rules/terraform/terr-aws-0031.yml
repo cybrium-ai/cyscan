@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0031
+title:     "ECR images tags shouldn't be mutable."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-ecr-enforce-immutable-repository
+message: |
+  ECR images should be set to IMMUTABLE to prevent code injection through image mutation.
+  This can be done by setting <code>image_tag_mutability</code> to <code>IMMUTABLE</code>
+  
+  Remediation: Only use immutable images in ECR
+pattern: |
+  resource\s+"aws_ecr_repository"

@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0019
+title:     "Cross-database ownership chaining should be disabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-sql-no-cross-db-ownership-chaining
+message: |
+  Cross-database ownership chaining, also known as cross-database chaining, is a security feature of SQL Server that allows users of databases access to other databases besides the one they are currently using.
+  
+  Remediation: Disable cross database ownership chaining
+pattern: |
+  resource\s+"google_sql_database_instance"

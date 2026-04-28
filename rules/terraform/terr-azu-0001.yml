@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0001
+title:     "Web App accepts incoming client certificate"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-appservice-require-client-cert
+message: |
+  The TLS mutual authentication technique in enterprise environments ensures the authenticity of clients to the server. If incoming client certificates are enabled only an authenticated client with valid certificates can access the app.
+  
+  Remediation: Enable incoming certificates for clients
+pattern: |
+  resource\s+"azurerm_app_service"

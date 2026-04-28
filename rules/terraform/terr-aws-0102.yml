@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0102
+title:     "An Network ACL rule allows ALL ports."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-ec2-no-excessive-port-access
+message: |
+  Ensure access to specific required ports is allowed, and nothing else.
+  
+  Remediation: Set specific allowed ports
+pattern: |
+  resource\s+"aws_instance"

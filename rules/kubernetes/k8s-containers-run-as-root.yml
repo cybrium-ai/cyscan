@@ -1,0 +1,12 @@
+id:        CBR-K8S-CONTAINERS-RUN-AS-ROOT
+title:     "Containers must not set runAsUser to 0"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-250']
+source:    trivy/kubernetes-containers-not-run-as-root
+message: |
+  Container is configured to run as root user (UID 0). Running as root increases the risk of container escape.
+  
+  Remediation: Set runAsUser to a non-zero value in the pod security context.
+pattern: |
+  runAsUser:\s*0\s*$

@@ -1,0 +1,14 @@
+id:        CBR-TERR-AWS-0163
+title:     "You should enable bucket access logging on the CloudTrail S3 bucket."
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-cloudtrail-require-bucket-access-logging
+message: |
+  Amazon S3 bucket access logging generates a log that contains access records for each request made to your S3 bucket. An access log record contains details about the request, such as the request type, the resources specified in the request worked, and the time and date the request was processed.
+  CIS recommends that you enable bucket access logging on the CloudTrail S3 bucket.
+  By enabling S3 bucket logging on target S3 buckets, you can capture all events that might affect objects in a target bucket. Configuring logs to be placed in a separate bucket enables access to log information, which can be useful in security and incident response workflows.
+  
+  Remediation: Enable access logging on the bucket
+pattern: |
+  (?:logging|access_logs)\s*\{

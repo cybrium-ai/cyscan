@@ -1,0 +1,12 @@
+id:        CBR-TERR-NIF-0018
+title:     "Missing security group for vpnGateway."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/nifcloud-network-add-security-group-to-vpn-gateway
+message: |
+  Need to add a security group to your vpnGateway.
+  
+  Remediation: Add security group for all vpnGateways
+pattern: |
+  resource\s+"azurerm_(?:network_security_group|virtual_network)"

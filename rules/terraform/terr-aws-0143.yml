@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0143
+title:     "IAM policies should not be granted directly to users."
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-iam-no-user-attached-policies
+message: |
+  CIS recommends that you apply IAM policies directly to groups and roles but not users. Assigning privileges at the group or role level reduces the complexity of access management as the number of users grow. Reducing access management complexity might in turn reduce opportunity for a principal to inadvertently receive or retain excessive privileges.
+  
+  Remediation: Grant policies at the group level instead.
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0345
+title:     "Disallow unrestricted S3 IAM Policies"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-iam-no-s3-full-access
+message: |
+  Ensure that the creation of the unrestricted S3 IAM policies is disallowed.
+  
+  Remediation: Create more restrictive S3 policies
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

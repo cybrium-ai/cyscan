@@ -1,0 +1,12 @@
+id:        CBR-TERR-NIF-0014
+title:     "A security group rule should not allow unrestricted ingress from any IP address."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/nifcloud-nas-no-public-ingress-nas-sgr
+message: |
+  Opening up ports to allow connections from the public internet is generally to be avoided. You should restrict access to IP addresses or ranges that are explicitly required where possible.
+  
+  Remediation: Set a more restrictive cidr range
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

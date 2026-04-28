@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0075
+title:     "Network Interfaces IP Forwarding Enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/azure-network-network-ip-forwarding-enabled
+message: |
+  IP forwarding should be disabled on network interfaces unless specifically required.
+  
+  Remediation: Disable IP forwarding on network interfaces unless specifically required for routing purposes.
+pattern: |
+  resource\s+"azurerm_(?:network_security_group|virtual_network)"

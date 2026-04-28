@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0009
+title:     "Access to host network"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy/kubernetes-no-host-network
+message: |
+  Sharing the host’s network namespace permits processes in the pod to communicate with processes bound to the host’s loopback adapter.
+  
+  Remediation: Do not set 'spec.template.spec.hostNetwork' to true.
+pattern: |
+  hostNetwork:\s*true

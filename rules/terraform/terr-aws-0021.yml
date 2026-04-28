@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0021
+title:     "DocumentDB storage must be encrypted"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-documentdb-enable-storage-encryption
+message: |
+  Unencrypted sensitive data is vulnerable to compromise. Encryption of the underlying storage used by DocumentDB ensures that if their is compromise of the disks, the data is still protected.
+  
+  Remediation: Enable storage encryption
+pattern: |
+  encrypted\s*=\s*false

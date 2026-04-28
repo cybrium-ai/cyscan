@@ -1,0 +1,12 @@
+id:        CBR-K8S-BIND-ESCALATE
+title:     "RBAC role allows bind/escalate/impersonate"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-bind-escalate-impersonate
+message: |
+  RBAC role allows bind, escalate, or impersonate verbs which can be used for privilege escalation.
+  
+  Remediation: Remove these verbs from the role unless absolutely necessary.
+pattern: |
+  verbs:\s*\n(?:\s*-\s*\S+\n)*\s*-\s*(?:bind|escalate|impersonate)

@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0076
+title:     "Neptune storage must be encrypted at rest"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-neptune-enable-storage-encryption
+message: |
+  Encryption of Neptune storage ensures that if their is compromise of the disks, the data is still protected.
+  
+  Remediation: Enable encryption of Neptune storage
+pattern: |
+  encrypted\s*=\s*false

@@ -1,0 +1,12 @@
+id:        CBR-K8S-MEMORY-LIMIT
+title:     "Container without memory limit"
+severity:  low
+languages: ['yaml']
+cwe:       ['CWE-770']
+source:    trivy/kubernetes-no-memory-limit
+message: |
+  Container has no memory limit set. Without limits, a single container can consume all node memory and cause OOM kills.
+  
+  Remediation: Set resources.limits.memory in the container spec.
+pattern: |
+  resources:\s*\{\s*\}

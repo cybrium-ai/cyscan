@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0041
+title:     "Instances should have Shielded VM VTPM enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-compute-enable-shielded-vm-vtpm
+message: |
+  The virtual TPM provides numerous security measures to your VM.
+  
+  Remediation: Enable Shielded VM VTPM
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

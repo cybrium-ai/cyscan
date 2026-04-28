@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0024
+title:     "Ensure server parameter 'log_checkpoints' is set to 'ON' for PostgreSQL Database Server"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/azure-database-postgres-configuration-log-checkpoints
+message: |
+  Postgresql can generate logs for checkpoints to improve visibility for audit and configuration issue resolution.
+  
+  Remediation: Enable checkpoint logging
+pattern: |
+  resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

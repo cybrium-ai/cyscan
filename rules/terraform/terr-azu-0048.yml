@@ -1,0 +1,13 @@
+id:        CBR-TERR-AZU-0048
+title:     "A security group should not allow unrestricted ingress to the RDP port from any IP address."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/azure-network-disable-rdp-from-internet
+message: |
+  RDP access can be configured on either the network security group or in the network security group rule.
+  RDP access should not be permitted from the internet (*, 0.0.0.0, /0, internet, any). Consider using the Azure Bastion Service.
+  
+  Remediation: Block RDP port from internet
+pattern: |
+  resource\s+"azurerm_(?:network_security_group|virtual_network)"

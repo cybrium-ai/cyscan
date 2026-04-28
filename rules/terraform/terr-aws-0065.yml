@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0065
+title:     "A KMS key is not configured to auto-rotate."
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/aws-kms-auto-rotate-keys
+message: |
+  You should configure your KMS keys to auto rotate to maintain security and defend against compromise.
+  
+  Remediation: Configure KMS key to auto rotate
+pattern: |
+  resource\s+"aws_kms_key"

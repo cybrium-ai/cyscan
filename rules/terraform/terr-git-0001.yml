@@ -1,0 +1,14 @@
+id:        CBR-TERR-GIT-0001
+title:     "GitHub repository shouldn't be public."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/github-repositories-private
+message: |
+  GitHub repository should be set to be private.
+  
+  You can do this by either setting <code>private</code> attribute to 'true' or <code>visibility</code> attribute to 'internal' or 'private'.
+  
+  Remediation: Make sensitive or commercially important repositories private
+pattern: |
+  (?:private_cluster|enable_private_nodes)\s*=\s*false

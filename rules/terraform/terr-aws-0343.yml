@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0343
+title:     "RDS Cluster Deletion Protection Disabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-rds-enable-cluster-deletion-protection
+message: |
+  Ensure deletion protection is enabled for RDS clusters.
+  
+  Remediation: Modify the RDS clusters to enable deletion protection.
+pattern: |
+  resource\s+"aws_(?:db_instance|rds_cluster)"

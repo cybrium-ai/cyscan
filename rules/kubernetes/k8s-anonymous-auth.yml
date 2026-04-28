@@ -1,0 +1,12 @@
+id:        CBR-K8S-ANONYMOUS-AUTH
+title:     "Anonymous authentication enabled"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-287']
+source:    trivy/kubernetes-disable-anonymous-requests
+message: |
+  Anonymous authentication is enabled on the kubelet or API server, allowing unauthenticated access.
+  
+  Remediation: Set --anonymous-auth=false on kubelet and API server.
+pattern: |
+  --anonymous-auth=true

@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0133
+title:     "Enable Performance Insights to detect potential problems"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-rds-enable-performance-insights
+message: |
+  Enabling Performance insights allows for greater depth in monitoring data.
+  For example, information about active sessions could help diagose a compromise or assist in the investigation
+  
+  Remediation: Enable performance insights
+pattern: |
+  resource\s+"aws_(?:db_instance|rds_cluster)"

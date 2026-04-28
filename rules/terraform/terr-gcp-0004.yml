@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0004
+title:     "Roles should not be assigned to default service accounts"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-276']
+source:    trivy/google-iam-no-folder-level-default-service-account-assignment
+message: |
+  Default service accounts should not be used - consider creating specialised service accounts for individual purposes.
+  
+  Remediation: Use specialised service accounts for specific purposes.
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

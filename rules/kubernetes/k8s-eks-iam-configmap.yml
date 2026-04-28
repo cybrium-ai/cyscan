@@ -1,0 +1,12 @@
+id:        CBR-K8S-EKS-IAM-CONFIGMAP
+title:     "Role allows managing EKS IAM auth ConfigMap"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-eks-iam-configmap
+message: |
+  RBAC role allows modifying the aws-auth ConfigMap in kube-system, which controls cluster access.
+  
+  Remediation: Restrict access to aws-auth ConfigMap to cluster admins only.
+pattern: |
+  resourceNames:\s*\n\s*-\s*(?:"aws-auth"|aws-auth)

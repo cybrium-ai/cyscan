@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0058
+title:     "IAM Password policy should have requirement for at least one lowercase character."
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/aws-iam-require-lowercase-in-passwords
+message: |
+  IAM account password policies should ensure that passwords content including at least one lowercase character.
+  
+  Remediation: Enforce longer, more complex passwords in the policy
+pattern: |
+  (?:password|admin_password)\s*=\s*"[^"]*"

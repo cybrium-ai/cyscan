@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0018
+title:     "Ensure that Postgres errors are logged"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/google-sql-pg-log-errors
+message: |
+  Setting the minimum log severity too high will cause errors not to be logged
+  
+  Remediation: Set the minimum log severity to at least ERROR
+pattern: |
+  resource\s+"google_sql_database_instance"

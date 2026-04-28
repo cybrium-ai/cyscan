@@ -1,0 +1,12 @@
+id:        CBR-K8S-CREATE-WORKLOADS
+title:     "RBAC role allows creating workloads"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-deny-create-update-malicious-pod
+message: |
+  RBAC role allows creating or updating pods/deployments/daemonsets, which could be used to run malicious workloads.
+  
+  Remediation: Apply namespace-scoped roles and limit to necessary resources.
+pattern: |
+  resources:\s*\n(?:\s*-\s*\S+\n)*\s*-\s*(?:pods|deployments|daemonsets)

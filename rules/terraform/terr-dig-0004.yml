@@ -1,0 +1,12 @@
+id:        CBR-TERR-DIG-0004
+title:     "SSH Keys are the preferred way to connect to your droplet, no keys are supplied"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/digitalocean-compute-use-ssh-keys
+message: |
+  When working with a server, you’ll likely spend most of your time in a terminal session connected to your server through SSH. A more secure alternative to password-based logins, SSH keys use encryption to provide a secure way of logging into your server and are recommended for all users.
+  
+  Remediation: Use ssh keys for login
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

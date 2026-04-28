@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0088
+title:     "Unencrypted S3 bucket."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-s3-enable-bucket-encryption
+message: |
+  S3 Buckets should be encrypted to protect the data that is stored within them if access is compromised.
+  
+  Remediation: Configure bucket encryption
+pattern: |
+  encrypted\s*=\s*false

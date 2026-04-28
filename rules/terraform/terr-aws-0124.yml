@@ -1,0 +1,14 @@
+id:        CBR-TERR-AWS-0124
+title:     "Missing description for security group rule."
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-ec2-add-description-to-security-group-rule
+message: |
+  Security group rules should include a description for auditing purposes.
+  
+  Simplifies auditing, debugging, and managing security groups.
+  
+  Remediation: Add descriptions for all security groups rules
+pattern: |
+  resource\s+"aws_instance"

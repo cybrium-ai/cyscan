@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0089
+title:     "S3 Bucket Logging"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/aws-s3-enable-logging
+message: |
+  Ensures S3 bucket logging is enabled for S3 buckets
+  
+  Remediation: Add a logging block to the resource to enable access logging
+pattern: |
+  (?:logging|access_logs)\s*\{

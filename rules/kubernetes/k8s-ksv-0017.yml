@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0017
+title:     "Privileged"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-no-privileged-containers
+message: |
+  Privileged containers share namespaces with the host system and do not offer any security. They should be used exclusively for system containers that require high privileges.
+  
+  Remediation: Change 'containers[].securityContext.privileged' to 'false'.
+pattern: |
+  privileged:\s*true

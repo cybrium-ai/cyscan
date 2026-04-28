@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0035
+title:     "ECS Task Definitions with EFS volumes should use in-transit encryption"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-ecs-enable-in-transit-encryption
+message: |
+  ECS task definitions that have volumes using EFS configuration should explicitly enable in transit encryption to prevent the risk of data loss due to interception.
+  
+  Remediation: Enable in transit encryption when using efs
+pattern: |
+  encrypted\s*=\s*false

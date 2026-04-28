@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0138
+title:     "Enable in-transit encryption for EMR clusters."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-emr-enable-in-transit-encryption
+message: |
+  Data stored within an EMR cluster should be encrypted to ensure sensitive data is kept private.
+  
+  Remediation: Enable in-transit encryption for EMR cluster
+pattern: |
+  encrypted\s*=\s*false

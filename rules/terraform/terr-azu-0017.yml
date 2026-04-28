@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0017
+title:     "Key Vault Secret should have an expiration date set"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/azure-keyvault-ensure-secret-expiry
+message: |
+  Expiration Date is an optional Key Vault Secret behavior and is not set by default.
+  
+  Set when the resource will be become inactive.
+  
+  Remediation: Set an expiry for secrets
+pattern: |
+  resource\s+"azurerm_key_vault"

@@ -1,0 +1,12 @@
+id:        CBR-K8S-KUBELET-STREAMING-TIMEOUT
+title:     "Kubelet streaming connection timeout disabled"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-400']
+source:    trivy/kubernetes-streaming-connection-timeout
+message: |
+  Kubelet streaming connection idle timeout is set to 0, meaning connections never timeout. This can be used for persistent shell access.
+  
+  Remediation: Set --streaming-connection-idle-timeout to a non-zero value (e.g. 5m).
+pattern: |
+  --streaming-connection-idle-timeout=0

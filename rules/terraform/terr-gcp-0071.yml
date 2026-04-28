@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0071
+title:     "SSH Access Is Not Restricted"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/google-compute-restrict-ssh-access
+message: |
+  Firewall rules should restrict SSH (TCP/22) access to specific IPs. Open SSH can be a security risk.
+  
+  Remediation: Restrict SSH (TCP port 22) access in firewall rules to known IP addresses or ranges. Avoid open 0.0.0.0/0 access for SSH.
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

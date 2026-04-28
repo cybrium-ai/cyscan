@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0121
+title:     "SAM Simple table must have server side encryption enabled."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-sam-enable-table-encryption
+message: |
+  Encryption should be enabled at all available levels to ensure that data is protected if compromised.
+  
+  Remediation: Enable server side encryption
+pattern: |
+  encrypted\s*=\s*false

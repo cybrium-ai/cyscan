@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0072
+title:     "Ensure MQ Broker is not publicly exposed"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-mq-no-public-access
+message: |
+  Public access of the MQ broker should be disabled and only allow routes to applications that require access.
+  
+  Remediation: Disable public access when not required
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

@@ -1,0 +1,12 @@
+id:        CBR-DOCK-ADD-INSTEAD-OF-COPY
+title:     "Use COPY instead of ADD"
+severity:  low
+languages: ['docker']
+cwe:       ['CWE-829']
+source:    trivy/docker-add-instead-of-copy
+message: |
+  ADD is used instead of COPY. ADD can fetch remote URLs and auto-extract archives, which can introduce unexpected behavior.
+  
+  Remediation: Use COPY unless you specifically need ADD features (remote URL fetch or auto-extraction).
+pattern: |
+  ^\s*ADD\s+(?!https?://)
