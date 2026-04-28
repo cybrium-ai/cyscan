@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_FUNCTIONAPPS_ACCESSIBLE_
+title:     "Azure Functionapps Accessible Over Https"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-functionapps-accessible-over-https
+message: |
+  Ensure that HTTP Version is the latest if used to run the Function app
+pattern: |
+  resource

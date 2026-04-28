@@ -1,0 +1,10 @@
+id:        CBR-RUBY-WEAK_HASHES_SHA1
+title:     "Weak Hashes Sha1"
+severity:  high
+languages: ['ruby']
+cwe:       ['CWE-328']
+source:    semgrep/weak-hashes-sha1
+message: |
+  Should not use SHA1 to generate hashes. There is a proven SHA1 hash collision by Google, which could lead to vulnerabilities. Use SHA256, SHA3 or other hashing functions instead.
+pattern: |
+  Digest::SHA1.$FUNC

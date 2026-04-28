@@ -1,0 +1,10 @@
+id:        CBR-JAVA-SPRING_CSRF_DISABLED
+title:     "Spring Csrf Disabled"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-352']
+source:    semgrep/spring-csrf-disabled
+message: |
+  CSRF protection is disabled for this configuration. This is a security risk.
+pattern: |
+  $OBJ.csrf(...).disable(...)

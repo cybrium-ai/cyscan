@@ -1,0 +1,10 @@
+id:        CBR-PYTH-EXEC_INJECTION
+title:     "Exec Injection"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-95']
+source:    semgrep/exec-injection
+message: |
+  Detected user data flowing into exec. This is code injection and should be avoided.
+pattern: |
+  exec(..., <... flask.request.$W.get(...) ...>, ...)

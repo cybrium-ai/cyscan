@@ -1,0 +1,13 @@
+id:        CBR-PYTH-USELESS_IF_CONDITIONAL
+title:     "Useless If Conditional"
+severity:  high
+languages: ['python']
+source:    semgrep/useless-if-conditional
+message: |
+  if block checks for the same condition on both branches (`$X`)
+pattern: |
+  if $X:
+      ...
+  elif $X:
+      ...
+  

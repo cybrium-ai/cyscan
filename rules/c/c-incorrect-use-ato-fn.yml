@@ -1,0 +1,9 @@
+id:        CBR-C-INCORRECT_USE_ATO_FN
+title:     "Incorrect Use Ato Fn"
+severity:  high
+languages: ['c']
+source:    semgrep/incorrect-use-ato-fn
+message: |
+  Avoid the 'ato*()' family of functions. Their use can lead to undefined behavior, integer overflows, and lack of appropriate error handling. Instead prefer the 'strtol*()' family of functions.
+pattern: |
+  atoi(...)

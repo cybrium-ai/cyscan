@@ -1,0 +1,11 @@
+id:        CBR-JAVA-DETECT_ANGULAR_TRANSLATEPROVID
+title:     "Detect Angular Translateprovider Translations Method"
+severity:  high
+languages: ['javascript']
+cwe:       ['CWE-79']
+source:    semgrep/detect-angular-translateprovider-translations-method
+message: |
+  The use of $translateProvider.translations method can be dangerous if user input is provided to this API.
+pattern: |
+  $translateProvider.translations(...,$SOURCE);
+  

@@ -1,0 +1,11 @@
+id:        CBR-YAML-LANG_CONSISTENCY_BASH
+title:     "Lang Consistency Bash"
+severity:  high
+languages: ['yaml']
+source:    semgrep/lang-consistency-bash
+message: |
+  Found '$X' in language config which diverges from semgrep.dev normalization. Please use 'bash' instead.
+pattern: |
+  $X
+fix: |
+  bash

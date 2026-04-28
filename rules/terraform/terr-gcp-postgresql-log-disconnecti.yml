@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_POSTGRESQL_LOG_DISCONNECTI
+title:     "Gcp Postgresql Log Disconnection"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-postgresql-log-disconnection
+message: |
+  Ensure PostgreSQL database 'log_disconnections' flag is set to 'on'
+pattern: |
+  resource

@@ -1,0 +1,10 @@
+id:        CBR-CSHA-USE_WEAK_RSA_ENCRYPTION_PADDIN
+title:     "Use Weak Rsa Encryption Padding"
+severity:  high
+languages: ['csharp']
+cwe:       ['CWE-780']
+source:    semgrep/use_weak_rsa_encryption_padding
+message: |
+  You are using the outdated PKCS#1 v1.5 encryption padding for your RSA key. Use the OAEP padding instead.
+pattern: |
+  (RSAPKCS1KeyExchangeFormatter $FORMATER).CreateKeyExchange(...);

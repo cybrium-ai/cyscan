@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_MARIADB_SSLENFORCEMENT_E
+title:     "Azure Mariadb Sslenforcement Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-mariadb-sslenforcement-enabled
+message: |
+  Ensure Enforce SSL connection is set to Enabled for MariaDB servers
+pattern: |
+  resource

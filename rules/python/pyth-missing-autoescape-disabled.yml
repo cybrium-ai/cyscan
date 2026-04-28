@@ -1,0 +1,10 @@
+id:        CBR-PYTH-MISSING_AUTOESCAPE_DISABLED
+title:     "Missing Autoescape Disabled"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-116']
+source:    semgrep/missing-autoescape-disabled
+message: |
+  Detected a Jinja2 environment without autoescaping. Jinja2 does not autoescape by default. This is dangerous if you are rendering to a browser because this allows for cross-site scripting (XSS) attacks. If you are in a web context, enable autoescaping by setting 'autoescape=True.' You may also consider using 'jinja2.select_autoescape()' to only enable automatic escaping for certain file extensions.
+pattern: |
+  jinja2.Environment(...)

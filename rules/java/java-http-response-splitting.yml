@@ -1,0 +1,15 @@
+id:        CBR-JAVA-HTTP_RESPONSE_SPLITTING
+title:     "Http Response Splitting"
+severity:  medium
+languages: ['java']
+cwe:       ['CWE-113']
+source:    semgrep/http-response-splitting
+message: |
+  Older Java application servers are vulnerable to HTTP response splitting, which may occur if an HTTP request can be injected with CRLF characters. This finding is reported for completeness; it is recommended to ensure your environment is not affected by testing this yourself.
+pattern: |
+  $VAR = $REQ.getParameter(...);
+  ...
+  $COOKIE = new Cookie(..., $VAR, ...);
+  ...
+  $RESP.addCookie($COOKIE, ...);
+  

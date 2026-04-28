@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_BATCHACCOUNT_USES_KEYVAU
+title:     "Azure Batchaccount Uses Keyvault Encrpytion"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-320']
+source:    semgrep/azure-batchaccount-uses-keyvault-encrpytion
+message: |
+  Ensure that Azure Batch account uses key vault to encrypt data
+pattern: |
+  resource

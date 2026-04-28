@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS_KINESIS_STREAM_ENCRYPTED_W
+title:     "Aws Kinesis Stream Encrypted With Cmk"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-320']
+source:    semgrep/aws-kinesis-stream-encrypted-with-cmk
+message: |
+  Ensure Kinesis stream is encrypted at rest using KMS CMKs. CMKs gives you control over the encryption key in terms of access and rotation.
+pattern: |
+  resource "aws_kinesis_stream" $ANYTHING {
+    ...
+  }
+  

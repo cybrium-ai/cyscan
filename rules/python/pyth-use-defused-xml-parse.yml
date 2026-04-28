@@ -1,0 +1,12 @@
+id:        CBR-PYTH-USE_DEFUSED_XML_PARSE
+title:     "Use Defused Xml Parse"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-611']
+source:    semgrep/use-defused-xml-parse
+message: |
+  The native Python `xml` library is vulnerable to XML External Entity (XXE) attacks.  These attacks can leak confidential data and "XML bombs" can cause denial of service. Do not use this library to parse untrusted input. Instead  the Python documentation recommends using `defusedxml`.
+pattern: |
+  xml.etree.ElementTree.parse($...ARGS)
+fix: |
+  defusedxml.etree.ElementTree.parse($...ARGS)

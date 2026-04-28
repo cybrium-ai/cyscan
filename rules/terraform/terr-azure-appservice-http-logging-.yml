@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_APPSERVICE_HTTP_LOGGING_
+title:     "Azure Appservice Http Logging Enabled"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    semgrep/azure-appservice-http-logging-enabled
+message: |
+  Ensure that App service enables HTTP logging
+pattern: |
+  resource

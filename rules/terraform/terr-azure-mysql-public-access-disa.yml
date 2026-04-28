@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_MYSQL_PUBLIC_ACCESS_DISA
+title:     "Azure Mysql Public Access Disabled"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/azure-mysql-public-access-disabled
+message: |
+  Ensure public network access enabled is set to False for MySQL servers
+pattern: |
+  resource

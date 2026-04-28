@@ -1,0 +1,11 @@
+id:        CBR-GO-COMMAND-INJECTION
+title:     "exec.Command with shell meta-characters in the first arg"
+severity:  high
+languages: [go]
+cwe:       [CWE-78]
+message: |
+  Passing /bin/sh -c <unsanitised-string> to exec.Command is the
+  classic command-injection sink. Either split the argv without a
+  shell, or aggressively validate the input.
+regex: |
+  exec\.(Command|CommandContext)\([^,]*(?:"/bin/sh"|"sh"|"/bin/bash"|"bash")

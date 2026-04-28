@@ -1,0 +1,10 @@
+id:        CBR-GENE-HOOKS_STOP_MISSING_ACTIVE_CHEC
+title:     "Hooks Stop Missing Active Check Generic"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-835']
+source:    semgrep/hooks-stop-missing-active-check-generic
+message: |
+  Stop hook outputs a "block" decision. Ensure you check stop_hook_active first and exit 0 if true, otherwise the hook will cause an infinite loop by blocking its own stop attempts.
+regex: |
+  "decision".*"block"

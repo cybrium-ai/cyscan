@@ -1,0 +1,10 @@
+id:        CBR-PYTH-USELESS_LITERAL_SET
+title:     "Useless Literal Set"
+severity:  critical
+languages: ['python']
+source:    semgrep/useless-literal-set
+message: |
+  `$X` is uselessly assigned twice inside the creation of the set
+pattern: |
+  set(..., ($X, $A), ..., ($X, $B), ...)
+  

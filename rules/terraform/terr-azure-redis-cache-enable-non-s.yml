@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_REDIS_CACHE_ENABLE_NON_S
+title:     "Azure Redis Cache Enable Non Ssl Port"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-319']
+source:    semgrep/azure-redis-cache-enable-non-ssl-port
+message: |
+  Ensure that only SSL are enabled for Cache for Redis
+pattern: |
+  resource

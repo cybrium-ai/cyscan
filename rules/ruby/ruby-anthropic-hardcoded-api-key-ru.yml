@@ -1,0 +1,11 @@
+id:        CBR-RUBY-ANTHROPIC_HARDCODED_API_KEY_RU
+title:     "Anthropic Hardcoded Api Key Ruby"
+severity:  critical
+languages: ['ruby']
+cwe:       ['CWE-798']
+source:    semgrep/anthropic-hardcoded-api-key-ruby
+message: |
+  Anthropic API key is hardcoded in source code. Use environment variables or a secrets manager instead.
+pattern: |
+  Anthropic::Client.new(api_key: "$KEY", ...)
+  

@@ -1,0 +1,9 @@
+id:        CBR-PYTH-IS_FUNCTION_WITHOUT_PARENTHESE
+title:     "Is Function Without Parentheses"
+severity:  high
+languages: ['python']
+source:    semgrep/is-function-without-parentheses
+message: |
+  Is "$FUNC" a function or an attribute? If it is a function, you may have meant $X.$FUNC() because $X.$FUNC is always true.
+pattern: |
+  $X.$FUNC

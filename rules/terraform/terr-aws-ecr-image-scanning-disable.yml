@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS_ECR_IMAGE_SCANNING_DISABLE
+title:     "Aws Ecr Image Scanning Disabled"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-223']
+source:    semgrep/aws-ecr-image-scanning-disabled
+message: |
+  The ECR repository has image scans disabled. Repository image scans should be enabled to ensure vulnerable software can be discovered and remediated as soon as possible.
+pattern: |
+  resource "aws_ecr_repository" $ANYTHING {
+    ...
+  }
+  

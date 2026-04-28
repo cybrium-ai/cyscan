@@ -1,0 +1,11 @@
+id:        CBR-YAML-THIRD_PARTY_ACTION_NOT_PINNED_
+title:     "Third Party Action Not Pinned To Commit Sha"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-1357', 'CWE-353']
+source:    semgrep/third-party-action-not-pinned-to-commit-sha
+message: |
+  An action sourced from a third-party repository on GitHub is not pinned to a full length commit SHA. Pinning an action to a full length commit SHA is currently the only way to use an action as an immutable release. Pinning to a particular SHA helps mitigate the risk of a bad actor adding a backdoor to the action's repository, as they would need to generate a SHA-1 collision for a valid Git object payload.
+pattern: |
+  uses: "$USES"
+  

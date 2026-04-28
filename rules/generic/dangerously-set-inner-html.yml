@@ -1,0 +1,13 @@
+id:         CBR-JS-REACT-DANGEROUS-HTML
+title:      "React dangerouslySetInnerHTML"
+severity:   medium
+languages:  [javascript, typescript]
+cwe:        [CWE-79]
+fix_recipe: CWE-79-CONTEXTUAL-ESCAPE
+message: |
+  dangerouslySetInnerHTML renders raw HTML into the React tree,
+  bypassing the auto-escaping that makes React XSS-safe by default.
+  Render text directly with `{value}`, or sanitise with DOMPurify
+  before passing if you truly need rich markup.
+regex: |
+  dangerouslySetInnerHTML\s*=\s*\{\s*\{\s*__html

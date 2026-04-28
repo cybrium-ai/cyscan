@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_FRONTDOOR_USE_WAFMODE
+title:     "Azure Frontdoor Use Wafmode"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-frontdoor-use-wafmode
+message: |
+  Ensure that Azure Front Door uses WAF and configured in “Detection” or “Prevention” modes
+pattern: |
+  resource

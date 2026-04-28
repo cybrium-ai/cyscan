@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_PUBSUB_PRIVATE_TOPIC_IAM_M
+title:     "Gcp Pubsub Private Topic Iam Member"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-pubsub-private-topic-iam-member
+message: |
+  Ensure that Pub/Sub Topics are not anonymously or publicly accessible
+pattern: |
+  resource

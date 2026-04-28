@@ -1,0 +1,11 @@
+id:        CBR-RUBY-HTTP_CLIENT_REQUESTS
+title:     "Http Client Requests"
+severity:  high
+languages: ['ruby']
+cwe:       ['CWE-319']
+source:    semgrep/http-client-requests
+message: |
+  Checks for requests to http (unencrypted) sites using some of ruby's most popular REST/HTTP libraries, including httparty and restclient.
+pattern: |
+  HTTParty.$PARTYVERB("=~/[hH][tT][tT][pP]://.*/", ...)
+  

@@ -1,0 +1,14 @@
+id:        CBR-CSHA-MVC_MISSING_ANTIFORGERY
+title:     "Mvc Missing Antiforgery"
+severity:  high
+languages: ['csharp']
+cwe:       ['CWE-352']
+source:    semgrep/mvc-missing-antiforgery
+message: |
+  $METHOD is a state-changing MVC method that does not validate the antiforgery token or do strict content-type checking. State-changing controller methods should either enforce antiforgery tokens or do strict content-type checking to prevent simple HTTP request types from bypassing CORS preflight controls.
+pattern: |
+  [$HTTPMETHOD]
+  public IActionResult $METHOD(...){
+      ...
+  }
+  

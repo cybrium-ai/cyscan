@@ -1,0 +1,9 @@
+id:        CBR-JAVA-MISSING_TEMPLATE_STRING_INDICA
+title:     "Missing Template String Indicator"
+severity:  medium
+languages: ['javascript', 'typescript']
+source:    semgrep/missing-template-string-indicator
+message: |
+  This looks like a JavaScript template string. Are you missing a '$' in front of '{...}'?
+pattern: |
+  $STR

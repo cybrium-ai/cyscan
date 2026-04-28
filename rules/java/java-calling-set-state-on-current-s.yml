@@ -1,0 +1,9 @@
+id:        CBR-JAVA-CALLING_SET_STATE_ON_CURRENT_S
+title:     "Calling Set State On Current State"
+severity:  critical
+languages: ['javascript']
+source:    semgrep/calling-set-state-on-current-state
+message: |
+  Calling setState on the current state is always a no-op. Did you mean to change the state like $Y(!$X) instead?
+pattern: |
+  $Y($X);

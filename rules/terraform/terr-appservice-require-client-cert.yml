@@ -1,0 +1,10 @@
+id:        CBR-TERR-APPSERVICE_REQUIRE_CLIENT_CERT
+title:     "Appservice Require Client Cert"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-295']
+source:    semgrep/appservice-require-client-cert
+message: |
+  Detected an AppService that was not configured to use a client certificate. Add `client_cert_enabled = true` in your resource block.
+pattern: |
+  resource

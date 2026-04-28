@@ -1,0 +1,17 @@
+id:         CBR-JS-DOCUMENT-WRITE
+title:      "document.write / writeln"
+severity:   medium
+languages:  [javascript, typescript]
+cwe:        [CWE-79]
+fix_recipe: CWE-79-CONTEXTUAL-ESCAPE
+message: |
+  document.write / writeln parses its argument as HTML at document
+  level. Any attacker-controlled byte becomes live script. Build
+  the DOM with createElement + textContent, or escape with a
+  sanitiser before setting innerHTML.
+query: |
+  (call_expression
+    function: (member_expression
+                object: (identifier) @doc (#eq? @doc "document")
+                property: (property_identifier) @m
+                (#match? @m "^(write|writeln)$"))) @call

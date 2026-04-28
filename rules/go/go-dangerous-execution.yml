@@ -1,0 +1,10 @@
+id:        CBR-GO-DANGEROUS_EXECUTION
+title:     "Dangerous Execution"
+severity:  critical
+languages: ['go']
+cwe:       ['CWE-94']
+source:    semgrep/dangerous-execution
+message: |
+  Detected non-static script inside otto VM. Audit the input to 'VM.Run'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.
+pattern: |
+  $VM.Run(...)

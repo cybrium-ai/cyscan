@@ -1,0 +1,9 @@
+id:        CBR-GENE-DETECT_GENERIC_AI_API
+title:     "Detect Generic Ai Api"
+severity:  medium
+languages: ['generic']
+source:    semgrep/detect-generic-ai-api
+message: |
+  Possibly found usage of AI: HTTP Request
+pattern: |
+  /chat/completions

@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_SECURITYCENTER_EMAIL_ALE
+title:     "Azure Securitycenter Email Alert Admins"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-securitycenter-email-alert-admins
+message: |
+  Ensure that Send email notification for high severity alerts is set to On
+pattern: |
+  resource

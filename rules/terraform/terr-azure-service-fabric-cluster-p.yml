@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_SERVICE_FABRIC_CLUSTER_P
+title:     "Azure Service Fabric Cluster Protection Level"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-320']
+source:    semgrep/azure-service-fabric-cluster-protection-level
+message: |
+  Ensure that Service Fabric use three levels of protection available
+pattern: |
+  resource

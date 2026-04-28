@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_SQL_PUBLIC_DATABASE
+title:     "Gcp Sql Public Database"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-sql-public-database
+message: |
+  Ensure that Cloud SQL database Instances are not open to the world
+pattern: |
+  resource
