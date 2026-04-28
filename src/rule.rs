@@ -24,6 +24,10 @@ pub struct Rule {
     /// Mutually exclusive with `query` — `query` wins if both set.
     #[serde(default)]
     pub regex:     Option<String>,
+    /// Semgrep-style pattern — treated as regex for matching.
+    /// Alias so imported rules with `pattern:` field work without conversion.
+    #[serde(default)]
+    pub pattern:   Option<String>,
     pub message:   String,
     #[serde(default)]
     pub fix_recipe: Option<String>,
@@ -55,8 +59,8 @@ impl Rule {
         if self.languages.is_empty() {
             bail!("rule {}: no languages declared", self.id);
         }
-        if self.query.is_none() && self.regex.is_none() {
-            bail!("rule {}: neither query nor regex set", self.id);
+        if self.query.is_none() && self.regex.is_none() && self.pattern.is_none() {
+            bail!("rule {}: neither query, regex, nor pattern set", self.id);
         }
         Ok(())
     }
