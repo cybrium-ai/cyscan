@@ -42,6 +42,13 @@ pub struct Rule {
     pub dependency: Option<DependencyPolicy>,
     #[serde(default)]
     pub cwe:       Vec<String>,
+    /// Frameworks this rule applies to (e.g., ["django", "flask"]).
+    /// Empty = all frameworks. Used for filtering and reporting.
+    #[serde(default)]
+    pub frameworks: Vec<String>,
+    /// Source attribution (e.g., "semgrep/rule-id", "peridex/auto").
+    #[serde(default)]
+    pub source:    Option<String>,
 }
 
 impl Rule {
