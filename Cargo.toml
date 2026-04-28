@@ -1,6 +1,6 @@
 [package]
 name        = "cyscan"
-version     = "0.3.0"
+version     = "0.6.0"
 edition     = "2021"
 description = "Cybrium Scan — fast multi-language SAST engine"
 license     = "Apache-2.0"
