@@ -290,3 +290,182 @@ fn extract_version(content: &str, package: &str) -> Option<String> {
         .and_then(|c| c.get(1))
         .map(|m| m.as_str().to_string())
 }
+
+// ── Repository Health Check ──────────────────────────────────────────────────
+
+/// Repository health metrics — checks for security hygiene.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct RepoHealth {
+    pub score: u8, // 0-100
+    pub checks: Vec<HealthCheck>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct HealthCheck {
+    pub name: &'static str,
+    pub category: &'static str,
+    pub passed: bool,
+    pub detail: String,
+    pub severity: &'static str,
+}
+
+/// Evaluate repository health — security hygiene, dependency age, CI config, etc.
+pub fn check_repo_health(target: &Path) -> RepoHealth {
+    let mut checks = Vec::new();
+
+    // 1. License file exists
+    checks.push(check_file_exists(target, &["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE"], "License file", "governance", "low"));
+
+    // 2. README exists
+    checks.push(check_file_exists(target, &["README.md", "README.rst", "README.txt", "README"], "README file", "documentation", "info"));
+
+    // 3. SECURITY.md (vulnerability disclosure policy)
+    checks.push(check_file_exists(target, &["SECURITY.md", ".github/SECURITY.md"], "Security policy (SECURITY.md)", "governance", "medium"));
+
+    // 4. .gitignore exists
+    checks.push(check_file_exists(target, &[".gitignore"], ".gitignore file", "hygiene", "low"));
+
+    // 5. CI/CD configuration
+    let ci_files = [
+        ".github/workflows", ".gitlab-ci.yml", "Jenkinsfile",
+        ".circleci/config.yml", "azure-pipelines.yml", ".travis.yml",
+    ];
+    checks.push(check_file_exists(target, &ci_files, "CI/CD pipeline configuration", "automation", "medium"));
+
+    // 6. Lockfile exists (dependencies pinned)
+    let lockfiles = [
+        "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+        "Pipfile.lock", "poetry.lock", "Cargo.lock",
+        "go.sum", "Gemfile.lock", "composer.lock",
+    ];
+    checks.push(check_file_exists(target, &lockfiles, "Dependency lockfile (pinned versions)", "supply-chain", "high"));
+
+    // 7. No .env file committed
+    let env_exists = target.join(".env").exists();
+    checks.push(HealthCheck {
+        name: "No .env file in repository",
+        category: "secrets",
+        passed: !env_exists,
+        detail: if env_exists { ".env file found — may contain secrets".into() } else { "No .env file committed".into() },
+        severity: "critical",
+    });
+
+    // 8. No hardcoded secrets in common config files
+    let secret_patterns = ["password", "secret_key", "api_key", "access_key", "private_key"];
+    let config_files = ["docker-compose.yml", "docker-compose.yaml", "app.yaml", "config.yaml"];
+    let mut secrets_found = Vec::new();
+    for cf in &config_files {
+        let p = target.join(cf);
+        if let Ok(content) = fs::read_to_string(&p) {
+            let lower = content.to_lowercase();
+            for sp in &secret_patterns {
+                if lower.contains(sp) && (lower.contains("=") || lower.contains(":")) {
+                    // Check it's not a reference to env var
+                    if !lower.contains(&format!("${{{}}}", sp)) && !lower.contains("${") {
+                        secrets_found.push(format!("{cf}: may contain {sp}"));
+                    }
+                }
+            }
+        }
+    }
+    checks.push(HealthCheck {
+        name: "No hardcoded secrets in config files",
+        category: "secrets",
+        passed: secrets_found.is_empty(),
+        detail: if secrets_found.is_empty() { "Config files clean".into() } else { secrets_found.join(", ") },
+        severity: "critical",
+    });
+
+    // 9. CODEOWNERS file
+    checks.push(check_file_exists(target, &["CODEOWNERS", ".github/CODEOWNERS", "docs/CODEOWNERS"], "CODEOWNERS file", "governance", "low"));
+
+    // 10. Dependabot or Renovate configured
+    let depbot_files = [
+        ".github/dependabot.yml", ".github/dependabot.yaml",
+        "renovate.json", ".renovaterc", ".renovaterc.json",
+    ];
+    checks.push(check_file_exists(target, &depbot_files, "Automated dependency updates (Dependabot/Renovate)", "supply-chain", "medium"));
+
+    // 11. Branch protection (check for .github/settings.yml or CONTRIBUTING.md)
+    checks.push(check_file_exists(target, &["CONTRIBUTING.md", ".github/CONTRIBUTING.md"], "Contributing guidelines", "governance", "low"));
+
+    // 12. Dockerfile uses non-root user
+    let dockerfile = target.join("Dockerfile");
+    if dockerfile.exists() {
+        if let Ok(content) = fs::read_to_string(&dockerfile) {
+            let has_user = content.lines().any(|l| l.trim_start().starts_with("USER ") && !l.contains("root"));
+            checks.push(HealthCheck {
+                name: "Dockerfile runs as non-root user",
+                category: "container",
+                passed: has_user,
+                detail: if has_user { "Non-root USER directive found".into() } else { "No USER directive — container runs as root".into() },
+                severity: "high",
+            });
+        }
+    }
+
+    // 13. No TODO/FIXME/HACK with security implications
+    let mut security_todos = 0;
+    let security_keywords = ["TODO.*security", "FIXME.*auth", "HACK.*password", "TODO.*encrypt", "FIXME.*ssl", "TODO.*sanitiz"];
+    let re_patterns: Vec<regex::Regex> = security_keywords.iter()
+        .filter_map(|p| regex::Regex::new(&format!("(?i){p}")).ok())
+        .collect();
+
+    for entry in walkdir::WalkDir::new(target).max_depth(4).into_iter()
+        .filter_entry(|e| {
+            let n = e.file_name().to_str().unwrap_or("");
+            !n.starts_with('.') && n != "node_modules" && n != "target" && n != "vendor"
+        })
+        .filter_map(|e| e.ok())
+    {
+        if !entry.file_type().is_file() { continue; }
+        if let Ok(content) = fs::read_to_string(entry.path()) {
+            for re in &re_patterns {
+                security_todos += re.find_iter(&content).count();
+            }
+        }
+        if security_todos > 0 { break; } // found at least one
+    }
+    checks.push(HealthCheck {
+        name: "No security-related TODOs/FIXMEs",
+        category: "hygiene",
+        passed: security_todos == 0,
+        detail: if security_todos == 0 { "No security TODOs found".into() } else { format!("{security_todos} security-related TODO/FIXME comments found") },
+        severity: "medium",
+    });
+
+    // 14. Package.json has no wildcard versions
+    let pkg_json = target.join("package.json");
+    if pkg_json.exists() {
+        if let Ok(content) = fs::read_to_string(&pkg_json) {
+            let has_wildcard = content.contains("\"*\"") || content.contains("\"latest\"");
+            checks.push(HealthCheck {
+                name: "No wildcard dependency versions",
+                category: "supply-chain",
+                passed: !has_wildcard,
+                detail: if has_wildcard { "Found '*' or 'latest' in dependencies".into() } else { "All dependencies have pinned versions".into() },
+                severity: "high",
+            });
+        }
+    }
+
+    // Calculate score
+    let total = checks.len() as f64;
+    let passed = checks.iter().filter(|c| c.passed).count() as f64;
+    let score = ((passed / total) * 100.0).round() as u8;
+
+    log::info!("repo-health: score {}/100 — {}/{} checks passed", score, passed as u8, total as u8);
+
+    RepoHealth { score, checks }
+}
+
+fn check_file_exists(target: &Path, candidates: &[&str], name: &'static str, category: &'static str, severity: &'static str) -> HealthCheck {
+    let found = candidates.iter().any(|f| target.join(f).exists());
+    HealthCheck {
+        name,
+        category,
+        passed: found,
+        detail: if found { "Found".into() } else { "Not found".into() },
+        severity,
+    }
+}
