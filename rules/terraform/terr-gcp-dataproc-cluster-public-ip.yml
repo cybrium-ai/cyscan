@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_DATAPROC_CLUSTER_PUBLIC_IP
+title:     "Gcp Dataproc Cluster Public Ip"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-dataproc-cluster-public-ip
+message: |
+  Ensure Dataproc Clusters do not have public IPs
+pattern: |
+  resource

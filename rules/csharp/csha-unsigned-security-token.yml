@@ -1,0 +1,12 @@
+id:        CBR-CSHA-UNSIGNED_SECURITY_TOKEN
+title:     "Unsigned Security Token"
+severity:  critical
+languages: ['csharp']
+cwe:       ['CWE-347']
+source:    semgrep/unsigned-security-token
+message: |
+  Accepting unsigned security tokens as valid security tokens allows an attacker to remove its signature and potentially forge an identity. As a fix, set RequireSignedTokens to be true.
+pattern: |
+  RequireSignedTokens = false
+fix: |
+  RequireSignedTokens = true

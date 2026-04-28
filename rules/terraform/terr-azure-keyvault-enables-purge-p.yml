@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_KEYVAULT_ENABLES_PURGE_P
+title:     "Azure Keyvault Enables Purge Protection"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-keyvault-enables-purge-protection
+message: |
+  Ensure that key vault enables purge protection
+pattern: |
+  resource

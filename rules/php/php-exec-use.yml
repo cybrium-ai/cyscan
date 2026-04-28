@@ -1,0 +1,10 @@
+id:        CBR-PHP-EXEC_USE
+title:     "Exec Use"
+severity:  critical
+languages: ['php']
+cwe:       ['CWE-94']
+source:    semgrep/exec-use
+message: |
+  Executing non-constant commands. This can lead to command injection.
+pattern: |
+  $FUNC(...);

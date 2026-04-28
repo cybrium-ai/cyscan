@@ -1,0 +1,11 @@
+id:        CBR-JAVA-SEQUELIZE_RAW_QUERY
+title:     "Sequelize Raw Query"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-89']
+source:    semgrep/sequelize-raw-query
+message: |
+  Avoiding SQL string concatenation: untrusted input concatenated with raw SQL query can result in SQL Injection. Data replacement or data binding should be used. See https://sequelize.org/master/manual/raw-queries.html
+pattern: |
+  $DATABASE.sequelize.query(`...${...}...`, ...)
+  

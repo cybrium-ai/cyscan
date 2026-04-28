@@ -1,0 +1,11 @@
+id:        CBR-JAVA-TLS_RENEGOTIATION
+title:     "Tls Renegotiation"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-319']
+source:    semgrep/tls-renegotiation
+message: |
+  Checks for cases where java applications are allowing unsafe renegotiation. This leaves the application vulnerable to a man-in-the-middle attack where chosen plain text is injected as prefix to a TLS connection.
+pattern: |
+  java.lang.System.setProperty("sun.security.ssl.allowUnsafeRenegotiation", true);
+  

@@ -1,0 +1,9 @@
+id:        CBR-DOCK-AVOID_PLATFORM_WITH_FROM
+title:     "Avoid Platform With From"
+severity:  medium
+languages: ['docker']
+source:    semgrep/avoid-platform-with-from
+message: |
+  Using '--platform' with FROM restricts the image to build on a single platform. Further, this must be the same as the build platform. If you intended to specify the target platform, use the utility 'docker buildx --platform=' instead.
+pattern: |
+  FROM --platform=$PLATFORM $IMAGE

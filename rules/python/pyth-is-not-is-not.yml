@@ -1,0 +1,9 @@
+id:        CBR-PYTH-IS_NOT_IS_NOT
+title:     "Is Not Is Not"
+severity:  critical
+languages: ['python']
+source:    semgrep/is-not-is-not
+message: |
+  In Python 'X is not ...' is different from 'X is (not ...)'. In the latter the 'not' converts the '...' directly to boolean.
+pattern: |
+  $S is (not ...)

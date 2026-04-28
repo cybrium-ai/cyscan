@@ -1,0 +1,10 @@
+id:        CBR-PYTH-RENDER_TEMPLATE_STRING
+title:     "Render Template String"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-96']
+source:    semgrep/render-template-string
+message: |
+  Found a template created with string formatting. This is susceptible to server-side template injection and cross-site scripting attacks.
+pattern: |
+  flask.render_template_string(...)

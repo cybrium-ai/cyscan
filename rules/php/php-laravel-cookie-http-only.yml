@@ -1,0 +1,11 @@
+id:        CBR-PHP-LARAVEL_COOKIE_HTTP_ONLY
+title:     "Laravel Cookie Http Only"
+severity:  critical
+languages: ['php']
+cwe:       ['CWE-1004']
+source:    semgrep/laravel-cookie-http-only
+message: |
+  Found a configuration file where the HttpOnly attribute is not set to true. Setting `http_only` to true makes sure that your cookies are inaccessible from Javascript, which mitigates XSS attacks. Instead, set the 'http_only' like so: `http_only` => true 
+pattern: |
+  'cookie'
+  

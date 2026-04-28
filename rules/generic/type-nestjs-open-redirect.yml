@@ -1,0 +1,11 @@
+id:        CBR-TYPE-NESTJS_OPEN_REDIRECT
+title:     "Nestjs Open Redirect"
+severity:  high
+languages: ['typescript']
+cwe:       ['CWE-601']
+source:    semgrep/nestjs-open-redirect
+message: |
+  Untrusted user input in {url: ...} can result in Open Redirect vulnerability.
+pattern: |
+  return {url: $URL}
+  

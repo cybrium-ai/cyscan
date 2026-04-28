@@ -1,0 +1,11 @@
+id:        CBR-JAVA-LDAP_ENTRY_POISONING
+title:     "Ldap Entry Poisoning"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-90']
+source:    semgrep/ldap-entry-poisoning
+message: |
+  An object-returning LDAP search will allow attackers to control the LDAP response. This could lead to Remote Code Execution.
+pattern: |
+  new SearchControls($S, $CL, $TL, $AT, true, $DEREF)
+  

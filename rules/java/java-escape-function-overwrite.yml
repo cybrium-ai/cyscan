@@ -1,0 +1,10 @@
+id:        CBR-JAVA-ESCAPE_FUNCTION_OVERWRITE
+title:     "Escape Function Overwrite"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-79']
+source:    semgrep/escape-function-overwrite
+message: |
+  The Mustache escape function is being overwritten. This could bypass HTML escaping safety measures built into the rendering engine, exposing your application to cross-site scripting (XSS) vulnerabilities. If you need unescaped HTML, use the triple brace operator in your template: '{{{ ... }}}'.
+pattern: |
+  Mustache.escape = ...

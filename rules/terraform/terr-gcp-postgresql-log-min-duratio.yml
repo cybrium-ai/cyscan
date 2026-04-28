@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_POSTGRESQL_LOG_MIN_DURATIO
+title:     "Gcp Postgresql Log Min Duration"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-postgresql-log-min-duration
+message: |
+  Ensure PostgreSQL database 'log_min_duration_statement' flag is set to '-1'
+pattern: |
+  resource

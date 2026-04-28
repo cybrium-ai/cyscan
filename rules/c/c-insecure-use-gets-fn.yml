@@ -1,0 +1,10 @@
+id:        CBR-C-INSECURE_USE_GETS_FN
+title:     "Insecure Use Gets Fn"
+severity:  critical
+languages: ['c']
+cwe:       ['CWE-676']
+source:    semgrep/insecure-use-gets-fn
+message: |
+  Avoid 'gets()'. This function does not consider buffer boundaries and can lead to buffer overflows. Use 'fgets()' or 'gets_s()' instead.
+pattern: |
+  gets(...)

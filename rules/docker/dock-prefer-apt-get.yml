@@ -1,0 +1,9 @@
+id:        CBR-DOCK-PREFER_APT_GET
+title:     "Prefer Apt Get"
+severity:  medium
+languages: ['docker']
+source:    semgrep/prefer-apt-get
+message: |
+  'apt-get' is preferred as an unattended tool for stability. 'apt' is discouraged.
+pattern: |
+  RUN apt ...

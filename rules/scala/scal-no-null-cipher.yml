@@ -1,0 +1,10 @@
+id:        CBR-SCAL-NO_NULL_CIPHER
+title:     "No Null Cipher"
+severity:  high
+languages: ['scala']
+cwe:       ['CWE-327']
+source:    semgrep/no-null-cipher
+message: |
+  NullCipher was detected. This will not encrypt anything; the cipher text will be the same as the plain text. Use a valid, secure cipher: Cipher.getInstance("AES/CBC/PKCS7PADDING"). See https://owasp.org/www-community/Using_the_Java_Cryptographic_Extensions for more information.
+pattern: |
+  NullCipher(...)

@@ -1,0 +1,9 @@
+id:        CBR-PYTH-PYTHON37_COMPATIBILITY_MATH1
+title:     "Python37 Compatibility Math1"
+severity:  critical
+languages: ['python']
+source:    semgrep/python37-compatibility-math1
+message: |
+  math.remainder is only available on Python 3.7+ and is therefore not backwards compatible. Instead, use math.fmod() or calculate $X - n* $Y.
+pattern: |
+  math.remainder($X, $Y)

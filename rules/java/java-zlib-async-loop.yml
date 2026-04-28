@@ -1,0 +1,9 @@
+id:        CBR-JAVA-ZLIB_ASYNC_LOOP
+title:     "Zlib Async Loop"
+severity:  high
+languages: ['javascript', 'typescript']
+source:    semgrep/zlib-async-loop
+message: |
+  Creating and using a large number of zlib objects simultaneously can cause significant memory fragmentation. It is strongly recommended that the results of compression operations be cached or made synchronous to avoid duplication of effort.
+pattern: |
+  zlib.$METHOD(...);

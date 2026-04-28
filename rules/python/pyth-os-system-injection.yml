@@ -1,0 +1,10 @@
+id:        CBR-PYTH-OS_SYSTEM_INJECTION
+title:     "Os System Injection"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-78']
+source:    semgrep/os-system-injection
+message: |
+  User data detected in os.system. This could be vulnerable to a command injection and should be avoided. If this must be done, use the 'subprocess' module instead and pass the arguments as a list.
+pattern: |
+  os.system(..., <... flask.request.$W.get(...) ...>, ...)

@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_SQL_DATABASE_REQUIRE_SSL
+title:     "Gcp Sql Database Require Ssl"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-326']
+source:    semgrep/gcp-sql-database-require-ssl
+message: |
+  Ensure all Cloud SQL database instance requires all incoming connections to use SSL
+pattern: |
+  resource

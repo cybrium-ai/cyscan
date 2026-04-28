@@ -1,0 +1,9 @@
+id:        CBR-DOCK-AVOID_APK_UPGRADE
+title:     "Avoid Apk Upgrade"
+severity:  medium
+languages: ['docker']
+source:    semgrep/avoid-apk-upgrade
+message: |
+  Packages in base images should be up-to-date, removing the need for 'apk upgrade'. If packages are out-of-date, consider contacting the base image maintainer.
+pattern: |
+  RUN ... apk upgrade ...

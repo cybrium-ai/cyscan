@@ -1,0 +1,10 @@
+id:        CBR-PYTH-TELNETLIB
+title:     "Telnetlib"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-319']
+source:    semgrep/telnetlib
+message: |
+  Telnet does not encrypt communications. Use SSH instead.
+pattern: |
+  telnetlib.$ANYTHING(...)

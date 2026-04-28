@@ -1,0 +1,10 @@
+id:        CBR-PYTH-DUPLICATE_PATH_ASSIGNMENT
+title:     "Duplicate Path Assignment"
+severity:  high
+languages: ['python']
+source:    semgrep/duplicate-path-assignment
+message: |
+  path for `$URL` is uselessly assigned twice
+pattern: |
+  [..., django.urls.path('$URL', $VIEW, ...), ..., django.urls.path('$URL', $VIEW, ...), ...]
+  

@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_GKE_ENABLE_SHIELDED_NODES
+title:     "Gcp Gke Enable Shielded Nodes"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-gke-enable-shielded-nodes
+message: |
+  Ensure Shielded GKE Nodes are Enabled
+pattern: |
+  resource

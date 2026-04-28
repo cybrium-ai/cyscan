@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_COMPUTE_TEMPLATE_SHIELDED_
+title:     "Gcp Compute Template Shielded Vm"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-compute-template-shielded-vm
+message: |
+  Ensure Compute instances are launched with Shielded VM enabled
+pattern: |
+  resource

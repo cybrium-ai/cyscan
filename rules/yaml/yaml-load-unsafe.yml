@@ -1,0 +1,12 @@
+id:         CBR-PY-YAML-UNSAFE-LOAD
+title:      "yaml.load without SafeLoader"
+severity:   high
+languages:  [python]
+cwe:        [CWE-502]
+fix_recipe: CBR-PY-YAML-SAFE-LOAD
+message: |
+  yaml.load with the default Loader instantiates arbitrary Python
+  objects via !!python/object tags — RCE on untrusted input. Use
+  yaml.safe_load or pass Loader=yaml.SafeLoader explicitly.
+regex: |
+  \byaml\.load\s*\(\s*[^,)]+\s*\)

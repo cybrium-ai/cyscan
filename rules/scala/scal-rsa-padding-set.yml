@@ -1,0 +1,11 @@
+id:        CBR-SCAL-RSA_PADDING_SET
+title:     "Rsa Padding Set"
+severity:  high
+languages: ['scala']
+cwe:       ['CWE-780']
+source:    semgrep/rsa-padding-set
+message: |
+  Usage of RSA without OAEP (Optimal Asymmetric Encryption Padding) may weaken encryption. This could lead to sensitive data exposure. Instead, use RSA with `OAEPWithMD5AndMGF1Padding` instead.
+pattern: |
+  $VAR = $CIPHER.getInstance($MODE)
+  

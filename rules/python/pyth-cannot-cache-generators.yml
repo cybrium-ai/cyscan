@@ -1,0 +1,9 @@
+id:        CBR-PYTH-CANNOT_CACHE_GENERATORS
+title:     "Cannot Cache Generators"
+severity:  high
+languages: ['python']
+source:    semgrep/cannot-cache-generators
+message: |
+  Generators can only be consumed once, so in most cases, caching them will cause an error when the already-consumed generator is retrieved from cache.
+pattern: |
+  functools.lru_cache(...)

@@ -1,0 +1,11 @@
+id:        CBR-JAVA-UNSAFE_SERIALIZE_JAVASCRIPT
+title:     "Unsafe Serialize Javascript"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-80']
+source:    semgrep/unsafe-serialize-javascript
+message: |
+  `serialize-javascript` used with `unsafe` parameter, this could be vulnerable to XSS.
+pattern: |
+  $S(..., {unsafe: true});
+  

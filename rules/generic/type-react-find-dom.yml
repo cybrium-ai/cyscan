@@ -1,0 +1,10 @@
+id:        CBR-TYPE-REACT_FIND_DOM
+title:     "React Find Dom"
+severity:  high
+languages: ['typescript', 'javascript']
+source:    semgrep/react-find-dom
+message: |
+  findDOMNode is an escape hatch used to access the underlying DOM node. In most cases, use of this escape hatch is discouraged because it pierces the component abstraction.
+pattern: |
+  findDOMNode(...)
+  

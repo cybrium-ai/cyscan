@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_GKE_PUBLIC_CONTROL_PLANE
+title:     "Gcp Gke Public Control Plane"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-gke-public-control-plane
+message: |
+  Ensure GKE Control Plane is not public
+pattern: |
+  resource

@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_APPSERVICE_HTTPS_ONLY
+title:     "Azure Appservice Https Only"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-319']
+source:    semgrep/azure-appservice-https-only
+message: |
+  Ensure web app redirects all HTTP traffic to HTTPS in Azure App Service Slot
+pattern: |
+  resource

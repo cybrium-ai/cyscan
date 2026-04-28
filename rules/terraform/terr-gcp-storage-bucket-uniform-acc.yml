@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_STORAGE_BUCKET_UNIFORM_ACC
+title:     "Gcp Storage Bucket Uniform Access"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-storage-bucket-uniform-access
+message: |
+  Ensure that Cloud Storage buckets have uniform bucket-level access enabled. Setting `uniform_bucket_level_access` to `true` ensures that access is managed uniformly at the bucket level, which improves security by disabling object-level ACLs.
+pattern: |
+  resource

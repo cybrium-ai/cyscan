@@ -1,0 +1,9 @@
+id:        CBR-JAVA-JAVASCRIPT_PROMPT
+title:     "Javascript Prompt"
+severity:  high
+languages: ['javascript', 'typescript']
+source:    semgrep/javascript-prompt
+message: |
+  found prompt() call; should this be in production code?
+pattern: |
+  prompt()

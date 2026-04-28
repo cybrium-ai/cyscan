@@ -1,0 +1,10 @@
+id:        CBR-PYTH-USE_DEFUSEDCSV
+title:     "Use Defusedcsv"
+severity:  medium
+languages: ['python']
+cwe:       ['CWE-1236']
+source:    semgrep/use-defusedcsv
+message: |
+  Detected the generation of a CSV file using the built-in `csv` module. If user data is used to generate the data in this file, it is possible that an attacker could inject a formula when the CSV is imported into a spreadsheet application that runs an attacker script, which could steal data from the importing user or, at worst, install malware on the user's computer. `defusedcsv` is a drop-in replacement with the same API that will attempt to mitigate formula injection attempts. You can use `defu
+pattern: |
+  csv.writer(...)

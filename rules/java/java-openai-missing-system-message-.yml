@@ -1,0 +1,11 @@
+id:        CBR-JAVA-OPENAI_MISSING_SYSTEM_MESSAGE_
+title:     "Openai Missing System Message Js"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-77']
+source:    semgrep/openai-missing-system-message-js
+message: |
+  OpenAI chat completion created without a system message. A system message helps establish behavioral guidelines and safety boundaries for the model.
+pattern: |
+  $CLIENT.chat.completions.create({..., messages: $MSGS, ...})
+  

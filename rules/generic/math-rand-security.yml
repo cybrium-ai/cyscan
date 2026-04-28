@@ -1,0 +1,12 @@
+id:         CBR-GO-MATH-RAND-FOR-SECURITY
+title:      "math/rand used in a security-adjacent context"
+severity:   medium
+languages:  [go]
+cwe:        [CWE-338, CWE-330]
+message: |
+  math/rand is deterministic and seeded predictably — fine for
+  games, disastrous for tokens, nonces, session IDs, password
+  resets, or CSRF cookies. Import crypto/rand and use rand.Read.
+regex: |
+  "math/rand"
+fix: '"crypto/rand"'

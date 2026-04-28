@@ -1,0 +1,11 @@
+id:        CBR-JAVA-AJV_ALLERRORS_TRUE
+title:     "Ajv Allerrors True"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-400']
+source:    semgrep/ajv-allerrors-true
+message: |
+  By setting `allErrors: true` in `Ajv` library, all error objects will be allocated without limit. This allows the attacker to produce a huge number of errors which can lead to denial of service. Do not use `allErrors: true` in production.
+pattern: |
+  new Ajv({...,allErrors: true,...},...)
+  

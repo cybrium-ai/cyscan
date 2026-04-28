@@ -1,0 +1,11 @@
+id:        CBR-YAML-LANG_CONSISTENCY_JS
+title:     "Lang Consistency Js"
+severity:  high
+languages: ['yaml']
+source:    semgrep/lang-consistency-js
+message: |
+  Found '$X' in language config which diverges from semgrep.dev normalization. Please use 'js' instead.
+pattern: |
+  $X
+fix: |
+  js

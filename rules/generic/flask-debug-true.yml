@@ -1,0 +1,13 @@
+id:         CBR-PY-FLASK-DEBUG-TRUE
+title:      "Flask app.run(debug=True)"
+severity:   high
+languages:  [python]
+cwe:        [CWE-489, CWE-215]
+fix_recipe: CBR-PY-FLASK-DEBUG-OFF
+message: |
+  Flask's debugger is a remote code execution shell if reachable — it
+  ships the Werkzeug interactive debugger that any authenticated
+  visitor can use to run code. Never enable in production or on a
+  public port.
+regex: |
+  \.run\s*\([^)]*debug\s*=\s*True

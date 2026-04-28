@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_GKE_POD_SECURITY_POLICY_EN
+title:     "Gcp Gke Pod Security Policy Enabled"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-gke-pod-security-policy-enabled
+message: |
+  Ensure PodSecurityPolicy controller is enabled on the Kubernetes Engine Clusters
+pattern: |
+  resource

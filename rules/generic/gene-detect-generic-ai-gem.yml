@@ -1,0 +1,9 @@
+id:        CBR-GENE-DETECT_GENERIC_AI_GEM
+title:     "Detect Generic Ai Gem"
+severity:  medium
+languages: ['generic']
+source:    semgrep/detect-generic-ai-gem
+message: |
+  Possibly found usage of AI: Gemini
+pattern: |
+  google/generative-ai
