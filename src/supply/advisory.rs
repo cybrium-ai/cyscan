@@ -208,6 +208,8 @@ fn make_finding(adv: &Advisory, dep: &Dependency) -> Finding {
         fix_recipe: None,
         fix:        None,
         cwe:        Vec::new(),
+        evidence:   HashMap::new(),
+        reachability: None,
     }
 }
 

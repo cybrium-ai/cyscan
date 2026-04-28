@@ -3,6 +3,7 @@
 //! if a rule needs that, upgrade to tree-sitter.
 
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
 use regex::Regex;
 
@@ -48,6 +49,8 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
                 fix_recipe: rule.fix_recipe.clone(),
                 fix:        rule.fix.clone(),
                 cwe:        rule.cwe.clone(),
+                evidence: HashMap::new(),
+                reachability: None,
             });
         }
         line_start += line.len();
