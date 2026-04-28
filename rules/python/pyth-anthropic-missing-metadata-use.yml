@@ -1,0 +1,10 @@
+id:        CBR-PYTH-ANTHROPIC_MISSING_METADATA_USE
+title:     "Anthropic Missing Metadata User Id Python"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-778']
+source:    semgrep/anthropic-missing-metadata-user-id-python
+message: |
+  Anthropic messages.create() called without 'metadata' parameter. Pass a metadata object with a hashed user_id to enable abuse tracking and policy enforcement. See https://docs.anthropic.com/en/api/messages
+pattern: |
+  $CLIENT.messages.create(...)

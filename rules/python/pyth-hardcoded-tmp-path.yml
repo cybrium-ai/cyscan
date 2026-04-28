@@ -1,0 +1,9 @@
+id:        CBR-PYTH-HARDCODED_TMP_PATH
+title:     "Hardcoded Tmp Path"
+severity:  high
+languages: ['python']
+source:    semgrep/hardcoded-tmp-path
+message: |
+  Detected hardcoded temp directory. Consider using 'tempfile.TemporaryFile' instead.
+pattern: |
+  open("=~/^\/tmp.*/", ...)

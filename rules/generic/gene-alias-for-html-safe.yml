@@ -1,0 +1,10 @@
+id:        CBR-GENE-ALIAS_FOR_HTML_SAFE
+title:     "Alias For Html Safe"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-79']
+source:    semgrep/alias-for-html-safe
+message: |
+  The syntax `<%== ... %>` is an alias for `html_safe`. This means the content inside these tags will be rendered as raw HTML. This may expose your application to cross-site scripting. If you need raw HTML, prefer using the more explicit `html_safe` and be sure to correctly sanitize variables using a library such as DOMPurify.
+pattern: |
+  <%== ... %>

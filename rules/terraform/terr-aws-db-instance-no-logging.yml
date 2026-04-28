@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS_DB_INSTANCE_NO_LOGGING
+title:     "Aws Db Instance No Logging"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    semgrep/aws-db-instance-no-logging
+message: |
+  Database instance has no logging. Missing logs can cause missing important event information.
+pattern: |
+  resource "aws_db_instance" $ANYTHING {
+    ...
+  }
+  

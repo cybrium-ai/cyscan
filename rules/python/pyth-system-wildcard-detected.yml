@@ -1,0 +1,10 @@
+id:        CBR-PYTH-SYSTEM_WILDCARD_DETECTED
+title:     "System Wildcard Detected"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-155']
+source:    semgrep/system-wildcard-detected
+message: |
+  Detected use of the wildcard character in a system call that spawns a shell. This subjects the wildcard to normal shell expansion, which can have unintended consequences if there exist any non-standard file names. Consider a file named '-e sh script.sh' -- this will execute a script when 'rsync' is called. See https://www.defensecode.com/public/DefenseCode_Unix_WildCards_Gone_Wild.txt for more information.
+regex: |
+  (tar|chmod|chown|rsync)(.*?)\*

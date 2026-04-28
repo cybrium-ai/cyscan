@@ -1,0 +1,15 @@
+id:        CBR-JAVA-SPRING_FTP_REQUEST
+title:     "Spring Ftp Request"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-319']
+source:    semgrep/spring-ftp-request
+message: |
+  Checks for outgoing connections to ftp servers via Spring plugin ftpSessionFactory. FTP does not encrypt traffic, possibly leading to PII being sent plaintext over the network.
+pattern: |
+  $SF = new DefaultFtpSessionFactory(...);
+  ...
+  $SF.setHost("=~/^[fF][tT][pP]://.*/");
+  ...
+  $SF.$FUNC(...);
+  

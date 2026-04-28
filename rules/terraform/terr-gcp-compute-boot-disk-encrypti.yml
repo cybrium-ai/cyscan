@@ -1,0 +1,13 @@
+id:        CBR-TERR-GCP_COMPUTE_BOOT_DISK_ENCRYPTI
+title:     "Gcp Compute Boot Disk Encryption"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    semgrep/gcp-compute-boot-disk-encryption
+message: |
+  Ensure VM disks for critical VMs are encrypted with Customer Supplied Encryption Keys (CSEK)
+pattern: |
+  resource "google_compute_instance" $ANYTHING {
+    ...
+  }
+  

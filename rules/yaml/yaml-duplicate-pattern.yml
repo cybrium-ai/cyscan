@@ -1,0 +1,10 @@
+id:        CBR-YAML-DUPLICATE_PATTERN
+title:     "Duplicate Pattern"
+severity:  critical
+languages: ['yaml']
+source:    semgrep/duplicate-pattern
+message: |
+  Two identical pattern clauses were detected. This will cause Semgrep to run the same pattern twice. Remove one of the duplicate pattern clauses.
+pattern: |
+  pattern: $X
+  

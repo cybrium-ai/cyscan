@@ -1,0 +1,10 @@
+id:        CBR-RUST-UNSAFE_USAGE
+title:     "Unsafe Usage"
+severity:  medium
+languages: ['rust']
+cwe:       ['CWE-242']
+source:    semgrep/unsafe-usage
+message: |
+  Detected 'unsafe' usage, please audit for secure usage
+pattern: |
+  unsafe { ... }

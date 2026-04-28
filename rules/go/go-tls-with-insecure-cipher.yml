@@ -1,0 +1,11 @@
+id:        CBR-GO-TLS_WITH_INSECURE_CIPHER
+title:     "Tls With Insecure Cipher"
+severity:  high
+languages: ['go']
+cwe:       ['CWE-327']
+source:    semgrep/tls-with-insecure-cipher
+message: |
+  Detected an insecure CipherSuite via the 'tls' module. This suite is considered weak. Use the function 'tls.CipherSuites()' to get a list of good cipher suites. See https://golang.org/pkg/crypto/tls/#InsecureCipherSuites for why and what other cipher suites to use.
+pattern: |
+  tls.Config{..., CipherSuites: []$TYPE{..., tls.TLS_RSA_WITH_RC4_128_SHA, ...}}
+  

@@ -1,0 +1,10 @@
+id:        CBR-PYTH-OPENAI_MISSING_MAX_TOKENS_PYTH
+title:     "Openai Missing Max Tokens Python"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-1188']
+source:    semgrep/openai-missing-max-tokens-python
+message: |
+  OpenAI chat completion created without 'max_tokens' parameter. Setting max_tokens prevents unexpectedly long or expensive responses and limits potential abuse. See https://developers.openai.com/api/docs/guides/safety-best-practices
+pattern: |
+  $CLIENT.chat.completions.create(...)

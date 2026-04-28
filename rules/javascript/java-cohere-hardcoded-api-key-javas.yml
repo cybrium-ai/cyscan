@@ -1,0 +1,11 @@
+id:        CBR-JAVA-COHERE_HARDCODED_API_KEY_JAVAS
+title:     "Cohere Hardcoded Api Key Javascript"
+severity:  critical
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-798']
+source:    semgrep/cohere-hardcoded-api-key-javascript
+message: |
+  Cohere API key is hardcoded in source code. Use environment variables or a secrets manager instead.
+pattern: |
+  new CohereClient({token: "$KEY", ...})
+  

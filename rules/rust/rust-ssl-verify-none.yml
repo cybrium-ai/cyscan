@@ -1,0 +1,10 @@
+id:        CBR-RUST-SSL_VERIFY_NONE
+title:     "Ssl Verify None"
+severity:  high
+languages: ['rust']
+cwe:       ['CWE-295']
+source:    semgrep/ssl-verify-none
+message: |
+  SSL verification disabled, this allows for MitM attacks
+pattern: |
+  $BUILDER.set_verify(openssl::ssl::SSL_VERIFY_NONE)

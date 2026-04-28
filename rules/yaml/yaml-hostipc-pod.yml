@@ -1,0 +1,11 @@
+id:        CBR-YAML-HOSTIPC_POD
+title:     "Hostipc Pod"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-693']
+source:    semgrep/hostipc-pod
+message: |
+  Pod is sharing the host IPC namespace. This allows container processes to communicate with processes on the host which reduces isolation and bypasses container protection models. Remove the 'hostIPC' key to disable this functionality.
+pattern: |
+  hostIPC: true
+  

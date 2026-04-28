@@ -1,0 +1,13 @@
+id:        CBR-PYTH-INCORRECT_AUTOESCAPE_DISABLED
+title:     "Incorrect Autoescape Disabled"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-116']
+source:    semgrep/incorrect-autoescape-disabled
+message: |
+  Detected a Jinja2 environment with 'autoescaping' disabled. This is dangerous if you are rendering to a browser because this allows for cross-site scripting (XSS) attacks. If you are in a web context, enable 'autoescaping' by setting 'autoescape=True.' You may also consider using 'jinja2.select_autoescape()' to only enable automatic escaping for certain file extensions.
+pattern: |
+  jinja2.Environment(... , autoescape=$VAL, ...)
+fix: |
+  True
+  

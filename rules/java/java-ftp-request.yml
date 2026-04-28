@@ -1,0 +1,13 @@
+id:        CBR-JAVA-FTP_REQUEST
+title:     "Ftp Request"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-319']
+source:    semgrep/ftp-request
+message: |
+  Checks for outgoing connections to ftp servers. FTP does not encrypt traffic, possibly leading to PII being sent plaintext over the network.
+pattern: |
+  FTPClient $FTPCLIENT = new FTPClient();
+  ...
+  $FTPCLIENT.connect(...);
+  

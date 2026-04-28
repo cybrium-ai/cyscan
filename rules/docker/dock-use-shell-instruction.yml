@@ -1,0 +1,12 @@
+id:        CBR-DOCK-USE_SHELL_INSTRUCTION
+title:     "Use Shell Instruction"
+severity:  high
+languages: ['docker']
+source:    semgrep/use-shell-instruction
+message: |
+  Use the SHELL instruction to set the default shell instead of overwriting '/bin/sh'.
+pattern: |
+  RUN ln ... $SHELL /bin/sh
+  
+fix: |
+  SHELL ["$SHELL", "-c"]

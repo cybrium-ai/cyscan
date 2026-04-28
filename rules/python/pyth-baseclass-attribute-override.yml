@@ -1,0 +1,11 @@
+id:        CBR-PYTH-BASECLASS_ATTRIBUTE_OVERRIDE
+title:     "Baseclass Attribute Override"
+severity:  high
+languages: ['python']
+source:    semgrep/baseclass-attribute-override
+message: |
+  Class $C inherits from both `$A` and `$B` which both have a method named `$F`; one of these methods will be overwritten.
+pattern: |
+  class $C(..., $A, ..., $B, ...):
+    ...
+  

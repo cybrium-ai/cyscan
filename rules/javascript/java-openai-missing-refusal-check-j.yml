@@ -1,0 +1,10 @@
+id:        CBR-JAVA-OPENAI_MISSING_REFUSAL_CHECK_J
+title:     "Openai Missing Refusal Check Javascript"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-252']
+source:    semgrep/openai-missing-refusal-check-javascript
+message: |
+  OpenAI response content accessed without checking for refusal. The model may refuse requests, and accessing .content without checking .refusal first may lead to unexpected behavior. Check response.choices[0].message.refusal before accessing content.
+pattern: |
+  $RESP.choices[0].message.content

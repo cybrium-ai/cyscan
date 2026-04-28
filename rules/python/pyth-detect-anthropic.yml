@@ -1,0 +1,9 @@
+id:        CBR-PYTH-DETECT_ANTHROPIC
+title:     "Detect Anthropic"
+severity:  medium
+languages: ['python']
+source:    semgrep/detect-anthropic
+message: |
+  Possibly found usage of AI: Anthropic
+pattern: |
+  import anthropic

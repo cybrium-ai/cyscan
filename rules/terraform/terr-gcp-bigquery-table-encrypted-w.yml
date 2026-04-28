@@ -1,0 +1,13 @@
+id:        CBR-TERR-GCP_BIGQUERY_TABLE_ENCRYPTED_W
+title:     "Gcp Bigquery Table Encrypted With Cmk"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-320']
+source:    semgrep/gcp-bigquery-table-encrypted-with-cmk
+message: |
+  Ensure Big Query Tables are encrypted with Customer Supplied Encryption Keys (CSEK)	
+pattern: |
+  resource "google_bigquery_table" $ANYTHING {
+    ...
+  }
+  

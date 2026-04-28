@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_COSMOSDB_DISABLES_PUBLIC
+title:     "Azure Cosmosdb Disables Public Network"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/azure-cosmosdb-disables-public-network
+message: |
+  Ensure that Azure Cosmos DB disables public network access
+pattern: |
+  resource

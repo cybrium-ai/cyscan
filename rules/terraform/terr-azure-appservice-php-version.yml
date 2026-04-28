@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_APPSERVICE_PHP_VERSION
+title:     "Azure Appservice Php Version"
+severity:  medium
+languages: ['terraform']
+source:    semgrep/azure-appservice-php-version
+message: |
+  Ensure that PHP version is the latest, if used to run the web app
+pattern: |
+  resource

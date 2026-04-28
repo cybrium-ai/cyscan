@@ -1,0 +1,10 @@
+id:        CBR-PYTH-NO_AUTH_OVER_HTTP
+title:     "No Auth Over Http"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-523']
+source:    semgrep/no-auth-over-http
+message: |
+  Authentication detected over HTTP. HTTP does not provide any encryption or protection for these authentication credentials. This may expose these credentials to unauthorized parties. Use 'https://' instead.
+pattern: |
+  requests.$W("=~/http:\/\/.*/", ..., auth=$X, ...)

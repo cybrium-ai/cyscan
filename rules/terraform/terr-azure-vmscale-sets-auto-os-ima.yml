@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_VMSCALE_SETS_AUTO_OS_IMA
+title:     "Azure Vmscale Sets Auto Os Image Patching Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-vmscale-sets-auto-os-image-patching-enabled
+message: |
+  Ensure that automatic OS image patching is enabled for Virtual Machine Scale Sets
+pattern: |
+  resource

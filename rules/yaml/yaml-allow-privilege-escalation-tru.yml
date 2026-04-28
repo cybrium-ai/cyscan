@@ -1,0 +1,14 @@
+id:        CBR-YAML-ALLOW_PRIVILEGE_ESCALATION_TRU
+title:     "Allow Privilege Escalation True"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-732']
+source:    semgrep/allow-privilege-escalation-true
+message: |
+  In Kubernetes, each pod runs in its own isolated environment with its own  set of security policies. However, certain container images may contain  `setuid` or `setgid` binaries that could allow an attacker to perform  privilege escalation and gain access to sensitive resources. To mitigate  this risk, it's recommended to add a `securityContext` to the container in  the pod, with the parameter `allowPrivilegeEscalation` set to `false`.  This will prevent the container from running any privileged
+pattern: |
+  allowPrivilegeEscalation: $TRUE
+  
+fix: |
+  false
+  

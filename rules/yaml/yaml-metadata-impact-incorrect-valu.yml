@@ -1,0 +1,10 @@
+id:        CBR-YAML-METADATA_IMPACT_INCORRECT_VALU
+title:     "Metadata Impact Incorrect Value"
+severity:  high
+languages: ['yaml']
+source:    semgrep/metadata-impact-incorrect-value
+message: |
+  Semgrep rule impact: $VALUE detected, but the value must be LOW, MEDIUM, or HIGH. For more information visit: https://semgrep.dev/docs/contributing/contributing-to-semgrep-rules-repository/
+pattern: |
+  impact: $VALUE
+  

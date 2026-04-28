@@ -1,0 +1,10 @@
+id:        CBR-TERR-ECR_IMAGE_SCAN_ON_PUSH
+title:     "Ecr Image Scan On Push"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1104']
+source:    semgrep/ecr-image-scan-on-push
+message: |
+  The ECR Repository isn't configured to scan images on push
+pattern: |
+  resource

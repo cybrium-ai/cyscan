@@ -1,0 +1,10 @@
+id:        CBR-PYTH-USE_DEFUSED_XMLRPC
+title:     "Use Defused Xmlrpc"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-776']
+source:    semgrep/use-defused-xmlrpc
+message: |
+  Detected use of xmlrpc. xmlrpc is not inherently safe from vulnerabilities. Use defusedxml.xmlrpc instead.
+pattern: |
+  import xmlrpclib

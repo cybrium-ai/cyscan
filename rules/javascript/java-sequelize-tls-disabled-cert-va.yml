@@ -1,0 +1,20 @@
+id:        CBR-JAVA-SEQUELIZE_TLS_DISABLED_CERT_VA
+title:     "Sequelize Tls Disabled Cert Validation"
+severity:  critical
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-94']
+source:    semgrep/sequelize-tls-disabled-cert-validation
+message: |
+  Set "rejectUnauthorized" to false is a convenient way to resolve certificate error. But this method is unsafe because it disables the server certificate verification, making the Node app open to MITM attack. "rejectUnauthorized" option must be alway set to True (default value). With self -signed certificate or custom CA, use "ca" option to define Root Certificate. This rule checks TLS configuration only for Postgresql, MariaDB and MySQL. SQLite is not really concerned by TLS configuration. This 
+pattern: |
+  {
+    host: $HOST,
+    database: $DATABASE,
+    dialect: $DIALECT,
+    dialectOptions: {
+      ssl: {
+        rejectUnauthorized: false
+      }
+    }
+   }
+  

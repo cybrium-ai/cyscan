@@ -1,0 +1,9 @@
+id:        CBR-PYTH-DETECT_PYTORCH
+title:     "Detect Pytorch"
+severity:  medium
+languages: ['python']
+source:    semgrep/detect-pytorch
+message: |
+  Possibly found usage of AI tooling: PyTorch
+pattern: |
+  import torch

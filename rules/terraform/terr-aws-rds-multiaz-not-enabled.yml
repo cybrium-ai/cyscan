@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS_RDS_MULTIAZ_NOT_ENABLED
+title:     "Aws Rds Multiaz Not Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/aws-rds-multiaz-not-enabled
+message: |
+  The AWS RDS is not configured to use multi-az. Consider using it if possible.
+pattern: |
+  resource "aws_db_instance" $ANYTHING {
+    ...
+  }
+  

@@ -1,0 +1,10 @@
+id:        CBR-C-INSECURE_USE_SCANF_FN
+title:     "Insecure Use Scanf Fn"
+severity:  high
+languages: ['c']
+cwe:       ['CWE-676']
+source:    semgrep/insecure-use-scanf-fn
+message: |
+  Avoid using 'scanf()'. This function, when used improperly, does not consider buffer boundaries and can lead to buffer overflows. Use 'fgets()' instead for reading input.
+pattern: |
+  scanf(...)

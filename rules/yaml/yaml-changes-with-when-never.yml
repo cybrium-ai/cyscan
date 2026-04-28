@@ -1,0 +1,12 @@
+id:        CBR-YAML-CHANGES_WITH_WHEN_NEVER
+title:     "Changes With When Never"
+severity:  high
+languages: ['yaml']
+source:    semgrep/changes-with-when-never
+message: |
+  This Gitlab CI YAML will never run on default branches due to a `changes` rule with `when:never`. To fix this, make sure the triggering event is a push event. You can do this with `if: '$CI_PIPELINE_SOURCE == "push"'`. See https://docs.gitlab.com/ee/ci/yaml/index.html#ruleschanges
+pattern: |
+  - changes:
+    - ...
+    when: never
+  

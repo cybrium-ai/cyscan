@@ -1,0 +1,11 @@
+id:        CBR-JAVA-BYPASS_TLS_VERIFICATION
+title:     "Bypass Tls Verification"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-319']
+source:    semgrep/bypass-tls-verification
+message: |
+  Checks for setting the environment variable NODE_TLS_REJECT_UNAUTHORIZED to 0, which disables TLS verification. This should only be used for debugging purposes. Setting the option rejectUnauthorized to false bypasses verification against the list of trusted CAs, which also leads to insecure transport. These options lead to vulnerability to MTM attacks, and should not be used.
+pattern: |
+  process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+  

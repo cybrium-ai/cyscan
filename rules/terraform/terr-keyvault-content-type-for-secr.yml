@@ -1,0 +1,9 @@
+id:        CBR-TERR-KEYVAULT_CONTENT_TYPE_FOR_SECR
+title:     "Keyvault Content Type For Secret"
+severity:  medium
+languages: ['terraform']
+source:    semgrep/keyvault-content-type-for-secret
+message: |
+  Key vault Secret should have a content type set
+pattern: |
+  resource

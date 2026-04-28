@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_FRONTDOOR_ENABLES_WAF
+title:     "Azure Frontdoor Enables Waf"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-frontdoor-enables-waf
+message: |
+  Ensure that Azure Front Door enables WAF
+pattern: |
+  resource

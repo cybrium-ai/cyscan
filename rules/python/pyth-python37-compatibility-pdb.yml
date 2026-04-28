@@ -1,0 +1,9 @@
+id:        CBR-PYTH-PYTHON37_COMPATIBILITY_PDB
+title:     "Python37 Compatibility Pdb"
+severity:  critical
+languages: ['python']
+source:    semgrep/python37-compatibility-pdb
+message: |
+  pdb.set_trace() with the header argument is only available on Python 3.7+ and is therefore not backwards compatible. Instead, use set_trace() without the header argument.
+pattern: |
+  pdb.set_trace(header=$X, ...)

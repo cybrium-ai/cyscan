@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_GKE_SQL_BACKUP_CONFIGURATI
+title:     "Gcp Gke Sql Backup Configuration Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-gke-sql-backup-configuration-enabled
+message: |
+  Ensure all Cloud SQL database instance have backup configuration enabled
+pattern: |
+  resource

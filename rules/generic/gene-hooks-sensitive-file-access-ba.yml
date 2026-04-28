@@ -1,0 +1,10 @@
+id:        CBR-GENE-HOOKS_SENSITIVE_FILE_ACCESS_BA
+title:     "Hooks Sensitive File Access Bash"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-538']
+source:    semgrep/hooks-sensitive-file-access-bash
+message: |
+  Hook input from jq flows into a file operation without checking for sensitive files. Claude Code and Cursor hooks receive JSON input that may reference sensitive files such as ~/.ssh/*, ~/.aws/credentials, or .env files. Filter or block access to sensitive paths using realpath and a validation check before performing file operations.
+regex: |
+  \$\(.*\|\s*jq\b[^)]*\)[\s\S]*?\n\s*(cat|rm|cp|mv)\s+\$

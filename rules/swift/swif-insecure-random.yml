@@ -1,0 +1,10 @@
+id:        CBR-SWIF-INSECURE_RANDOM
+title:     "Insecure Random"
+severity:  high
+languages: ['swift']
+cwe:       ['CWE-338']
+source:    semgrep/insecure-random
+message: |
+  A random number generator was detected which is **not** *guaranteed* to be Cryptographically secure. If the source of entropy is used for security purposes (e.g. with other Cryptographic operations), make sure to use the `SecCopyRandomBytes` API explicitly.
+pattern: |
+  random()

@@ -1,0 +1,9 @@
+id:        CBR-PYTH-DETECT_OPENAI
+title:     "Detect Openai"
+severity:  medium
+languages: ['python']
+source:    semgrep/detect-openai
+message: |
+  Possibly found usage of AI: OpenAI
+pattern: |
+  import openai

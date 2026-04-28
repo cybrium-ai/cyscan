@@ -1,0 +1,12 @@
+id:        CBR-JAVA-DOCUMENTBUILDERFACTORY_EXTERNA
+title:     "Documentbuilderfactory External General Entities True"
+severity:  critical
+languages: ['java']
+cwe:       ['CWE-611']
+source:    semgrep/documentbuilderfactory-external-general-entities-true
+message: |
+  External entities are allowed for $DBFACTORY. This is vulnerable to XML external entity attacks. Disable this by setting the feature "http://xml.org/sax/features/external-general-entities" to false.
+pattern: |
+  $DBFACTORY.setFeature("http://xml.org/sax/features/external-general-entities", true);
+fix: |
+  $DBFACTORY.setFeature("http://xml.org/sax/features/external-general-entities", false);

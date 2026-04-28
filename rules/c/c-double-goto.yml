@@ -1,0 +1,12 @@
+id:        CBR-C-DOUBLE_GOTO
+title:     "Double Goto"
+severity:  high
+languages: ['c']
+source:    semgrep/double_goto
+message: |
+  The second goto statement will always be executed.
+pattern: |
+  if ($COND)
+    goto $FAIL;
+    goto $FAIL;
+  

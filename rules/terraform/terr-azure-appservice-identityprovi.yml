@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_APPSERVICE_IDENTITYPROVI
+title:     "Azure Appservice Identityprovider Enabled"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/azure-appservice-identityprovider-enabled
+message: |
+  Ensure that Managed identity provider is enabled for app services
+pattern: |
+  resource

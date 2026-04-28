@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_SECURITYCENTER_CONTACT_P
+title:     "Azure Securitycenter Contact Phone"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-securitycenter-contact-phone
+message: |
+  Ensure that Security contact Phone number is set
+pattern: |
+  resource

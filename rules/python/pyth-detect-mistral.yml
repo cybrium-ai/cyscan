@@ -1,0 +1,9 @@
+id:        CBR-PYTH-DETECT_MISTRAL
+title:     "Detect Mistral"
+severity:  medium
+languages: ['python']
+source:    semgrep/detect-mistral
+message: |
+  Possibly found usage of AI: Mistral
+pattern: |
+  import mistralai

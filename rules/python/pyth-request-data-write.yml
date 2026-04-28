@@ -1,0 +1,10 @@
+id:        CBR-PYTH-REQUEST_DATA_WRITE
+title:     "Request Data Write"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-93']
+source:    semgrep/request-data-write
+message: |
+  Found user-controlled request data passed into '.write(...)'. This could be dangerous if a malicious actor is able to control data into sensitive files. For example, a malicious actor could force rolling of critical log files, or cause a denial-of-service by using up available disk space. Instead, ensure that request data is properly escaped or sanitized.
+pattern: |
+  $F.write(..., request.$W.get(...), ...)

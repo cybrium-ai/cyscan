@@ -1,0 +1,10 @@
+id:        CBR-PYTH-INSECURE_REQUEST_OBJECT_FTP
+title:     "Insecure Request Object Ftp"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-319']
+source:    semgrep/insecure-request-object-ftp
+message: |
+  Detected a 'urllib.request.Request()' object using an insecure transport protocol, 'ftp://'. This connection will not be encrypted. Consider using SFTP instead. urllib does not support SFTP natively, so consider using a library which supports SFTP.
+pattern: |
+  urllib.request.Request("=~/^[Ff][Tt][Pp]://.*/", ...)

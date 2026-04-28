@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_GKE_NETWORK_POLICY_ENABLED
+title:     "Gcp Gke Network Policy Enabled"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-gke-network-policy-enabled
+message: |
+  Ensure Network Policy is enabled on Kubernetes Engine Clusters
+pattern: |
+  resource

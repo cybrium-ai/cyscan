@@ -1,0 +1,13 @@
+id:        CBR-PYTH-INSUFFICIENT_EC_KEY_SIZE
+title:     "Insufficient Ec Key Size"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-326']
+source:    semgrep/insufficient-ec-key-size
+message: |
+  Detected an insufficient curve size for EC. NIST recommends a key size of 224 or higher. For example, use 'ec.SECP256R1'.
+pattern: |
+  cryptography.hazmat.primitives.asymmetric.ec.$SIZE
+fix: |
+  SECP256R1
+  

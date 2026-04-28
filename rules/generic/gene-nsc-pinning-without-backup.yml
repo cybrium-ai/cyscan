@@ -1,0 +1,10 @@
+id:        CBR-GENE-NSC_PINNING_WITHOUT_BACKUP
+title:     "Nsc Pinning Without Backup"
+severity:  medium
+languages: ['generic']
+source:    semgrep/nsc-pinning-without-backup
+message: |
+  Your app uses TLS public key pinning without specifying a backup key. If you are forced to change TLS keys or CAs on short notice, not having a backup pin can lead to connectivity issues until you can push out an update. It is considered best practice to add at least one additional pin as a backup.
+pattern: |
+  <pin ...>...</pin>
+  

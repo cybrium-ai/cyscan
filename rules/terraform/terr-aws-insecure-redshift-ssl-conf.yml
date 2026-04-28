@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS_INSECURE_REDSHIFT_SSL_CONF
+title:     "Aws Insecure Redshift Ssl Configuration"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-326']
+source:    semgrep/aws-insecure-redshift-ssl-configuration
+message: |
+  Detected an AWS Redshift configuration with a SSL disabled. To fix this, set your `require_ssl` to `"true"`.
+pattern: |
+  resource "aws_redshift_parameter_group" $ANYTHING {
+    ...
+  }
+  

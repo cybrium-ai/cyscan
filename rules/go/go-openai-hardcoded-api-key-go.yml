@@ -1,0 +1,10 @@
+id:        CBR-GO-OPENAI_HARDCODED_API_KEY_GO
+title:     "Openai Hardcoded Api Key Go"
+severity:  critical
+languages: ['go']
+cwe:       ['CWE-798']
+source:    semgrep/openai-hardcoded-api-key-go
+message: |
+  OpenAI API key is hardcoded in source code. Use environment variables or a secrets manager instead.
+pattern: |
+  openai.NewClient("$KEY")

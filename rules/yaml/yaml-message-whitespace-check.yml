@@ -1,0 +1,11 @@
+id:        CBR-YAML-MESSAGE_WHITESPACE_CHECK
+title:     "Message Whitespace Check"
+severity:  high
+languages: ['yaml']
+source:    semgrep/message-whitespace-check
+message: |
+  It looks like you have an additional space in your rule message, this can look awkward in the finding output, please remove the additional whitespace!
+pattern: |
+  message: >-
+    $VALUE
+  

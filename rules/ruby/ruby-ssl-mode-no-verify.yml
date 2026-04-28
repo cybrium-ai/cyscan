@@ -1,0 +1,10 @@
+id:        CBR-RUBY-SSL_MODE_NO_VERIFY
+title:     "Ssl Mode No Verify"
+severity:  high
+languages: ['ruby']
+cwe:       ['CWE-295']
+source:    semgrep/ssl-mode-no-verify
+message: |
+  Detected SSL that will accept an unverified connection. This makes the connections susceptible to man-in-the-middle attacks. Use 'OpenSSL::SSL::VERIFY_PEER' instead.
+pattern: |
+  OpenSSL::SSL::VERIFY_NONE

@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS_SNS_TOPIC_UNENCRYPTED
+title:     "Aws Sns Topic Unencrypted"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    semgrep/aws-sns-topic-unencrypted
+message: |
+  The AWS SNS topic is unencrypted. The SNS topic messages could be read if compromised. The AWS KMS encryption key protects topic contents. To create your own, create a aws_kms_key resource or use the ARN string of a key in your account.
+pattern: |
+  resource "aws_sns_topic" $ANYTHING {
+    ...
+  }
+  

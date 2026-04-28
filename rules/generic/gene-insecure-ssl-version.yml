@@ -1,0 +1,10 @@
+id:        CBR-GENE-INSECURE_SSL_VERSION
+title:     "Insecure Ssl Version"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-326']
+source:    semgrep/insecure-ssl-version
+message: |
+  Detected use of an insecure SSL version. Secure SSL versions are TLSv1.2 and TLS1.3; older versions are known to be broken and are susceptible to attacks. Prefer use of TLSv1.2 or later.
+pattern: |
+  ssl_protocols ...;

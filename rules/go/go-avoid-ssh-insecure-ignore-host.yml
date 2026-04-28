@@ -1,0 +1,10 @@
+id:        CBR-GO-AVOID_SSH_INSECURE_IGNORE_HOST
+title:     "Avoid Ssh Insecure Ignore Host Key"
+severity:  high
+languages: ['go']
+cwe:       ['CWE-322']
+source:    semgrep/avoid-ssh-insecure-ignore-host-key
+message: |
+  Disabled host key verification detected. This allows man-in-the-middle attacks. Use the 'golang.org/x/crypto/ssh/knownhosts' package to do host key verification. See https://skarlso.github.io/2019/02/17/go-ssh-with-host-key-verification/ to learn more about the problem and how to fix it.
+pattern: |
+  ssh.InsecureIgnoreHostKey()

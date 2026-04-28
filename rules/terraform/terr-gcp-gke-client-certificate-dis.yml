@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_GKE_CLIENT_CERTIFICATE_DIS
+title:     "Gcp Gke Client Certificate Disabled"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-gke-client-certificate-disabled
+message: |
+  Ensure client certificate authentication to Kubernetes Engine Clusters is disabled
+pattern: |
+  resource

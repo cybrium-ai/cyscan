@@ -1,0 +1,10 @@
+id:        CBR-PYTH-USE_DEFUSED_XML
+title:     "Use Defused Xml"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-611']
+source:    semgrep/use-defused-xml
+message: |
+  The Python documentation recommends using `defusedxml` instead of `xml` because the native Python `xml` library is vulnerable to XML External Entity (XXE) attacks. These attacks can leak confidential data and "XML bombs" can cause denial of service.
+pattern: |
+  import xml

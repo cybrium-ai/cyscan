@@ -1,0 +1,9 @@
+id:        CBR-DOCK-AVOID_ZYPPER_UPDATE
+title:     "Avoid Zypper Update"
+severity:  medium
+languages: ['docker']
+source:    semgrep/avoid-zypper-update
+message: |
+  Packages in base images should be up-to-date, removing the need for 'zypper update'. If packages are out-of-date, consider contacting the base image maintainer.
+pattern: |
+  zypper update ...

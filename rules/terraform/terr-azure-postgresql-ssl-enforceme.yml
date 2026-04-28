@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_POSTGRESQL_SSL_ENFORCEME
+title:     "Azure Postgresql Ssl Enforcement Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-postgresql-ssl-enforcement-enabled
+message: |
+  Ensure Enforce SSL connection is set to Enabled for PostgreSQL servers
+pattern: |
+  resource

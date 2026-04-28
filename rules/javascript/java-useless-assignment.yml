@@ -1,0 +1,11 @@
+id:        CBR-JAVA-USELESS_ASSIGNMENT
+title:     "Useless Assignment"
+severity:  medium
+languages: ['javascript', 'typescript']
+source:    semgrep/useless-assignment
+message: |
+  `$X` is assigned twice; the first assignment is useless
+pattern: |
+  $X = $Y;
+  $X = $Z;
+  

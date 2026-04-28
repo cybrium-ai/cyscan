@@ -1,0 +1,10 @@
+id:        CBR-TYPE-MOMENT_DEPRECATED
+title:     "Moment Deprecated"
+severity:  medium
+languages: ['typescript', 'javascript']
+source:    semgrep/moment-deprecated
+message: |
+  Moment is a legacy project in maintenance mode. Consider using libraries that are actively supported, e.g. `dayjs`.
+pattern: |
+  import 'moment'
+  

@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_APPGATEWAY_ENABLES_WAF
+title:     "Azure Appgateway Enables Waf"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-appgateway-enables-waf
+message: |
+  Ensure that Application Gateway enables WAF
+pattern: |
+  resource

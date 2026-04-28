@@ -1,0 +1,10 @@
+id:        CBR-PYTH-CUSTOM_EXPRESSION_AS_SQL
+title:     "Custom Expression As Sql"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-89']
+source:    semgrep/custom-expression-as-sql
+message: |
+  Detected a Custom Expression ''$EXPRESSION'' calling ''as_sql(...).'' This could lead to SQL injection, which can result in attackers exfiltrating sensitive data. Instead, ensure no user input enters this function or that user input is properly sanitized.
+pattern: |
+  $EXPRESSION.as_sql(...)

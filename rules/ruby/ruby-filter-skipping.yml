@@ -1,0 +1,11 @@
+id:        CBR-RUBY-FILTER_SKIPPING
+title:     "Filter Skipping"
+severity:  critical
+languages: ['ruby']
+cwe:       ['CWE-1021']
+source:    semgrep/filter-skipping
+message: |
+  Checks for use of action in Ruby routes. This can cause Rails to render an arbitrary view if an attacker creates an URL accurately. Affects 3.0 applications. Can avoid the vulnerability by providing additional constraints.
+pattern: |
+  $CALL "=~/.*(/:action.*).*/"
+  

@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_MYSQL_THREAT_DETECTION_E
+title:     "Azure Mysql Threat Detection Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-mysql-threat-detection-enabled
+message: |
+  Ensure that MySQL server enables Threat detection policy
+pattern: |
+  resource

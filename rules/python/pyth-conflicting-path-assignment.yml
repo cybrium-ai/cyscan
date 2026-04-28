@@ -1,0 +1,10 @@
+id:        CBR-PYTH-CONFLICTING_PATH_ASSIGNMENT
+title:     "Conflicting Path Assignment"
+severity:  critical
+languages: ['python']
+source:    semgrep/conflicting-path-assignment
+message: |
+  The path for `$URL` is assigned once to view `$VIEW` and once to `$DIFFERENT_VIEW`, which can lead to unexpected behavior. Verify what the intended target view is and delete the other route.
+pattern: |
+  [..., django.urls.path('$URL', $VIEW, ...), ..., django.urls.path('$URL', $DIFFERENT_VIEW, ...), ...]
+  

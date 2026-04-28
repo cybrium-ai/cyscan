@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_NETWORK_WATCHER_FLOWLOG_
+title:     "Azure Network Watcher Flowlog Period"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-network-watcher-flowlog-period
+message: |
+  Ensure that Network Security Group Flow Log retention period is 90 days or greater
+pattern: |
+  resource

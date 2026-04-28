@@ -1,0 +1,10 @@
+id:        CBR-YAML-METADATA_CONFIDENCE_INCORRECT_
+title:     "Metadata Confidence Incorrect Value"
+severity:  high
+languages: ['yaml']
+source:    semgrep/metadata-confidence-incorrect-value
+message: |
+  Semgrep rule confidence: $VALUE detected, but the value must be LOW, MEDIUM, or HIGH. For more information visit: https://semgrep.dev/docs/contributing/contributing-to-semgrep-rules-repository/
+pattern: |
+  confidence: $VALUE
+  

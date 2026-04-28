@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_SECURITYCENTER_CONTACT_E
+title:     "Azure Securitycenter Contact Emails"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-securitycenter-contact-emails
+message: |
+  Ensure that Security contact emails is set
+pattern: |
+  resource

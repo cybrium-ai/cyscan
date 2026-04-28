@@ -1,0 +1,13 @@
+id:        CBR-GO-COOKIE_MISSING_SECURE
+title:     "Cookie Missing Secure"
+severity:  high
+languages: ['go']
+cwe:       ['CWE-614']
+source:    semgrep/cookie-missing-secure
+message: |
+  A session cookie was detected without setting the 'Secure' flag. The 'secure' flag for cookies prevents the client from transmitting the cookie over insecure channels such as HTTP. Set the 'Secure' flag by setting 'Secure' to 'true' in the Options struct.
+pattern: |
+  http.Cookie{
+    ...,
+  }
+  

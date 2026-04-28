@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS_KINESIS_STREAM_UNENCRYPTED
+title:     "Aws Kinesis Stream Unencrypted"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    semgrep/aws-kinesis-stream-unencrypted
+message: |
+  The AWS Kinesis stream does not encrypt data at rest. The data could be read if the Kinesis stream storage layer is compromised. Enable Kinesis stream server-side encryption.
+pattern: |
+  resource "aws_kinesis_stream" $ANYTHING {
+    ...
+  }
+  

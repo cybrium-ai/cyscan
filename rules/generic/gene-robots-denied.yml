@@ -1,0 +1,9 @@
+id:        CBR-GENE-ROBOTS_DENIED
+title:     "Robots Denied"
+severity:  medium
+languages: ['generic']
+source:    semgrep/robots-denied
+message: |
+  This page denies crawlers from indexing the page. Remove the robots 'meta' tag.
+pattern: |
+  <meta name="robots" ...>

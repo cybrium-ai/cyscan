@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_DATALAKE_STORE_ENCRYPTIO
+title:     "Azure Datalake Store Encryption"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-320']
+source:    semgrep/azure-datalake-store-encryption
+message: |
+  Ensure that Data Lake Store accounts enables encryption
+pattern: |
+  resource

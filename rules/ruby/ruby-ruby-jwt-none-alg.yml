@@ -1,0 +1,11 @@
+id:        CBR-RUBY-RUBY_JWT_NONE_ALG
+title:     "Ruby Jwt None Alg"
+severity:  critical
+languages: ['ruby']
+cwe:       ['CWE-327']
+source:    semgrep/ruby-jwt-none-alg
+message: |
+  Detected use of the 'none' algorithm in a JWT token. The 'none' algorithm assumes the integrity of the token has already been verified. This would allow a malicious actor to forge a JWT token that will automatically be verified. Do not explicitly use the 'none' algorithm. Instead, use an algorithm such as 'HS256'.
+pattern: |
+  JWT.encode($PAYLOAD, $SECRET, 'none', ...)
+  

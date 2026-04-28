@@ -1,0 +1,11 @@
+id:        CBR-GENE-CHECK_DYNAMIC_RENDER_LOCAL_FIL
+title:     "Check Dynamic Render Local File Include"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-22']
+source:    semgrep/check-dynamic-render-local-file-include
+message: |
+  Found request parameters in a call to `render` in a dynamic context. This can allow end users to request arbitrary local files which may result in leaking sensitive information persisted on disk.
+pattern: |
+  params[...]
+  

@@ -1,0 +1,9 @@
+id:        CBR-PYTH-UNCAUGHT_EXECUTOR_EXCEPTIONS
+title:     "Uncaught Executor Exceptions"
+severity:  high
+languages: ['python']
+source:    semgrep/uncaught-executor-exceptions
+message: |
+  Values returned by thread pool map must be read in order to raise exceptions. Consider using `for _ in $EXECUTOR.map(...): pass`.
+pattern: |
+  $EXECUTOR.map(...)

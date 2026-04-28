@@ -1,0 +1,18 @@
+id:        CBR-PYTH-MANUAL_DEFAULTDICT_SET_CREATE
+title:     "Manual Defaultdict Set Create"
+severity:  high
+languages: ['python']
+source:    semgrep/manual-defaultdict-set-create
+message: |
+  manually creating a defaultdict - use collections.defaultdict(set)
+pattern: |
+  $DICT = {}
+  ...
+  for $KEY, $VALUE in $OTHERDICT.items():
+      ...
+      if $KEY not in $DICT:
+          ...
+          $DICT[$KEY] = set()
+          ...
+      $DICT[$KEY].add(...)
+  

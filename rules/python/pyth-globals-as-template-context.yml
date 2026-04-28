@@ -1,0 +1,10 @@
+id:        CBR-PYTH-GLOBALS_AS_TEMPLATE_CONTEXT
+title:     "Globals As Template Context"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-96']
+source:    semgrep/globals-as-template-context
+message: |
+  Using 'globals()' as a context to 'render(...)' is extremely dangerous. This exposes Python functions to the template that were not meant to be exposed. An attacker could use these functions to execute code that was not intended to run and could compromise the application. (This is server-side template injection (SSTI)). Do not use 'globals()'. Instead, specify each variable in a dictionary or 'django.template.Context' object, like '{"var1": "hello"}' and use that instead.
+pattern: |
+  django.shortcuts.render(..., globals(...), ...)

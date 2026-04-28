@@ -1,0 +1,9 @@
+id:        CBR-GO-DETECT_OPENAI
+title:     "Detect Openai"
+severity:  medium
+languages: ['go']
+source:    semgrep/detect-openai
+message: |
+  Possibly found usage of AI: OpenAI
+pattern: |
+  import "github.com/sashabaranov/go-openai"

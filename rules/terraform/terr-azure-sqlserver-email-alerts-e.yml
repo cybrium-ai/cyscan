@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_SQLSERVER_EMAIL_ALERTS_E
+title:     "Azure Sqlserver Email Alerts Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-sqlserver-email-alerts-enabled
+message: |
+  Ensure that Send Alerts To is enabled for MSSQL servers
+pattern: |
+  resource

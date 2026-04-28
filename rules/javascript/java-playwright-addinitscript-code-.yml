@@ -1,0 +1,10 @@
+id:        CBR-JAVA-PLAYWRIGHT_ADDINITSCRIPT_CODE_
+title:     "Playwright Addinitscript Code Injection"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-918']
+source:    semgrep/playwright-addinitscript-code-injection
+message: |
+  If unverified user data can reach the `addInitScript` method it can result in Server-Side Request Forgery vulnerabilities
+pattern: |
+  $CONTEXT.addInitScript($INPUT,...)

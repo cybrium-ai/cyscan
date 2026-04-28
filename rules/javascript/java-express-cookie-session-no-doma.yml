@@ -1,0 +1,10 @@
+id:        CBR-JAVA-EXPRESS_COOKIE_SESSION_NO_DOMA
+title:     "Express Cookie Session No Domain"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-522']
+source:    semgrep/express-cookie-session-no-domain
+message: |
+  Default session middleware settings: `domain` not set. It indicates the domain of the cookie; use it to compare against the domain of the server in which the URL is being requested. If they match, then check the path attribute next.
+pattern: |
+  $SESSION(...)

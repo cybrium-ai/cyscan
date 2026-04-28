@@ -1,0 +1,11 @@
+id:        CBR-YAML-LANG_CONSISTENCY_DOCKERFILE
+title:     "Lang Consistency Dockerfile"
+severity:  high
+languages: ['yaml']
+source:    semgrep/lang-consistency-dockerfile
+message: |
+  Found '$X' in language config which diverges from semgrep.dev normalization. Please use 'dockerfile' instead.
+pattern: |
+  $X
+fix: |
+  dockerfile

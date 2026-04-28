@@ -1,0 +1,10 @@
+id:        CBR-CSHA-USE_DEPRECATED_CIPHER_ALGORITH
+title:     "Use Deprecated Cipher Algorithm"
+severity:  critical
+languages: ['csharp']
+cwe:       ['CWE-327']
+source:    semgrep/use_deprecated_cipher_algorithm
+message: |
+  Usage of deprecated cipher algorithm detected. Use Aes or ChaCha20Poly1305 instead.
+pattern: |
+  $KEYTYPE.Create(...);

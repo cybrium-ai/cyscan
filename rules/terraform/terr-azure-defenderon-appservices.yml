@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_DEFENDERON_APPSERVICES
+title:     "Azure Defenderon Appservices"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-defenderon-appservices
+message: |
+  Ensure that Azure Defender is set to On for App Service
+pattern: |
+  resource

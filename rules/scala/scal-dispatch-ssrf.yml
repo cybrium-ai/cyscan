@@ -1,0 +1,10 @@
+id:        CBR-SCAL-DISPATCH_SSRF
+title:     "Dispatch Ssrf"
+severity:  high
+languages: ['scala']
+cwe:       ['CWE-918']
+source:    semgrep/dispatch-ssrf
+message: |
+  A parameter being passed directly into `url` most likely lead to SSRF. This could allow an attacker to send data to their own server, potentially exposing sensitive data sent with this request. They could also probe internal servers or other resources that the server running this code can access. Do not allow arbitrary hosts. Instead, create an allowlist for approved hosts, or hardcode the correct host.
+pattern: |
+  url($URL)

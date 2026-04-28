@@ -1,0 +1,13 @@
+id:        CBR-TERR-GCP_SUB_NETWORK_LOGGING_ENABLE
+title:     "Gcp Sub Network Logging Enabled"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-sub-network-logging-enabled
+message: |
+  Ensure that VPC Flow Logs is enabled for every subnet in a VPC Network
+pattern: |
+  resource "google_compute_subnetwork" $ANYTHING {
+    ...
+  }
+  

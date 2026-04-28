@@ -1,0 +1,10 @@
+id:        CBR-GO-UNESCAPED_DATA_IN_JS
+title:     "Unescaped Data In Js"
+severity:  high
+languages: ['go']
+cwe:       ['CWE-79']
+source:    semgrep/unescaped-data-in-js
+message: |
+  Found a formatted template string passed to 'template.JS()'. 'template.JS()' does not escape contents. Be absolutely sure there is no user-controlled data in this template.
+pattern: |
+  template.JS($T + $X, ...)

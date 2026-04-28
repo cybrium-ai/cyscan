@@ -1,0 +1,13 @@
+id:        CBR-TERR-GCP_ARTIFACT_REGISTRY_ENCRYPTE
+title:     "Gcp Artifact Registry Encrypted With Cmk"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-320']
+source:    semgrep/gcp-artifact-registry-encrypted-with-cmk
+message: |
+  Ensure Artifact Registry Repositories are encrypted with Customer Supplied Encryption Keys (CSEK)
+pattern: |
+  resource "google_artifact_registry_repository" $ANYTHING {
+    ...
+  }
+  

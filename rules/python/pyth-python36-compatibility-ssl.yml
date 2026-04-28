@@ -1,0 +1,9 @@
+id:        CBR-PYTH-PYTHON36_COMPATIBILITY_SSL
+title:     "Python36 Compatibility Ssl"
+severity:  critical
+languages: ['python']
+source:    semgrep/python36-compatibility-ssl
+message: |
+  this function is only available on Python 3.6+
+pattern: |
+  ssl.get_ciphers()

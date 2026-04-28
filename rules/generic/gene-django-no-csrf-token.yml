@@ -1,0 +1,10 @@
+id:        CBR-GENE-DJANGO_NO_CSRF_TOKEN
+title:     "Django No Csrf Token"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-352']
+source:    semgrep/django-no-csrf-token
+message: |
+  Manually-created forms in django templates should specify a csrf_token to prevent CSRF attacks.
+pattern: |
+  <form...>...</form>

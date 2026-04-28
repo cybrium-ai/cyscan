@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS_EC2_LAUNCH_CONFIGURATION_R
+title:     "Aws Ec2 Launch Configuration Root Block Device Unencrypted"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    semgrep/aws-ec2-launch-configuration-root-block-device-unencrypted
+message: |
+  The AWS launch configuration root block device is unencrypted. The block device could be read if compromised. Block devices should be encrypted to ensure sensitive data is held securely at rest.
+pattern: |
+  resource "aws_launch_configuration" $ANYTHING {
+    ...
+  }
+  

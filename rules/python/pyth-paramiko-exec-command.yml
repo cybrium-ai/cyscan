@@ -1,0 +1,10 @@
+id:        CBR-PYTH-PARAMIKO_EXEC_COMMAND
+title:     "Paramiko Exec Command"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-78']
+source:    semgrep/paramiko-exec-command
+message: |
+  Unverified SSL context detected. This will permit insecure connections without verifying SSL certificates. Use 'ssl.create_default_context()' instead.
+pattern: |
+  $CLIENT.exec_command(...)

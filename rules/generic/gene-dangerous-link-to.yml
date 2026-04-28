@@ -1,0 +1,10 @@
+id:        CBR-GENE-DANGEROUS_LINK_TO
+title:     "Dangerous Link To"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-79']
+source:    semgrep/dangerous-link-to
+message: |
+  Detected a template variable used in 'link_to'. This will generate dynamic data in the 'href' attribute. This allows a malicious actor to input the 'javascript:' URI and is subject to cross- site scripting (XSS) attacks. If using a relative URL, start with a literal forward slash and concatenate the URL, like this: 'link_to "Here", "/"+@link'. You may also consider setting the Content Security Policy (CSP) header.
+pattern: |
+  link_to ... @$VAR

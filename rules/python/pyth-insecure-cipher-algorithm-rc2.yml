@@ -1,0 +1,10 @@
+id:        CBR-PYTH-INSECURE_CIPHER_ALGORITHM_RC2
+title:     "Insecure Cipher Algorithm Rc2"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-327']
+source:    semgrep/insecure-cipher-algorithm-rc2
+message: |
+  Detected RC2 cipher algorithm which is considered insecure. This algorithm is not cryptographically secure and can be reversed easily. Use secure stream ciphers such as ChaCha20, XChaCha20 and Salsa20, or a block cipher such as AES with a block size of 128 bits. When using a block cipher, use a modern mode of operation that also provides authentication, such as GCM.
+pattern: |
+  Cryptodome.Cipher.ARC2.new(...)

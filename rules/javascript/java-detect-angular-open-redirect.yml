@@ -1,0 +1,11 @@
+id:        CBR-JAVA-DETECT_ANGULAR_OPEN_REDIRECT
+title:     "Detect Angular Open Redirect"
+severity:  critical
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-79']
+source:    semgrep/detect-angular-open-redirect
+message: |
+  Use of $window.location.href can lead to open-redirect if user input is used for redirection.
+pattern: |
+  $window.location.href = ...
+  

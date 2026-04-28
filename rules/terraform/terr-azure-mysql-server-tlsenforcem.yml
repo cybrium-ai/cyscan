@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_MYSQL_SERVER_TLSENFORCEM
+title:     "Azure Mysql Server Tlsenforcement Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-mysql-server-tlsenforcement-enabled
+message: |
+  Ensure Enforce SSL connection is set to Enabled for MySQL servers
+pattern: |
+  resource

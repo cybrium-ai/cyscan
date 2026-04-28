@@ -1,0 +1,10 @@
+id:        CBR-BASH-HOOKS_NO_INPUT_VALIDATION_BASH
+title:     "Hooks No Input Validation Bash"
+severity:  high
+languages: ['bash']
+cwe:       ['CWE-1287']
+source:    semgrep/hooks-no-input-validation-bash
+message: |
+  Piping untrusted input directly to eval, bash, or sh is dangerous in Claude Code and Cursor hooks. Validate and sanitize input before executing it.
+pattern: |
+  eval $...ARGS

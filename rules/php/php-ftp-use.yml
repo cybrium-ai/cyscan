@@ -1,0 +1,10 @@
+id:        CBR-PHP-FTP_USE
+title:     "Ftp Use"
+severity:  critical
+languages: ['php']
+cwe:       ['CWE-319']
+source:    semgrep/ftp-use
+message: |
+  FTP allows for unencrypted file transfers. Consider using an encrypted alternative.
+pattern: |
+  $FUNC(...);

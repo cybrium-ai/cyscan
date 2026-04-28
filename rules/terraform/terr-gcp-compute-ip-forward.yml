@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_COMPUTE_IP_FORWARD
+title:     "Gcp Compute Ip Forward"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-compute-ip-forward
+message: |
+  Ensure that IP forwarding is not enabled on Instances. This lets the instance act as a traffic router and receive traffic not intended for it, which may route traffic through unintended passages.	
+pattern: |
+  resource

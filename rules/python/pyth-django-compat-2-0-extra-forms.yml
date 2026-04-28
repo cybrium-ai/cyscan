@@ -1,0 +1,9 @@
+id:        CBR-PYTH-DJANGO_COMPAT_2_0_EXTRA_FORMS
+title:     "Django Compat 2 0 Extra Forms"
+severity:  high
+languages: ['python']
+source:    semgrep/django-compat-2_0-extra-forms
+message: |
+  The django.forms.extras package is removed in Django 2.0.
+pattern: |
+  from django.forms import extras

@@ -1,0 +1,10 @@
+id:        CBR-YAML-UNSAFE_ADD_MASK_WORKFLOW_COMMA
+title:     "Unsafe Add Mask Workflow Command"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-200']
+source:    semgrep/unsafe-add-mask-workflow-command
+message: |
+  GitHub Actions provides the **'add-mask'** workflow command to mask sensitive data in the workflow logs. If **'add-mask'** is not used or if workflow commands have been stopped, sensitive data can leaked into the workflow logs. An attacker could simply copy the workflow to another branch and add the following payload `echo "::stop-commands::$stopMarker"` to stop workflow command processing ([described here](https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#s
+regex: |
+  ::add-mask::

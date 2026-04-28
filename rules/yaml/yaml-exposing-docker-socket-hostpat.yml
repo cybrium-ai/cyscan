@@ -1,0 +1,13 @@
+id:        CBR-YAML-EXPOSING_DOCKER_SOCKET_HOSTPAT
+title:     "Exposing Docker Socket Hostpath"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-250']
+source:    semgrep/exposing-docker-socket-hostpath
+message: |
+  Exposing host's Docker socket to containers via a volume. The owner of this socket is root. Giving someone access to it is equivalent to giving unrestricted root access to your host. Remove 'docker.sock' from hostpath to prevent this.
+pattern: |
+  hostPath:
+    ...
+    path: /var/run/docker.sock
+  

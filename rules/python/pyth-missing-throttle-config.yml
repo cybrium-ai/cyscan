@@ -1,0 +1,10 @@
+id:        CBR-PYTH-MISSING_THROTTLE_CONFIG
+title:     "Missing Throttle Config"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-770']
+source:    semgrep/missing-throttle-config
+message: |
+  Django REST framework configuration is missing default rate- limiting options. This could inadvertently allow resource starvation or Denial of Service (DoS) attacks. Add 'DEFAULT_THROTTLE_CLASSES' and 'DEFAULT_THROTTLE_RATES' to add rate-limiting to your application.
+pattern: |
+  REST_FRAMEWORK
