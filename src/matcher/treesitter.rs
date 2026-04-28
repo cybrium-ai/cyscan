@@ -2,6 +2,7 @@
 //! Sync-safe, so we don't try to share them across threads.
 
 use std::path::{Path, PathBuf};
+use std::collections::HashMap;
 
 use anyhow::{Context, Result};
 use tree_sitter::{Parser, Query, QueryCursor, Tree};
@@ -67,6 +68,8 @@ pub fn match_rule(
             fix_recipe: rule.fix_recipe.clone(),
             fix:        rule.fix.clone(),
             cwe:        rule.cwe.clone(),
+                evidence: HashMap::new(),
+                reachability: None,
         });
     }
     out

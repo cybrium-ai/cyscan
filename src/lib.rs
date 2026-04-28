@@ -13,4 +13,5 @@ pub mod output;
 pub mod rule;
 pub mod scanner;
 pub mod self_update;
+pub mod reachability;
 pub mod supply;

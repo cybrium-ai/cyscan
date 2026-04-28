@@ -9,6 +9,7 @@
 //!   version:   { min: "1.0.0", max: "2.0.0" }  — semver range (inclusive)
 
 use regex::RegexBuilder;
+use std::collections::HashMap;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
@@ -50,6 +51,8 @@ pub fn scan(deps: &[Dependency], rules: &[Rule]) -> Vec<Finding> {
                 fix_recipe: rule.fix_recipe.clone(),
                 fix:        None,
                 cwe:        rule.cwe.clone(),
+                evidence:   std::collections::HashMap::new(),
+                reachability: None,
             });
         }
     }

@@ -2,7 +2,7 @@
 //! layer; structured once so we serialise to JSON / SARIF without
 //! reshaping.
 
-use std::{cmp::Ordering, fmt, path::PathBuf, str::FromStr};
+use std::{cmp::Ordering, collections::HashMap, fmt, path::PathBuf, str::FromStr};
 
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
@@ -96,4 +96,19 @@ pub struct Finding {
     pub fix:        Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cwe:        Vec<String>,
+    /// Evidence metadata — package info, reachability, vulnerable symbols.
+    #[serde(default, skip_serializing_if = "evidence_empty")]
+    pub evidence:   HashMap<String, serde_json::Value>,
+    /// Reachability verdict: reachable / unreachable / unknown.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reachability: Option<String>,
+}
+
+fn evidence_empty(m: &HashMap<String, serde_json::Value>) -> bool { m.is_empty() }
+
+impl Finding {
+    /// Create a Finding with only the required fields, defaulting evidence + reachability.
+    pub fn defaults() -> (HashMap<String, serde_json::Value>, Option<String>) {
+        (HashMap::new(), None)
+    }
 }

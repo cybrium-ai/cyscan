@@ -8,6 +8,7 @@
 //! is `low` so it shows up as a hint rather than a gate.
 
 use std::{collections::HashSet, fs};
+use std::collections::HashMap;
 
 use crate::{
     finding::{Finding, Severity},
@@ -64,6 +65,8 @@ pub fn scan(deps: &[Dependency]) -> Vec<Finding> {
                     fix_recipe: None,
                     fix:        None,
                     cwe:        vec!["CWE-506".to_string()],
+                    evidence:   HashMap::new(),
+                    reachability: None,
                 });
                 break; // Only report the first popular match per dep.
             }
