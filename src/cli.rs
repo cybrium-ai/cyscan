@@ -354,18 +354,29 @@ fn bundled_rules_path() -> PathBuf {
     if let Ok(p) = std::env::var("CYSCAN_RULES") {
         return PathBuf::from(p);
     }
+
+    // Try exe-relative paths (works for tarball + Homebrew layouts)
     if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
+        // Resolve symlinks first (macOS Homebrew uses symlinks)
+        let real_exe = std::fs::canonicalize(&exe).unwrap_or(exe);
+        if let Some(dir) = real_exe.parent() {
             for rel in ["rules", "../rules", "../share/cyscan/rules"] {
                 let candidate = dir.join(rel);
                 if candidate.exists() {
-                    // Canonicalise so downstream error messages don't print
-                    // path fragments full of `..`
                     return candidate.canonicalize().unwrap_or(candidate);
                 }
             }
         }
     }
+
+    // Homebrew-specific fallback (macOS)
+    for prefix in ["/opt/homebrew/opt/cyscan", "/usr/local/opt/cyscan"] {
+        let candidate = PathBuf::from(prefix).join("rules");
+        if candidate.exists() {
+            return candidate;
+        }
+    }
+
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("rules")
 }
 
@@ -374,12 +385,17 @@ fn bundled_advisories_path() -> PathBuf {
         return PathBuf::from(p);
     }
     if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
+        let real_exe = std::fs::canonicalize(&exe).unwrap_or(exe);
+        if let Some(dir) = real_exe.parent() {
             for rel in ["rules/advisories", "../rules/advisories", "../share/cyscan/rules/advisories"] {
                 let c = dir.join(rel);
                 if c.exists() { return c.canonicalize().unwrap_or(c); }
             }
         }
+    }
+    for prefix in ["/opt/homebrew/opt/cyscan", "/usr/local/opt/cyscan"] {
+        let c = PathBuf::from(prefix).join("rules/advisories");
+        if c.exists() { return c; }
     }
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("rules/advisories")
 }

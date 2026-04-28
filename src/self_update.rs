@@ -93,19 +93,46 @@ pub fn update(repo: &str, binary_name: &str) -> Result<()> {
     }
 
     let exe_path = std::env::current_exe()?;
-    let backup = exe_path.with_extension("old");
+    let real_exe = std::fs::canonicalize(&exe_path).unwrap_or(exe_path.clone());
+    let backup = real_exe.with_extension("old");
 
-    std::fs::rename(&exe_path, &backup)?;
+    // Extract binary from tarball if it's a .tar.gz
+    let binary_bytes = if &bytes[..2] == b"\x1f\x8b" {
+        // gzip compressed — extract the binary from tar.gz
+        eprintln!("Extracting from archive...");
+        use std::io::Read;
+        let decoder = flate2::read::GzDecoder::new(&bytes[..]);
+        let mut archive = tar::Archive::new(decoder);
+        let mut found = Vec::new();
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            let path = entry.path()?.to_path_buf();
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if name == binary_name {
+                entry.read_to_end(&mut found)?;
+                break;
+            }
+        }
+        if found.is_empty() {
+            bail!("Binary '{binary_name}' not found in archive");
+        }
+        found
+    } else {
+        // Raw binary (no archive wrapper)
+        bytes.to_vec()
+    };
 
-    if let Err(e) = std::fs::write(&exe_path, &bytes) {
-        std::fs::rename(&backup, &exe_path).ok();
+    std::fs::rename(&real_exe, &backup)?;
+
+    if let Err(e) = std::fs::write(&real_exe, &binary_bytes) {
+        std::fs::rename(&backup, &real_exe).ok();
         bail!("Cannot write new binary: {e}");
     }
 
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&exe_path, std::fs::Permissions::from_mode(0o755)).ok();
+        std::fs::set_permissions(&real_exe, std::fs::Permissions::from_mode(0o755)).ok();
     }
 
     std::fs::remove_file(&backup).ok();
