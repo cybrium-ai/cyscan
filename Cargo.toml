@@ -1,6 +1,6 @@
 [package]
 name        = "cyscan"
-version     = "0.6.0"
+version     = "0.6.1"
 edition     = "2021"
 description = "Cybrium Scan — fast multi-language SAST engine"
 license     = "Apache-2.0"
@@ -54,6 +54,8 @@ semver      = "1"
 # Self-update (blocking HTTP for sync CLI)
 reqwest     = { version = "0.12", features = ["blocking", "json", "rustls-tls"], default-features = false }
 walkdir = "2.5.0"
+flate2 = "1.1.9"
+tar = "0.4.45"
 
 [dev-dependencies]
 assert_cmd     = "2"
