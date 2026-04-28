@@ -109,6 +109,17 @@ enum Cmd {
         cmd: RulesCmd,
     },
 
+    /// Detect frameworks used in the codebase.
+    Frameworks {
+        /// Target directory to analyze.
+        #[arg(default_value = ".")]
+        target: PathBuf,
+
+        /// Output format.
+        #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
+        format: Format,
+    },
+
     /// Check for updates and self-update the binary.
     Update,
 
@@ -244,6 +255,31 @@ pub fn run() -> Result<ExitCode> {
         Cmd::Rules { cmd: RulesCmd::Validate { rules } } => {
             let pack = load_pack(rules.as_deref())?;
             println!("✓ {} rule(s) parsed cleanly", pack.rules().len());
+            Ok(ExitCode::from(0))
+        }
+
+        Cmd::Frameworks { target, format } => {
+            let detected = crate::framework::detect(&target);
+            if detected.is_empty() {
+                println!("No frameworks detected.");
+            } else {
+                match format {
+                    Format::Json => {
+                        println!("{}", serde_json::to_string_pretty(&detected).unwrap_or_default());
+                    }
+                    _ => {
+                        println!("{} framework(s) detected:\n", detected.len());
+                        for fw in &detected {
+                            let ver = fw.version.as_deref().map(|v| format!(" v{v}")).unwrap_or_default();
+                            println!("  {:<20} {:<12} {:<8} confidence {:.0}%{}",
+                                fw.name, fw.language, fw.category, fw.confidence * 100.0, ver);
+                            for loc in &fw.detected_in {
+                                println!("    found in: {loc}");
+                            }
+                        }
+                    }
+                }
+            }
             Ok(ExitCode::from(0))
         }
 

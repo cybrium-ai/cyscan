@@ -7,11 +7,12 @@
 pub mod cli;
 pub mod finding;
 pub mod fixer;
+pub mod framework;
 pub mod lang;
 pub mod matcher;
 pub mod output;
+pub mod reachability;
 pub mod rule;
 pub mod scanner;
 pub mod self_update;
-pub mod reachability;
 pub mod supply;
