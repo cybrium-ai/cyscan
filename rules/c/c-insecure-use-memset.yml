@@ -1,0 +1,12 @@
+id:        CBR-C-INSECURE_USE_MEMSET
+title:     "Insecure Use Memset"
+severity:  high
+languages: ['c']
+cwe:       ['CWE-14']
+source:    semgrep/insecure-use-memset
+message: |
+  When handling sensitive information in a buffer, it's important to ensure  that the data is securely erased before the buffer is deleted or reused.  While `memset()` is commonly used for this purpose, it can leave sensitive  information behind due to compiler optimizations or other factors.  To avoid this potential vulnerability, it's recommended to use the  `memset_s()` function instead. `memset_s()` is a standardized function  that securely overwrites the memory with a specified value, making 
+pattern: |
+  memset($...VARS)
+fix: |
+  memset_s($...VARS)

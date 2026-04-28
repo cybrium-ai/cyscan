@@ -1,0 +1,9 @@
+id:        CBR-JAVA-JAVASCRIPT_ALERT
+title:     "Javascript Alert"
+severity:  high
+languages: ['javascript', 'typescript']
+source:    semgrep/javascript-alert
+message: |
+  found alert() call; should this be in production code?
+pattern: |
+  alert()

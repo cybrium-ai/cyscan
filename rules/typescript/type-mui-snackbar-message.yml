@@ -1,0 +1,9 @@
+id:        CBR-TYPE-MUI_SNACKBAR_MESSAGE
+title:     "Mui Snackbar Message"
+severity:  high
+languages: ['typescript', 'javascript']
+source:    semgrep/mui-snackbar-message
+message: |
+  React MUI enqueueSnackbar() title is not internationalized: '$MESSAGE'
+pattern: |
+  enqueueSnackbar('$MESSAGE', $X2)

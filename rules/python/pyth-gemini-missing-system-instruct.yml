@@ -1,0 +1,10 @@
+id:        CBR-PYTH-GEMINI_MISSING_SYSTEM_INSTRUCT
+title:     "Gemini Missing System Instruction Python"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-1188']
+source:    semgrep/gemini-missing-system-instruction-python
+message: |
+  Gemini GenerativeModel created without 'system_instruction' parameter. A system instruction helps establish behavioral guidelines and safety boundaries for the model. See https://ai.google.dev/gemini-api/docs/safety-guidance
+pattern: |
+  genai.GenerativeModel(...)

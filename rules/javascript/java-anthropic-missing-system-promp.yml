@@ -1,0 +1,10 @@
+id:        CBR-JAVA-ANTHROPIC_MISSING_SYSTEM_PROMP
+title:     "Anthropic Missing System Prompt Javascript"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-1188']
+source:    semgrep/anthropic-missing-system-prompt-javascript
+message: |
+  Anthropic messages.create() called without a 'system' parameter. A system prompt helps set behavioral guidelines and safety boundaries for the model.
+pattern: |
+  $CLIENT.messages.create({...})

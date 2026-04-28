@@ -1,0 +1,10 @@
+id:        CBR-PHP-EMPTY_WITH_BOOLEAN_EXPRESSION
+title:     "Empty With Boolean Expression"
+severity:  high
+languages: ['php']
+source:    semgrep/empty-with-boolean-expression
+message: |
+  Calling `empty` on a boolean expression may be an indication that a parenthesis is misplaced.
+pattern: |
+  empty($A && $B)
+  

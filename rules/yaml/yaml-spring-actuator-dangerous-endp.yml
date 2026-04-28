@@ -1,0 +1,11 @@
+id:        CBR-YAML-SPRING_ACTUATOR_DANGEROUS_ENDP
+title:     "Spring Actuator Dangerous Endpoints Enabled Yaml"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-200']
+source:    semgrep/spring-actuator-dangerous-endpoints-enabled-yaml
+message: |
+  Spring Boot Actuator "$ACTUATOR" is enabled. Depending on the actuator, this can pose a significant security risk. Please double-check if the actuator is needed and properly secured.
+pattern: |
+  include: [..., $ACTUATOR, ...]
+  

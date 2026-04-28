@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_POSTGRESQL_SERVER_LOG_CO
+title:     "Azure Postgresql Server Log Connections Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-postgresql-server-log-connections-enabled
+message: |
+  Ensure server parameter log_connections is set to ON for PostgreSQL Database Server
+pattern: |
+  resource

@@ -1,0 +1,11 @@
+id:        CBR-PYTH-PASS_BODY_RANGE
+title:     "Pass Body Range"
+severity:  high
+languages: ['python']
+source:    semgrep/pass-body-range
+message: |
+  `pass` is the body of for $X in $Y. Consider removing this or raise NotImplementedError() if this is a TODO
+pattern: |
+  for $X in $Y:
+      pass
+  

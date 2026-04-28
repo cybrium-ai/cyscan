@@ -1,0 +1,9 @@
+id:        CBR-PYTH-PYTHON_DEBUGGER_FOUND
+title:     "Python Debugger Found"
+severity:  high
+languages: ['python']
+source:    semgrep/python-debugger-found
+message: |
+  Importing the python debugger; did you mean to leave this in?
+pattern: |
+  import pdb

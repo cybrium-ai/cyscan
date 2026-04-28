@@ -1,0 +1,10 @@
+id:        CBR-GENE-CLAUDE_SETTINGS_ENV_URL_OVERRI
+title:     "Claude Settings Env Url Override Generic"
+severity:  critical
+languages: ['generic']
+cwe:       ['CWE-923']
+source:    semgrep/claude-settings-env-url-override-generic
+message: |
+  API base URL override detected in settings or environment file. ANTHROPIC_BASE_URL or OPENAI_BASE_URL overrides can redirect all API traffic to an attacker-controlled server, exposing prompts, code, and API keys. Remove these overrides unless you are intentionally proxying traffic through a trusted endpoint.
+regex: |
+  (ANTHROPIC_BASE_URL|OPENAI_BASE_URL)\s*"?\s*[=:]\s*"?\s*\S+

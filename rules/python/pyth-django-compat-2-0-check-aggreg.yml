@@ -1,0 +1,9 @@
+id:        CBR-PYTH-DJANGO_COMPAT_2_0_CHECK_AGGREG
+title:     "Django Compat 2 0 Check Aggregate Support"
+severity:  high
+languages: ['python']
+source:    semgrep/django-compat-2_0-check-aggregate-support
+message: |
+  django.db.backends.base.BaseDatabaseOperations.check_aggregate_support() is removed in Django 2.0.
+pattern: |
+  django.db.backends.base.BaseDatabaseOperations.check_aggregate_support(...)

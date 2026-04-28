@@ -1,0 +1,9 @@
+id:        CBR-PYTH-RETURN_NOT_IN_FUNCTION
+title:     "Return Not In Function"
+severity:  high
+languages: ['python']
+source:    semgrep/return-not-in-function
+message: |
+  `return` only makes sense inside a function
+pattern: |
+  return ...

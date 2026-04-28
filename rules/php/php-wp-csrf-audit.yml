@@ -1,0 +1,10 @@
+id:        CBR-PHP-WP_CSRF_AUDIT
+title:     "Wp Csrf Audit"
+severity:  high
+languages: ['php']
+cwe:       ['CWE-352']
+source:    semgrep/wp-csrf-audit
+message: |
+  Passing false or 0 as the third argument to this function will not cause the script to die, making the check useless.
+pattern: |
+  check_ajax_referer(...,...,false)

@@ -1,0 +1,9 @@
+id:        CBR-PYTH-LEN_ALL_COUNT
+title:     "Len All Count"
+severity:  high
+languages: ['python']
+source:    semgrep/len-all-count
+message: |
+  Using QUERY.count() instead of len(QUERY.all()) sends less data to the client since the SQLAlchemy method is performed server-side.
+pattern: |
+  len($X.all())

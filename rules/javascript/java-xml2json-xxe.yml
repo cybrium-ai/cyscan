@@ -1,0 +1,13 @@
+id:        CBR-JAVA-XML2JSON_XXE
+title:     "Xml2Json Xxe"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-611']
+source:    semgrep/xml2json-xxe
+message: |
+  If unverified user data can reach the XML Parser it can result in XML External or Internal Entity (XXE) Processing vulnerabilities
+pattern: |
+  var $XML = require('xml2json');
+  ...
+  $XML.toJson(...);
+  

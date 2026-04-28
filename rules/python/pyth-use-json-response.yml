@@ -1,0 +1,12 @@
+id:        CBR-PYTH-USE_JSON_RESPONSE
+title:     "Use Json Response"
+severity:  critical
+languages: ['python']
+source:    semgrep/use-json-response
+message: |
+  Use JsonResponse instead
+pattern: |
+  $Y = json.dumps(...)
+  ...
+  django.http.HttpResponse($Y, ...)
+  

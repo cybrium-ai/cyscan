@@ -1,0 +1,10 @@
+id:        CBR-PYTH-MAKO_TEMPLATES_DETECTED
+title:     "Mako Templates Detected"
+severity:  medium
+languages: ['python']
+cwe:       ['CWE-79']
+source:    semgrep/mako-templates-detected
+message: |
+  Mako templates do not provide a global HTML escaping mechanism. This means you must escape all sensitive data in your templates using '| u' for URL escaping or '| h' for HTML escaping. If you are using Mako to serve web content, consider using a system such as Jinja2 which enables global escaping.
+pattern: |
+  mako.template.Template(...)

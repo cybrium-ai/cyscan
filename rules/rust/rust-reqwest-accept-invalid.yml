@@ -1,0 +1,10 @@
+id:        CBR-RUST-REQWEST_ACCEPT_INVALID
+title:     "Reqwest Accept Invalid"
+severity:  high
+languages: ['rust']
+cwe:       ['CWE-295']
+source:    semgrep/reqwest-accept-invalid
+message: |
+  Dangerously accepting invalid TLS information
+pattern: |
+  reqwest::Client::builder(). ... .danger_accept_invalid_hostnames(true)

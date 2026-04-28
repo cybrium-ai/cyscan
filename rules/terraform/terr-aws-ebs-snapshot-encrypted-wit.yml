@@ -1,0 +1,15 @@
+id:        CBR-TERR-AWS_EBS_SNAPSHOT_ENCRYPTED_WIT
+title:     "Aws Ebs Snapshot Encrypted With Cmk"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-320']
+source:    semgrep/aws-ebs-snapshot-encrypted-with-cmk
+message: |
+  Ensure EBS Snapshot is encrypted at rest using KMS CMKs. CMKs gives you control over the encryption key in terms of access and rotation.
+pattern: |
+  resource "aws_ebs_snapshot_copy" $ANYTHING {
+    ...
+    encrypted = true
+    ...
+  }
+  

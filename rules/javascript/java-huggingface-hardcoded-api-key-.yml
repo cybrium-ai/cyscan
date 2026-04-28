@@ -1,0 +1,10 @@
+id:        CBR-JAVA-HUGGINGFACE_HARDCODED_API_KEY_
+title:     "Huggingface Hardcoded Api Key Javascript"
+severity:  critical
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-798']
+source:    semgrep/huggingface-hardcoded-api-key-javascript
+message: |
+  Hugging Face API token is hardcoded in source code. Use environment variables or a secrets manager instead. See https://huggingface.co/docs/hub/en/security-tokens
+pattern: |
+  new InferenceClient("$KEY", ...)

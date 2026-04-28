@@ -1,0 +1,9 @@
+id:        CBR-DOCK-NONSENSICAL_COMMAND
+title:     "Nonsensical Command"
+severity:  high
+languages: ['docker']
+source:    semgrep/nonsensical-command
+message: |
+  Some commands such as `$CMD` do not make sense in a container. Do not use these.
+pattern: |
+  RUN $CMD ...

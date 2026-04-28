@@ -1,0 +1,10 @@
+id:        CBR-PYTH-HTTP_NOT_HTTPS_CONNECTION
+title:     "Http Not Https Connection"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-319']
+source:    semgrep/http-not-https-connection
+message: |
+  Detected HTTPConnectionPool. This will transmit data in cleartext. It is recommended to use HTTPSConnectionPool instead for to encrypt communications.
+pattern: |
+  urllib3.HTTPConnectionPool(...)

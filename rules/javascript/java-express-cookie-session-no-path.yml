@@ -1,0 +1,10 @@
+id:        CBR-JAVA-EXPRESS_COOKIE_SESSION_NO_PATH
+title:     "Express Cookie Session No Path"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-522']
+source:    semgrep/express-cookie-session-no-path
+message: |
+  Default session middleware settings: `path` not set. It indicates the path of the cookie; use it to compare against the request path. If this and domain match, then send the cookie in the request.
+pattern: |
+  $SESSION(...)

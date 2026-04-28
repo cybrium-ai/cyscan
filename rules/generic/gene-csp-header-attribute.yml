@@ -1,0 +1,10 @@
+id:        CBR-GENE-CSP_HEADER_ATTRIBUTE
+title:     "Csp Header Attribute"
+severity:  medium
+languages: ['generic']
+cwe:       ['CWE-79']
+source:    semgrep/csp-header-attribute
+message: |
+  Visualforce Pages must have the cspHeader attribute set to true. This attribute is available in API version 55 or higher.
+pattern: |
+  <apex:page...>...</apex:page>

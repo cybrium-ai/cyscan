@@ -1,0 +1,11 @@
+id:        CBR-RUBY-DANGEROUS_SYSCALL
+title:     "Dangerous Syscall"
+severity:  high
+languages: ['ruby']
+cwe:       ['CWE-94']
+source:    semgrep/dangerous-syscall
+message: |
+  'syscall' is essentially unsafe and unportable. The DL (https://apidock.com/ruby/Fiddle) library is preferred for safer and a bit more portable programming.
+pattern: |
+  syscall
+  

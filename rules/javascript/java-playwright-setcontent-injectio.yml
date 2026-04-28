@@ -1,0 +1,10 @@
+id:        CBR-JAVA-PLAYWRIGHT_SETCONTENT_INJECTIO
+title:     "Playwright Setcontent Injection"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-918']
+source:    semgrep/playwright-setcontent-injection
+message: |
+  If unverified user data can reach the `setContent` method it can result in Server-Side Request Forgery vulnerabilities
+pattern: |
+  $PAGE.setContent($INPUT,...)

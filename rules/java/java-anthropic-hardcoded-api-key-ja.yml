@@ -1,0 +1,10 @@
+id:        CBR-JAVA-ANTHROPIC_HARDCODED_API_KEY_JA
+title:     "Anthropic Hardcoded Api Key Java"
+severity:  critical
+languages: ['java']
+cwe:       ['CWE-798']
+source:    semgrep/anthropic-hardcoded-api-key-java
+message: |
+  Anthropic API key is hardcoded in source code. Use environment variables or a secrets manager instead.
+pattern: |
+  $OBJ.apiKey("$KEY")

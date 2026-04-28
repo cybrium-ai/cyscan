@@ -1,0 +1,11 @@
+id:        CBR-YAML-LANG_CONSISTENCY_KOTLIN
+title:     "Lang Consistency Kotlin"
+severity:  high
+languages: ['yaml']
+source:    semgrep/lang-consistency-kotlin
+message: |
+  Found '$X' in language config which diverges from semgrep.dev normalization. Please use 'kotlin' instead.
+pattern: |
+  $X
+fix: |
+  kotlin

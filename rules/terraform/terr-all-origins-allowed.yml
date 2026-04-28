@@ -1,0 +1,10 @@
+id:        CBR-TERR-ALL_ORIGINS_ALLOWED
+title:     "All Origins Allowed"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-942']
+source:    semgrep/all-origins-allowed
+message: |
+  CORS rule on bucket permits any origin
+pattern: |
+  allowed_origins = ["*"]

@@ -1,0 +1,27 @@
+id:        CBR-TERR-AWS_ATHENA_CLIENT_CAN_DISABLE_
+title:     "Aws Athena Client Can Disable Workgroup Encryption"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    semgrep/aws-athena-client-can-disable-workgroup-encryption
+message: |
+  The Athena workgroup configuration can be overriden by client-side settings. The client can make changes to disable encryption settings. Enforce the configuration to prevent client overrides.
+pattern: |
+  resource "aws_athena_workgroup" $ANYTHING {
+    ...
+    configuration {
+      ...
+      enforce_workgroup_configuration = false
+      ...
+      result_configuration {
+        ...
+        encryption_configuration {
+          ...
+        }
+        ...
+      }
+      ...
+    }
+    ...
+  }
+  

@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_POSTGRESQL_LOG_MIN_MESSAGE
+title:     "Gcp Postgresql Log Min Message"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-postgresql-log-min-message
+message: |
+  Ensure PostgreSQL database 'log_min_messages' flag is set to a valid value
+pattern: |
+  resource

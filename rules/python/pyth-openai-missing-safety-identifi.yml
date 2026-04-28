@@ -1,0 +1,10 @@
+id:        CBR-PYTH-OPENAI_MISSING_SAFETY_IDENTIFI
+title:     "Openai Missing Safety Identifier Python"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-778']
+source:    semgrep/openai-missing-safety-identifier-python
+message: |
+  OpenAI Responses API called without 'safety_identifier' parameter. Include a hashed user identifier to enable abuse monitoring and safety checks. See https://developers.openai.com/api/docs/guides/safety-checks
+pattern: |
+  $CLIENT.responses.create(...)

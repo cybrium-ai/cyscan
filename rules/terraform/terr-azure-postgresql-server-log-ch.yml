@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_POSTGRESQL_SERVER_LOG_CH
+title:     "Azure Postgresql Server Log Checkpoint Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-postgresql-server-log-checkpoint-enabled
+message: |
+  Ensure server parameter log_checkpoints is set to ON for PostgreSQL Database Server
+pattern: |
+  resource

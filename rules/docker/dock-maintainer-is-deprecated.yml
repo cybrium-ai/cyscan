@@ -1,0 +1,11 @@
+id:        CBR-DOCK-MAINTAINER_IS_DEPRECATED
+title:     "Maintainer Is Deprecated"
+severity:  medium
+languages: ['docker']
+source:    semgrep/maintainer-is-deprecated
+message: |
+  MAINTAINER has been deprecated.
+pattern: |
+  MAINTAINER $NAME
+fix: |
+  # MAINTAINER $NAME

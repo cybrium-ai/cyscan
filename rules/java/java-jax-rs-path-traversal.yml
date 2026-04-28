@@ -1,0 +1,15 @@
+id:        CBR-JAVA-JAX_RS_PATH_TRAVERSAL
+title:     "Jax Rs Path Traversal"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-22']
+source:    semgrep/jax-rs-path-traversal
+message: |
+  Detected a potential path traversal. A malicious actor could control the location of this file, to include going backwards in the directory with '../'. To address this, ensure that user-controlled variables in file paths are sanitized. You may also consider using a utility method such as org.apache.commons.io.FilenameUtils.getName(...) to only retrieve the file name from the path.
+pattern: |
+  $RETURNTYPE $FUNC (..., @PathParam(...) $TYPE $VAR, ...) {
+    ...
+    new File(..., $VAR, ...);
+    ...
+  }
+  

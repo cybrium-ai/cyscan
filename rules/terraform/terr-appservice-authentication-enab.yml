@@ -1,0 +1,10 @@
+id:        CBR-TERR-APPSERVICE_AUTHENTICATION_ENAB
+title:     "Appservice Authentication Enabled"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-287']
+source:    semgrep/appservice-authentication-enabled
+message: |
+  Enabling authentication ensures that all communications in the application are authenticated. The `auth_settings` block needs to be filled out with the appropriate auth backend settings
+pattern: |
+  resource

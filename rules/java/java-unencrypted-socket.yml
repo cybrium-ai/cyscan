@@ -1,0 +1,10 @@
+id:        CBR-JAVA-UNENCRYPTED_SOCKET
+title:     "Unencrypted Socket"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-319']
+source:    semgrep/unencrypted-socket
+message: |
+  Detected use of a Java socket that is not encrypted. As a result, the traffic could be read by an attacker intercepting the network traffic. Use an SSLSocket created by 'SSLSocketFactory' or 'SSLServerSocketFactory' instead.
+pattern: |
+  new ServerSocket(...)

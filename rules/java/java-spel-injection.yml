@@ -1,0 +1,15 @@
+id:        CBR-JAVA-SPEL_INJECTION
+title:     "Spel Injection"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-94']
+source:    semgrep/spel-injection
+message: |
+  A Spring expression is built with a dynamic value. The source of the value(s) should be verified to avoid that unfiltered values fall into this risky code evaluation.
+pattern: |
+  $X $METHOD(...) {
+    ...
+    $PARSER.parseExpression(...);
+    ...
+  }
+  

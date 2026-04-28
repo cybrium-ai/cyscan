@@ -1,0 +1,10 @@
+id:        CBR-DOCK-MISSING_NO_INSTALL_RECOMMENDS
+title:     "Missing No Install Recommends"
+severity:  medium
+languages: ['docker']
+source:    semgrep/missing-no-install-recommends
+message: |
+  This 'apt-get install' is missing '--no-install-recommends'. This prevents unnecessary packages from being installed, thereby reducing image size. Add '--no-install-recommends'.
+pattern: |
+  RUN apt-get install ...
+  

@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_GKE_MASTER_AUTHZ_NETWORKS_
+title:     "Gcp Gke Master Authz Networks Enabled"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-gke-master-authz-networks-enabled
+message: |
+  Ensure master authorized networks is set to enabled in GKE clusters
+pattern: |
+  resource

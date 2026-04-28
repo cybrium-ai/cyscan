@@ -1,0 +1,11 @@
+id:        CBR-YAML-LANG_CONSISTENCY_PYTHON
+title:     "Lang Consistency Python"
+severity:  high
+languages: ['yaml']
+source:    semgrep/lang-consistency-python
+message: |
+  Found '$X' in language config which diverges from semgrep.dev normalization. Please use 'python' instead.
+pattern: |
+  $X
+fix: |
+  python

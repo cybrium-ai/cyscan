@@ -1,0 +1,9 @@
+id:        CBR-GO-DETECT_GEMINI
+title:     "Detect Gemini"
+severity:  medium
+languages: ['go']
+source:    semgrep/detect-gemini
+message: |
+  Possibly found usage of AI: Gemini
+pattern: |
+  import "github.com/google/generative-ai-go"
