@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0167
+title:     "No user should have more than one active access key."
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-iam-limit-user-access-keys
+message: |
+  Multiple active access keys widens the scope for compromise.
+  
+  Remediation: Limit the number of active access keys to one key per user.
+pattern: |
+  access_key\s*=\s*"[^"]*"

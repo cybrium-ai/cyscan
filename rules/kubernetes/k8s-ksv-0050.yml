@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0050
+title:     "Do not allow privilege escalation via RBAC resources"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-no-privilege-escalation-rbac
+message: |
+  Check whether role permits escalate, bind, or impersonate on roles/rolebindings, which can lead to privilege escalation.
+  
+  Remediation: Remove permissions for escalate, bind, and impersonate verbs on roles and rolebindings
+pattern: |
+  allowPrivilegeEscalation:\s*true

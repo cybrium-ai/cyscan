@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0041
+title:     "Ensure AKS has an API Server Authorized IP Ranges enabled"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-container-limit-authorized-ips
+message: |
+  The API server is the central way to interact with and manage a cluster. To improve cluster security and minimize attacks, the API server should only be accessible from a limited set of IP address ranges.
+  
+  Remediation: Limit the access to the API server to a limited IP range
+pattern: |
+  resource\s+"google_container_cluster"

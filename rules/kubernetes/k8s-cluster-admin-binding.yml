@@ -1,0 +1,12 @@
+id:        CBR-K8S-CLUSTER-ADMIN-BINDING
+title:     "ClusterRoleBinding to cluster-admin"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-cluster-admin-role
+message: |
+  ClusterRoleBinding grants cluster-admin role, providing full access to the entire cluster.
+  
+  Remediation: Create a custom ClusterRole with only the required permissions.
+pattern: |
+  roleRef:\s*\n\s+.*\n\s+name:\s*cluster-admin

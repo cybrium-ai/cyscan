@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0057
+title:     "Storage account should have logging enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/azure-storage-storage-account-logging-enabled
+message: |
+  Storage Analytics logs detailed information about successful and failed requests to a storage service.
+  This information can be used to monitor individual requests and to diagnose issues with a storage service.
+  Logging should be enabled for at least one storage service type.
+  
+  Remediation: Enable logging for at least one storage service (Queue, Table, or Blob)
+pattern: |
+  (?:logging|access_logs)\s*\{

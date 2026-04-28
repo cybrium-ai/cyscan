@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0006
+title:     "Web App uses latest TLS version"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-326']
+source:    trivy/azure-appservice-use-secure-tls-policy
+message: |
+  Use a more recent TLS/SSL policy for the App Service
+  
+  Remediation: The TLS version being outdated and has known vulnerabilities
+pattern: |
+  (?:minimum_tls_version|tls_version)\s*=\s*"(?:TLS1_0|TLSv1|1\.0)"

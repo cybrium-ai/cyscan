@@ -1,0 +1,12 @@
+id:        CBR-K8S-NO-AUDIT-LOG
+title:     "API server audit logging not configured"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-778']
+source:    trivy/kubernetes-no-audit-log
+message: |
+  API server does not have audit logging configured. Audit logs are essential for security monitoring.
+  
+  Remediation: Set --audit-log-path and --audit-policy-file on the API server.
+pattern: |
+  kube-apiserver(?!.*--audit-log-path)

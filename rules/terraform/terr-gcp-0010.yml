@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0010
+title:     "Default network should not be created at project level"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/google-iam-no-default-network
+message: |
+  The default network which is provided for a project contains multiple insecure firewall rules which allow ingress to the project's infrastructure. Creation of this network should therefore be disabled.
+  
+  Remediation: Disable automatic default network creation
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

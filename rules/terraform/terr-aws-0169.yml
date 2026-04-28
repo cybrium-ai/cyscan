@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0169
+title:     "Missing IAM Role to allow authorized users to manage incidents with AWS Support."
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-200']
+source:    trivy/aws-iam-require-support-role
+message: |
+  By implementing least privilege for access control, an IAM Role will require an appropriate
+  IAM Policy to allow Support Center Access in order to manage Incidents with AWS Support.
+  
+  Remediation: Create an IAM role with the necessary permissions to manage incidents with AWS Support.
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

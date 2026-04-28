@@ -1,0 +1,12 @@
+id:        CBR-K8S-NO-READINESS-PROBE
+title:     "Container without readiness probe"
+severity:  low
+languages: ['yaml']
+cwe:       ['CWE-693']
+source:    trivy/kubernetes-missing-readiness-probe
+message: |
+  Container does not define a readiness probe. Without it, traffic may be routed to unready pods.
+  
+  Remediation: Add a readinessProbe to the container spec.
+pattern: |
+  containers:\s*\n\s+-\s+name:

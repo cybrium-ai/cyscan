@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0165
+title:     "Root account has unrestricted access — enable hardware MFA"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-250']
+source:    trivy/aws-iam-enforce-root-hardware-mfa
+message: |
+  Hardware MFA adds an extra layer of protection on top of a user name and password. With MFA enabled, when a user signs in to an AWS website, they're prompted for their user name and password and for an authentication code from their AWS MFA device.
+  
+  Remediation: Enable hardware MFA on the root user account.
+pattern: |
+  mfa_delete\s*=\s*(?:false|"Disabled")

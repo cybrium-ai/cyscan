@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0033
+title:     "VM disks should be encrypted with Customer Supplied Encryption Keys"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/google-compute-vm-disk-encryption-customer-key
+message: |
+  Using unmanaged keys makes rotation and general management difficult.
+  
+  Remediation: Use managed keys
+pattern: |
+  encrypted\s*=\s*false

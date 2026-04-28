@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0036
+title:     "Unencrypted data lake storage."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/azure-datalake-enable-at-rest-encryption
+message: |
+  Datalake storage encryption defaults to Enabled, it shouldn't be overridden to Disabled.
+  
+  Remediation: Enable encryption of data lake storage
+pattern: |
+  encrypted\s*=\s*false

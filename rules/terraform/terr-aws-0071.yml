@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0071
+title:     "MQ Broker should have general logging enabled"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/aws-mq-enable-general-logging
+message: |
+  Logging should be enabled to allow tracing of issues and activity to be investigated more fully. Logs provide additional information and context which is often invalauble during investigation
+  
+  Remediation: Enable general logging
+pattern: |
+  (?:logging|access_logs)\s*\{

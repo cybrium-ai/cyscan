@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0161
+title:     "The S3 Bucket backing Cloudtrail should be private"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-cloudtrail-no-public-log-access
+message: |
+  CloudTrail logs will be publicly exposed, potentially containing sensitive information. CloudTrail logs a record of every API call made in your account. These log files are stored in an S3 bucket. CIS recommends that the S3 bucket policy, or access control list (ACL), applied to the S3 bucket that CloudTrail logs to prevents public access to the CloudTrail logs. Allowing public access to CloudTrail log content might aid an adversary in identifying weaknesses in the affected account's use or configuration.
+  
+  Remediation: Restrict public access to the S3 bucket
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

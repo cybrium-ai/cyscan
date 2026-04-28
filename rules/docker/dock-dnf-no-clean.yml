@@ -1,0 +1,12 @@
+id:        CBR-DOCK-DNF-NO-CLEAN
+title:     "dnf install without dnf clean all"
+severity:  low
+languages: ['docker']
+cwe:       ['CWE-459']
+source:    trivy/docker-dnf-clean-all-missing
+message: |
+  dnf install called without a subsequent dnf clean all. This leaves cached packages in the image.
+  
+  Remediation: Add && dnf clean all at the end of the RUN instruction.
+pattern: |
+  ^\s*RUN\s+.*dnf\s+install\s+(?!.*dnf\s+clean)

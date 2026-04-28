@@ -1,0 +1,13 @@
+id:        CBR-TERR-AZU-0010
+title:     "Trusted Microsoft Services should have bypass access to Storage accounts"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-storage-allow-microsoft-service-bypass
+message: |
+  Some Microsoft services that interact with storage accounts operate from networks that can't be granted access through network rules.
+  To help this type of service work as intended, allow the set of trusted Microsoft services to bypass the network rules
+  
+  Remediation: Allow Trusted Microsoft Services to bypass
+pattern: |
+  resource\s+"google_storage_bucket"

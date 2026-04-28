@@ -1,0 +1,12 @@
+id:        CBR-TERR-NIF-0017
+title:     "The router has common private network"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/nifcloud-network-no-common-private-router
+message: |
+  When handling sensitive data between servers, please consider using a private LAN to isolate the private side network from the shared network.
+  
+  Remediation: Use private LAN
+pattern: |
+  (?:private_cluster|enable_private_nodes)\s*=\s*false

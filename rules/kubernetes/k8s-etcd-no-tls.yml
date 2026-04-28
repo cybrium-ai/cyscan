@@ -1,0 +1,12 @@
+id:        CBR-K8S-ETCD-NO-TLS
+title:     "etcd client connections not using TLS"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-319']
+source:    trivy/kubernetes-etcd-auto-tls
+message: |
+  etcd is configured with --auto-tls=true, using self-signed certificates instead of proper CA-signed ones.
+  
+  Remediation: Use properly signed TLS certificates for etcd.
+pattern: |
+  --auto-tls=true

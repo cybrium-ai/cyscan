@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0043
+title:     "Do not allow impersonation of privileged groups"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-no-impersonate-privileged-groups
+message: |
+  Check whether role permits impersonating privileged groups
+  
+  Remediation: Create a role which does not permit to impersonate privileged groups if not needed
+pattern: |
+  privileged:\s*true

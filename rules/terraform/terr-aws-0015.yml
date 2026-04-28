@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0015
+title:     "CloudTrail should use Customer managed keys to encrypt the logs"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-cloudtrail-encryption-customer-managed-key
+message: |
+  Using AWS managed keys does not allow for fine grained control.  Using Customer managed keys provides comprehensive control over cryptographic keys, enabling management of policies, permissions, and rotation, thus enhancing security and compliance measures for sensitive data and systems.
+  
+  Remediation: Use Customer managed key
+pattern: |
+  encrypted\s*=\s*false

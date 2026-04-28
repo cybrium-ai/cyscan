@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0075
+title:     "Neptune logs export should be enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/aws-neptune-enable-log-export
+message: |
+  Neptune does not have auditing by default. To ensure that you are able to accurately audit the usage of your Neptune instance you should enable export logs.
+  
+  Remediation: Enable export logs
+pattern: |
+  resource\s+"aws_neptune_cluster"

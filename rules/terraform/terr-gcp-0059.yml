@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0059
+title:     "Clusters should be set to private"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-gke-enable-private-cluster
+message: |
+  Enabling private nodes on a cluster ensures the nodes are only available internally as they will only be assigned internal addresses.
+  
+  Remediation: Enable private cluster
+pattern: |
+  (?:private_cluster|enable_private_nodes)\s*=\s*false

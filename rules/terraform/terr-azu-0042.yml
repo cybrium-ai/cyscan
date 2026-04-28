@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0042
+title:     "Ensure RBAC is enabled on AKS clusters"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-container-use-rbac-permissions
+message: |
+  Using Kubernetes role-based access control (RBAC), you can grant users, groups, and service accounts access to only the resources they need.
+  
+  Remediation: Enable RBAC
+pattern: |
+  resource\s+"google_container_cluster"

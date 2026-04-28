@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0320
+title:     "S3 DNS Compliant Bucket Names"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-s3-dns-compliant-name
+message: |
+  Ensures that S3 buckets have DNS complaint bucket names.
+  
+  Remediation: Recreate S3 bucket to use - instead of . in S3 bucket names
+pattern: |
+  resource\s+"aws_s3_bucket"

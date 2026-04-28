@@ -1,0 +1,13 @@
+id:        CBR-TERR-AZU-0069
+title:     "App Service Using Unsupported PHP Version"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-200']
+source:    trivy/azure-appservice-supported-php-version
+message: |
+  Using an unsupported PHP runtime in Azure App Service may expose applications to security vulnerabilities
+  as these versions no longer receive security patches. This check ensures PHP versions are still supported.
+  
+  Remediation: Update to a supported PHP version (8.1 or higher). Consider migrating from azurerm_app_service to azurerm_linux_web_app for access to modern PHP versions.
+pattern: |
+  resource\s+"azurerm_app_service"

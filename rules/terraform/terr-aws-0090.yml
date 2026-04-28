@@ -1,0 +1,18 @@
+id:        CBR-TERR-AWS-0090
+title:     "S3 Data should be versioned"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-s3-enable-versioning
+message: |
+  Versioning in Amazon S3 is a means of keeping multiple variants of an object in the same bucket.
+  
+  You can use the S3 Versioning feature to preserve, retrieve, and restore every version of every object stored in your buckets.
+  
+  With versioning you can recover more easily from both unintended user actions and application failures.
+  
+  When you enable versioning, also keep in mind the potential costs of storing noncurrent versions of objects. To help manage those costs, consider setting up an S3 Lifecycle configuration.
+  
+  Remediation: Enable versioning to protect against accidental/malicious removal or modification
+pattern: |
+  versioning\s*\{[^}]*enabled\s*=\s*false

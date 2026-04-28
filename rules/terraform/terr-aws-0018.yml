@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0018
+title:     "CodeBuild Project artifacts encryption should not be disabled"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-codebuild-enable-encryption
+message: |
+  All artifacts produced by your CodeBuild project pipeline should always be encrypted
+  
+  Remediation: Enable encryption for CodeBuild project artifacts
+pattern: |
+  encrypted\s*=\s*false

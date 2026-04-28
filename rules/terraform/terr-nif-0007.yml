@@ -1,0 +1,14 @@
+id:        CBR-TERR-NIF-0007
+title:     "Delete verified record"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/nifcloud-dns-remove-verified-record
+message: |
+  Removing verified record of TXT auth the risk that
+  
+  If the authentication record remains, anyone can register the zone
+  
+  Remediation: Remove verified record
+pattern: |
+  resource\s+"google_dns_managed_zone"

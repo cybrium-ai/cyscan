@@ -1,0 +1,12 @@
+id:        CBR-DOCK-MULTIPLE-HEALTHCHECK
+title:     "Multiple HEALTHCHECK instructions"
+severity:  low
+languages: ['docker']
+cwe:       ['CWE-1078']
+source:    trivy/docker-multiple-healthcheck
+message: |
+  Multiple HEALTHCHECK instructions found. Only the last one takes effect.
+  
+  Remediation: Use only one HEALTHCHECK per Dockerfile.
+pattern: |
+  ^\s*HEALTHCHECK\s+

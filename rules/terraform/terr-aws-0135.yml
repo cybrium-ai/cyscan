@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0135
+title:     "SQS queue should be encrypted with a CMK."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-sqs-queue-encryption-use-cmk
+message: |
+  Queues should be encrypted with customer managed KMS keys and not default AWS managed keys, in order to allow granular control over access to specific queues.
+  
+  Remediation: Encrypt SQS Queue with a customer-managed key
+pattern: |
+  encrypted\s*=\s*false

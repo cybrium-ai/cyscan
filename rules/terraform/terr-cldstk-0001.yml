@@ -1,0 +1,12 @@
+id:        CBR-TERR-CLDSTK-0001
+title:     "No sensitive data stored in user_data"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/cloudstack-compute-no-sensitive-info
+message: |
+  When creating instances, user data can be used during the initial configuration. User data must not contain sensitive information
+  
+  Remediation: Don't use sensitive data in the user data section
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

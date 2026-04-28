@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0006
+title:     "Athena databases and workgroup configurations are created unencrypted at rest by default, they should be encrypted"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-athena-enable-at-rest-encryption
+message: |
+  Data can be read if the Athena Database is compromised. Athena databases and workspace result sets should be encrypted at rests. These databases and query sets are generally derived from data in S3 buckets and should have the same level of at rest protection.
+  
+  Remediation: Enable encryption at rest for Athena databases and workgroup configurations
+pattern: |
+  encrypted\s*=\s*false

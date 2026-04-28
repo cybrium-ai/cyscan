@@ -1,0 +1,12 @@
+id:        CBR-K8S-INSECURE-PORT
+title:     "API server insecure port enabled"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-319']
+source:    trivy/kubernetes-insecure-port
+message: |
+  API server insecure port is enabled, allowing unencrypted and unauthenticated access.
+  
+  Remediation: Set --insecure-port=0 to disable the insecure port.
+pattern: |
+  --insecure-port=[1-9]

@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0056
+title:     "Storage account should have blob soft delete enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-storage-blobs-soft-deletion-enabled
+message: |
+  Blob soft delete protects blob data from being accidentally or erroneously modified or deleted.
+  When blob soft delete is enabled, deleted blobs are retained in the system for a specified retention period.
+  During the retention period, you can restore a soft-deleted blob to its state at the time it was deleted.
+  
+  Remediation: Enable soft delete for blobs with an appropriate retention period
+pattern: |
+  resource\s+"google_storage_bucket"

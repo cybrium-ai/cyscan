@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0073
+title:     "Network Watcher Flow Disabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/azure-network-network-watcher-flow-disabled
+message: |
+  Without NSG flow logs, network activity is not auditable, hindering incident investigation.
+  
+  Remediation: Enable NSG flow logs via Network Watcher and configure a storage account for log export.
+pattern: |
+  resource\s+"azurerm_(?:network_security_group|virtual_network)"

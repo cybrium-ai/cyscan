@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0069
+title:     "Not Proper Email Account In Use"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-iam-no-personal-emails
+message: |
+  Service accounts and user accounts used in IAM bindings should follow organization email policies (e.g., no personal emails).
+  
+  Remediation: Use approved organizational email accounts for IAM bindings. Audit IAM policies to replace any personal or unapproved email accounts with proper service accounts or corporate emails.
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

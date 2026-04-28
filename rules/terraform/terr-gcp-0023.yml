@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0023
+title:     "Contained database authentication should be disabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-sql-no-contained-db-auth
+message: |
+  Users with ALTER permissions on users can grant access to a contained database without the knowledge of an administrator
+  
+  Remediation: Disable contained database authentication
+pattern: |
+  resource\s+"google_sql_database_instance"

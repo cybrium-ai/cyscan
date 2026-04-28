@@ -1,0 +1,12 @@
+id:        CBR-TERR-NIF-0009
+title:     "RDB instance should have backup retention longer than 1 day"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/nifcloud-rdb-specify-backup-retention
+message: |
+  Backup retention periods should be set to a period that is a balance on cost and limiting risk.
+  
+  Remediation: Explicitly set the retention period to greater than the default
+pattern: |
+  backup_retention_period\s*=\s*0

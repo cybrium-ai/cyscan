@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0043
+title:     "Elasticsearch domain uses plaintext traffic for node to node communication."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-elasticsearch-enable-in-transit-encryption
+message: |
+  Traffic flowing between Elasticsearch nodes should be encrypted to ensure sensitive data is kept private.
+  
+  Remediation: Enable encrypted node to node communication
+pattern: |
+  encrypted\s*=\s*false

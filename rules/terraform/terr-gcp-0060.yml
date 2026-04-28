@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0060
+title:     "Stackdriver Logging should be enabled"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/google-gke-enable-stackdriver-logging
+message: |
+  StackDriver logging provides a useful interface to all of stdout/stderr for each container and should be enabled for moitoring, debugging, etc.
+  
+  Remediation: Enable StackDriver logging
+pattern: |
+  (?:logging|access_logs)\s*\{

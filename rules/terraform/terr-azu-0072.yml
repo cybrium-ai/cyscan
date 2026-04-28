@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0072
+title:     "Web App Accepting Traffic Other Than HTTPS"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-appservice-web-app-https-only
+message: |
+  Allowing HTTP undermines transport encryption and exposes user data.
+  
+  Remediation: Set 'HTTPS Only' to true in App Service TLS settings to force encrypted transport.
+pattern: |
+  resource\s+"azurerm_app_service"

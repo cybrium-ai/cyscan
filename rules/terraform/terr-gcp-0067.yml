@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0067
+title:     "Instances should have Shielded VM secure boot enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-compute-enable-shielded-vm-sb
+message: |
+  Secure boot helps ensure that the system only runs authentic software.
+  
+  Remediation: Enable Shielded VM secure boot
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

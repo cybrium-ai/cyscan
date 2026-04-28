@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0049
+title:     "Missing description for security group/security group rule."
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-elasticache-add-description-for-security-group
+message: |
+  Security groups and security group rules should include a description for auditing purposes.
+  Simplifies auditing, debugging, and managing security groups.
+  
+  Remediation: Add descriptions for all security groups and rules
+pattern: |
+  resource\s+"aws_elasticache_(?:cluster|replication_group)"

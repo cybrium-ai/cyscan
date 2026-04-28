@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0034
+title:     "ECS clusters should have container insights enabled"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-ecs-enable-container-insight
+message: |
+  Cloudwatch Container Insights provide more metrics and logs for container based applications and micro services.
+  
+  Remediation: Enable Container Insights
+pattern: |
+  resource\s+"aws_ecs_(?:service|task_definition)"

@@ -1,0 +1,18 @@
+id:        CBR-TERR-AWS-0168
+title:     "Delete expired TLS certificates"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-iam-remove-expired-certificates
+message: |
+  Removing expired SSL/TLS certificates eliminates the risk that an invalid certificate will be
+  
+  deployed accidentally to a resource such as AWS Elastic Load Balancer (ELB), which can
+  
+  damage the credibility of the application/website behind the ELB. As a best practice, it is
+  
+  recommended to delete expired certificates.
+  
+  Remediation: Remove expired certificates
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

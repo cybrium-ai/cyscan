@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0122
+title:     "Ensure all data stored in the launch configuration EBS is securely encrypted"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-ec2-no-sensitive-info
+message: |
+  When creating Launch Configurations, user data can be used for the initial configuration of the instance. User data must not contain any sensitive data.
+  
+  Remediation: Don't use sensitive data in user data
+pattern: |
+  resource\s+"aws_instance"

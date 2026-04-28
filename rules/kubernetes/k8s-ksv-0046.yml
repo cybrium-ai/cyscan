@@ -1,0 +1,10 @@
+id:        CBR-K8S-KSV-0046
+title:     "Manage all resources"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-732']
+source:    trivy/kubernetes-no-wildcard-resource-clusterrole
+message: |
+  Full control of the cluster resources, and therefore also root on all nodes where workloads can run and has access to all pods, secrets, and data.
+pattern: |
+  (?:verbs|resources|apiGroups):\s*\n\s*-\s*"\*"

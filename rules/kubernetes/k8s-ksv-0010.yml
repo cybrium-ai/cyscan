@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0010
+title:     "Access to host PID"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-250']
+source:    trivy/kubernetes-no-host-pid
+message: |
+  Sharing the host’s PID namespace allows visibility on host processes, potentially leaking information such as environment variables and configuration.
+  
+  Remediation: Do not set 'spec.template.spec.hostPID' to true.
+pattern: |
+  hostPID:\s*true

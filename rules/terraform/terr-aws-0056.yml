@@ -1,0 +1,14 @@
+id:        CBR-TERR-AWS-0056
+title:     "IAM Password policy should prevent password reuse."
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/aws-iam-no-password-reuse
+message: |
+  IAM account password policies should prevent the reuse of passwords.
+  
+  The account password policy should be set to prevent using any of the last five used passwords.
+  
+  Remediation: Prevent password reuse in the policy
+pattern: |
+  (?:password|admin_password)\s*=\s*"[^"]*"

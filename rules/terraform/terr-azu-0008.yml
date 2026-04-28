@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0008
+title:     "Storage accounts should be configured to only accept transfers that are over secure connections"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-storage-enforce-https
+message: |
+  You can configure your storage account to accept requests from secure connections only by setting the Secure transfer required property for the storage account.
+  When you require secure transfer, any requests originating from an insecure connection are rejected.
+  Microsoft recommends that you always require secure transfer for all of your storage accounts.
+  
+  Remediation: Only allow secure connection for transferring data into storage accounts
+pattern: |
+  resource\s+"google_storage_bucket"

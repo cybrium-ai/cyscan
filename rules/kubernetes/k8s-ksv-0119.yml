@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0119
+title:     "NET_RAW capability added"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-693']
+source:    trivy/kubernetes-no-net-raw
+message: |
+  The NET_RAW capability grants attackers the ability to eavesdrop on network traffic or generate IP traffic with falsified source addresses, posing serious security risks.
+  
+  Remediation: To mitigate potential security risks, it is strongly recommended to remove the NET_RAW capability from 'containers[].securityContext.capabilities.add'. It is advisable to follow the practice of dropping all capabilities and only adding the necessary ones.
+pattern: |
+  NET_RAW

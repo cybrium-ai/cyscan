@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0346
+title:     "Reduce unnecessary unauthorized access or information disclosure of S3 buckets."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-iam-unauthorized-bucket-access
+message: |
+  Unnecessary access to S3 buckets can lead to unauthorized access or information disclosure.
+  
+  Remediation: Allowing Get* along with Put* on all Resources can potentially allow unauthorized access and/or information disclosure from sensitive buckets.
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

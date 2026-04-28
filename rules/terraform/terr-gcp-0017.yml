@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0017
+title:     "Ensure that Cloud SQL Database Instances are not publicly exposed"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/google-sql-no-public-access
+message: |
+  Database instances should be configured so that they are not available over the public internet, but to internal compute resources which access them.
+  
+  Remediation: Remove public access from database instances
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

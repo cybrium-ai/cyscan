@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0076
+title:     "Network Interfaces With Public IP"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/azure-network-network-interface-public-ip
+message: |
+  Avoid assigning public IP addresses to network interfaces unless necessary.
+  
+  Remediation: Remove public IP addresses from network interfaces unless they are specifically required for internet connectivity.
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

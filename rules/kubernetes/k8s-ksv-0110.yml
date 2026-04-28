@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0110
+title:     "Workloads in the default namespace"
+severity:  low
+languages: ['yaml']
+cwe:       ['CWE-276']
+source:    trivy/kubernetes-default-namespace-should-not-be-used
+message: |
+  Checks whether a workload is running in the default namespace.
+  
+  Remediation: Set 'metadata.namespace' to a non-default namespace.
+pattern: |
+  namespace:\s*(?:"default"|default)\s*$

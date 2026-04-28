@@ -1,0 +1,14 @@
+id:        CBR-TERR-AWS-0062
+title:     "IAM Password policy should have expiry less than or equal to 90 days."
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/aws-iam-set-max-password-age
+message: |
+  IAM account password policies should have a maximum age specified.
+  
+  The account password policy should be set to expire passwords after 90 days or less.
+  
+  Remediation: Limit the password duration with an expiry in the policy
+pattern: |
+  (?:password|admin_password)\s*=\s*"[^"]*"

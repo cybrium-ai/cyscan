@@ -1,0 +1,12 @@
+id:        CBR-TERR-OPNSTK-0001
+title:     "No plaintext password for compute instance"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/openstack-compute-no-plaintext-password
+message: |
+  Assigning a password to the compute instance using plaintext could lead to compromise; it would be preferable to use key-pairs as a login mechanism
+  
+  Remediation: Do not use plaintext passwords in terraform files
+pattern: |
+  (?:password|admin_password)\s*=\s*"[^"]*"

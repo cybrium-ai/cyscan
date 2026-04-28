@@ -1,0 +1,10 @@
+id:        CBR-K8S-KSV-0112
+title:     "Manage all resources at the namespace"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-732']
+source:    trivy/kubernetes-no-wildcard-resource-role
+message: |
+  Full control of the resources within a namespace.  In some cluster configurations, this is excessive. In others, this is normal (a gitops deployment operator like flux)
+pattern: |
+  (?:verbs|resources|apiGroups):\s*\n\s*-\s*"\*"

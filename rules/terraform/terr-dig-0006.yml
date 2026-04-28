@@ -1,0 +1,12 @@
+id:        CBR-TERR-DIG-0006
+title:     "Spaces bucket or bucket object has public read acl set"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/digitalocean-spaces-acl-no-public-read
+message: |
+  Space bucket and bucket object permissions should be set to deny public access unless explicitly required.
+  
+  Remediation: Apply a more restrictive ACL
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

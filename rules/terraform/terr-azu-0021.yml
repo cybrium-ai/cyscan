@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0021
+title:     "Ensure server parameter 'connection_throttling' is set to 'ON' for PostgreSQL Database Server"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-database-postgres-configuration-connection-throttling
+message: |
+  Postgresql can generate logs for connection throttling to improve visibility for audit and configuration issue resolution.
+  
+  Remediation: Enable connection throttling logging
+pattern: |
+  resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

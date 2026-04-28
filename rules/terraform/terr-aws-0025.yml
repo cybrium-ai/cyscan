@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0025
+title:     "DynamoDB tables should use at rest encryption with a Customer Managed Key"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/aws-dynamodb-table-customer-key
+message: |
+  Using AWS managed keys does not allow for fine grained control. DynamoDB tables are encrypted by default using AWS managed encryption keys. To increase control of the encryption and control the management of factors like key rotation, use a Customer Managed Key.
+  
+  Remediation: Enable server side encryption with a customer managed key
+pattern: |
+  resource\s+"aws_dynamodb_table"

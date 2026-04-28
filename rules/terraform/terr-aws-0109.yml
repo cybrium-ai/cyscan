@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0109
+title:     "Root and user volumes on Workspaces should be encrypted"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-workspaces-enable-disk-encryption
+message: |
+  Workspace volumes for both user and root should be encrypted to protect the data stored on them.
+  
+  Remediation: Root and user volume encryption should be enabled
+pattern: |
+  encrypted\s*=\s*false

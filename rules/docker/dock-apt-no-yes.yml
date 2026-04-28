@@ -1,0 +1,12 @@
+id:        CBR-DOCK-APT-NO-YES
+title:     "apt-get install without -y flag"
+severity:  low
+languages: ['docker']
+cwe:       ['CWE-459']
+source:    trivy/docker-apt-get-missing-yes
+message: |
+  apt-get install called without -y flag. Without -y, the build will hang waiting for interactive confirmation.
+  
+  Remediation: Use apt-get install -y to auto-confirm.
+pattern: |
+  ^\s*RUN\s+.*apt-get\s+install\s+(?!.*-y\b)

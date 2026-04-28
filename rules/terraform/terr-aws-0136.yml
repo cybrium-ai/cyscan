@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0136
+title:     "SNS topic not encrypted with CMK."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-sns-topic-encryption-use-cmk
+message: |
+  Topics should be encrypted with customer managed KMS keys and not default AWS managed keys, in order to allow granular key management.
+  
+  Remediation: Use a CMK for SNS Topic encryption
+pattern: |
+  encrypted\s*=\s*false

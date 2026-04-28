@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0087
+title:     "S3 Access block should block public policy"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-s3-block-public-policy
+message: |
+  S3 bucket policy should have block public policy to prevent users from putting a policy that enable public access.
+  
+  Remediation: Prevent policies that allow public access being PUT
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

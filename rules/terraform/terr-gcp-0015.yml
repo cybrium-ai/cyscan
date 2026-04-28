@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0015
+title:     "SSL connections to a SQL database instance should be enforced."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/google-sql-encrypt-in-transit-data
+message: |
+  In-transit data should be encrypted so that if traffic is intercepted data will not be exposed in plaintext to attackers.
+  
+  Remediation: Enforce SSL for all connections
+pattern: |
+  encrypted\s*=\s*false

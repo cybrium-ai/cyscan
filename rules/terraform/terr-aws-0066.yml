@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0066
+title:     "Lambda functions should have X-Ray tracing enabled"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-lambda-enable-tracing
+message: |
+  X-Ray tracing enables end-to-end debugging and analysis of all function activity. This will allow for identifying bottlenecks, slow downs and timeouts.
+  
+  Remediation: Enable tracing
+pattern: |
+  resource\s+"aws_lambda_function"

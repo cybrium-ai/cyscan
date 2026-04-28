@@ -1,0 +1,12 @@
+id:        CBR-K8S-CONFIGMAP-SENSITIVE
+title:     "ConfigMap may contain sensitive data"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-312']
+source:    trivy/kubernetes-configMap-with-sensitive
+message: |
+  ConfigMap contains keys that suggest sensitive data (password, secret, token, key). ConfigMaps are stored unencrypted in etcd.
+  
+  Remediation: Use Kubernetes Secrets or an external secret manager instead.
+pattern: |
+  (?i)(?:password|secret|token|api_key|apikey|private.key|credentials)\s*:\s*\S+

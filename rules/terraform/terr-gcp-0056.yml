@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0056
+title:     "Network Policy should be enabled on GKE clusters"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/google-gke-enable-network-policy
+message: |
+  Enabling a network policy allows the segregation of network traffic by namespace
+  
+  Remediation: Enable network policy
+pattern: |
+  network_policy\s*\{

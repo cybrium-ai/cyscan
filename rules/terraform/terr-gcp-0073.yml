@@ -1,0 +1,13 @@
+id:        CBR-TERR-GCP-0073
+title:     "Disable Default Firewall Rules"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-276']
+source:    trivy/google-compute-disable-default-firewall-rules
+message: |
+  Ensures that Google Cloud's default firewall rules are disabled, as they may be overly permissive and pose security risks.
+  The default network comes with pre-populated firewall rules that allow broad access and should be replaced with more restrictive custom rules.
+  
+  Remediation: Replace default firewall rules with custom, more restrictive rules appropriate for your security requirements
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

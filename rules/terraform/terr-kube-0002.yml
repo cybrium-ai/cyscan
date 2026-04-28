@@ -1,0 +1,12 @@
+id:        CBR-TERR-KUBE-0002
+title:     "A network policy should not allow unrestricted egress to any IP address."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/kubernetes-network-no-public-egress
+message: |
+  You should not expose infrastructure to the public internet except where explicitly required
+  
+  Remediation: Remove public access except where explicitly required
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

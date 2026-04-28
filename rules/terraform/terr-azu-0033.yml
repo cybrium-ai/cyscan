@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0033
+title:     "Ensure log profile captures all activities"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-monitor-capture-all-activities
+message: |
+  Log profiles should capture all categories to ensure that all events are logged
+  
+  Remediation: Configure log profile to capture all activities
+pattern: |
+  resource\s+"azurerm_monitor_(?:log_profile|diagnostic_setting)"

@@ -1,0 +1,16 @@
+id:        CBR-TERR-AWS-0028
+title:     "aws_instance should activate session tokens for Instance Metadata Service."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/aws-ec2-enforce-http-token-imds
+message: |
+  IMDS v2 (Instance Metadata Service) introduced session authentication tokens which improve security when talking to IMDS.
+  
+  By default <code>aws_instance</code> resource sets IMDS session auth tokens to be optional.
+  
+  To fully protect IMDS you need to enable session tokens by using <code>metadata_options</code> block and its <code>http_tokens</code> variable set to <code>required</code>.
+  
+  Remediation: Enable HTTP token requirement for IMDS
+pattern: |
+  resource\s+"aws_instance"

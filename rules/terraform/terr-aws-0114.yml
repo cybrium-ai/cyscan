@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0114
+title:     "Function policies should avoid use of wildcards and instead apply the principle of least privilege"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-732']
+source:    trivy/aws-sam-no-function-policy-wildcards
+message: |
+  You should use the principle of least privilege when defining your IAM policies. This means you should specify each exact permission required without using wildcards, as this could cause the granting of access to certain undesired actions, resources and principals.
+  
+  Remediation: Specify the exact permissions required, and to which resources they should apply instead of using wildcards.
+pattern: |
+  (?:actions|principals)\s*=\s*\[\s*"\*"\s*\]

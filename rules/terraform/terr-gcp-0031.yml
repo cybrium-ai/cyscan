@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0031
+title:     "Instances should not have public IP addresses"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/google-compute-no-public-ip
+message: |
+  Instances should not be publicly exposed to the internet
+  
+  Remediation: Remove public IP
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

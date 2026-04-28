@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0040
+title:     "Ensure AKS logging to Azure Monitoring is Configured"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/azure-container-logging
+message: |
+  Ensure AKS logging to Azure Monitoring is configured for containers to monitor the performance of workloads.
+  
+  Remediation: Enable logging for AKS
+pattern: |
+  (?:logging|access_logs)\s*\{

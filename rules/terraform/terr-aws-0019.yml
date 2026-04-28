@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0019
+title:     "Config configuration aggregator should be using all regions for source"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-config-aggregate-all-regions
+message: |
+  Sources that aren't covered by the aggregator are not include in the configuration. The configuration aggregator should be configured with all_regions for the source.
+  This will help limit the risk of any unmonitored configuration in regions that are thought to be unused.
+  
+  Remediation: Set the aggregator to cover all regions
+pattern: |
+  resource\s+"aws_config_configuration_recorder"

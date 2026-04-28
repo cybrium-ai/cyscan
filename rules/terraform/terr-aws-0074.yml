@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0074
+title:     "Ensure MSK Cluster logging is enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/aws-msk-enable-logging
+message: |
+  Managed streaming for Kafka can log to Cloud Watch, Kinesis Firehose and S3, at least one of these locations should be logged to
+  
+  Remediation: Enable logging
+pattern: |
+  (?:logging|access_logs)\s*\{

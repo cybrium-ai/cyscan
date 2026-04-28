@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0015
+title:     "Key vault Secret should have a content type set"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/azure-keyvault-content-type-for-secret
+message: |
+  Content Type is an optional Key Vault Secret behavior and is not enabled by default.
+  
+  Clients may specify the content type of a secret to assist in interpreting the secret data when it's retrieved. The maximum length of this field is 255 characters. There are no pre-defined values. The suggested usage is as a hint for interpreting the secret data.
+  
+  Remediation: Provide content type for secrets to aid interpretation on retrieval
+pattern: |
+  resource\s+"azurerm_key_vault"

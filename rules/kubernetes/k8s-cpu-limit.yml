@@ -1,0 +1,12 @@
+id:        CBR-K8S-CPU-LIMIT
+title:     "Container without CPU limit"
+severity:  low
+languages: ['yaml']
+cwe:       ['CWE-770']
+source:    trivy/kubernetes-no-cpu-limit
+message: |
+  Container has no CPU limit set. Without limits, a single container can starve other workloads.
+  
+  Remediation: Set resources.limits.cpu in the container spec.
+pattern: |
+  resources:\s*\{\s*\}

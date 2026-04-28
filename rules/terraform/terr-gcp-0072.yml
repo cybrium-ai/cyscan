@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0072
+title:     "Google Compute Network Using Firewall Rule that Allows All Ports"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-200']
+source:    trivy/google-compute-disable-allow-all-ports
+message: |
+  Firewall rules should not be wide open to all ports. Lock down rules to only required ports.
+  
+  Remediation: Modify firewall rules that allow all ports to restrict to only required ports. Use separate rules for specific port ranges as needed, instead of a single overly broad rule.
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

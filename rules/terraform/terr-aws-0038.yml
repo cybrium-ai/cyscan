@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0038
+title:     "EKS Clusters should have cluster control plane logging turned on"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/aws-eks-enable-control-plane-logging
+message: |
+  By default cluster control plane logging is not turned on. Logging is available for audit, api, authenticator, controllerManager and scheduler. All logging should be turned on for cluster control plane.
+  
+  Remediation: Enable logging for the EKS control plane
+pattern: |
+  (?:logging|access_logs)\s*\{

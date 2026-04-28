@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0030
+title:     "Disable project-wide SSH keys for all instances"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/google-compute-no-project-wide-ssh-keys
+message: |
+  Use of project-wide SSH keys means that a compromise of any one of these key pairs can result in all instances being compromised. It is recommended to use instance-level keys.
+  
+  Remediation: Disable project-wide SSH keys
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

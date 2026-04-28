@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0145
+title:     "IAM Users should have MFA enforcement activated."
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-308']
+source:    trivy/aws-iam-enforce-user-mfa
+message: |
+  IAM user accounts should be protected with multi factor authentication to add safe guards to password compromise.
+  
+  Remediation: Enable MFA for the user account
+pattern: |
+  mfa_delete\s*=\s*(?:false|"Disabled")

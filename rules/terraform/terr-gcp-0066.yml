@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0066
+title:     "Cloud Storage buckets should be encrypted with a customer-managed key."
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/google-storage-bucket-encryption-customer-key
+message: |
+  Using unmanaged keys makes rotation and general management difficult.
+  
+  Remediation: Encrypt Cloud Storage buckets using customer-managed keys.
+pattern: |
+  encrypted\s*=\s*false

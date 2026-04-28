@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0058
+title:     "Storage account should use geo-redundant replication"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-storage-enable-geo-redundant-backups
+message: |
+  Geo-redundant storage (GRS) replicates your data to a secondary region that is hundreds of miles away from the primary region.
+  This provides an additional level of durability for your data in the event of a complete regional outage or a disaster.
+  Options include GRS, RAGRS, GZRS, and RAGZRS for geo-redundancy.
+  
+  Remediation: Configure storage account to use geo-redundant replication (GRS, RAGRS, GZRS, or RAGZRS)
+pattern: |
+  backup_retention_period\s*=\s*0

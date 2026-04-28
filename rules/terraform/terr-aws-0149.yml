@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0149
+title:     "Ensure a log metric filter and alarm exist for usage of root user"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-250']
+source:    trivy/aws-cloudwatch-require-root-user-usage-alarm
+message: |
+  You can do real-time monitoring of API calls directing CloudTrail logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+  CIS recommends that you create a metric filter and alarm for root user login attempts. Monitoring for root user logins provides visibility into the use of a fully privileged account and an opportunity to reduce the use of it.
+  
+  Remediation: Create an alarm to alert on root user login
+pattern: |
+  resource\s+"aws_cloudwatch_(?:log_group|metric_alarm)"

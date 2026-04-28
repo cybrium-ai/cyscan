@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0151
+title:     "Ensure a log metric filter and alarm exist for CloudTrail configuration changes"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-cloudwatch-require-cloud-trail-change-alarm
+message: |
+  You can do real-time monitoring of API calls by directing CloudTrail logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+  CIS recommends that you create a metric filter and alarm for changes to CloudTrail configuration settings. Monitoring these changes helps ensure sustained visibility to activities in the account.
+  
+  Remediation: Create an alarm to alert on CloudTrail configuration changes
+pattern: |
+  resource\s+"aws_cloudwatch_(?:log_group|metric_alarm)"

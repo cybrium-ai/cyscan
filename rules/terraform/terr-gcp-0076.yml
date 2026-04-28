@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0076
+title:     "Google Compute Subnetwork Logging Disabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/google-compute-google-compute-subnetwork-logging
+message: |
+  Flow logs for subnets should be enabled to capture network traffic details for security analysis.
+  
+  Remediation: Enable VPC Flow Logs for subnets.
+pattern: |
+  (?:logging|access_logs)\s*\{

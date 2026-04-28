@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0085
+title:     "AWS Classic resource usage."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-redshift-no-classic-resources
+message: |
+  AWS Classic resources run in a shared environment with infrastructure owned by other AWS customers. You should run
+  resources in a VPC instead.
+  
+  Remediation: Switch to VPC resources
+pattern: |
+  resource\s+"aws_redshift_cluster"

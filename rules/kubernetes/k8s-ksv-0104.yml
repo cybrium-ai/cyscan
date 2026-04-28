@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0104
+title:     "Seccomp policies disabled"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-693']
+source:    trivy/kubernetes-no-seccomp-unconfined
+message: |
+  A program inside the container can bypass Seccomp protection policies.
+  
+  Remediation: Specify seccomp either by annotation or by seccomp profile type having allowed values as per pod security standards
+pattern: |
+  seccompProfile:

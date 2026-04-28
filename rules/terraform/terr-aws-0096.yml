@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0096
+title:     "Unencrypted SQS queue."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-sqs-enable-queue-encryption
+message: |
+  Queues should be encrypted to protect queue contents.
+  
+  Remediation: Turn on SQS Queue encryption
+pattern: |
+  encrypted\s*=\s*false

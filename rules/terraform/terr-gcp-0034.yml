@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0034
+title:     "Disks should be encrypted with customer managed encryption keys"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/google-compute-disk-encryption-customer-key
+message: |
+  Using unmanaged keys makes rotation and general management difficult.
+  
+  Remediation: Use managed keys to encrypt disks.
+pattern: |
+  encrypted\s*=\s*false

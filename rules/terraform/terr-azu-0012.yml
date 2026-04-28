@@ -1,0 +1,13 @@
+id:        CBR-TERR-AZU-0012
+title:     "The default action on Storage account network rules should be set to deny"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-276']
+source:    trivy/azure-storage-default-action-deny
+message: |
+  The default_action for network rules should come into effect when no other rules are matched.
+  The default action should be set to Deny.
+  
+  Remediation: Set network rules to deny
+pattern: |
+  resource\s+"google_storage_bucket"

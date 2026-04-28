@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0077
+title:     "RDS Cluster and RDS instance should have backup retention longer than default 1 day"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-rds-specify-backup-retention
+message: |
+  RDS backup retention for clusters defaults to 1 day, this may not be enough to identify and respond to an issue. Backup retention periods should be set to a period that is a balance on cost and limiting risk.
+  
+  Remediation: Explicitly set the retention period to greater than the default
+pattern: |
+  backup_retention_period\s*=\s*0

@@ -1,0 +1,12 @@
+id:        CBR-TERR-DIG-0005
+title:     "The Kubernetes cluster does not enable surge upgrades"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/digitalocean-compute-surge-upgrades-not-enabled
+message: |
+  While upgrading your cluster, workloads will temporarily be moved to new nodes. A small cost will follow, but as a bonus, you won't experience downtime.
+  
+  Remediation: Enable surge upgrades in your Kubernetes cluster
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

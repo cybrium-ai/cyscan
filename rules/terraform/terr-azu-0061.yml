@@ -1,0 +1,15 @@
+id:        CBR-TERR-AZU-0061
+title:     "Storage account should have infrastructure encryption enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/azure-storage-infrastructure-encryption-enabled
+message: |
+  Infrastructure encryption provides an additional layer of encryption at the infrastructure level.
+  When infrastructure encryption is enabled, data in the storage account is encrypted twice -
+  once at the service level and once at the infrastructure level with two different encryption algorithms.
+  This provides double encryption for enhanced security.
+  
+  Remediation: Enable infrastructure encryption for storage account
+pattern: |
+  encrypted\s*=\s*false

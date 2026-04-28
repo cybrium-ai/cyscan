@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0007
+title:     "Service accounts should not have roles assigned with excessive privileges"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-269']
+source:    trivy/google-iam-no-privileged-service-accounts
+message: |
+  Service accounts should have a minimal set of permissions assigned in order to do their job. They should never have excessive access as if compromised, an attacker can escalate privileges and take over the entire account.
+  
+  Remediation: Limit service account access to minimal required set
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

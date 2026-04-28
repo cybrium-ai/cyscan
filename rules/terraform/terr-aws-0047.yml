@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0047
+title:     "An outdated SSL policy is in use by a load balancer."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-326']
+source:    trivy/aws-elb-use-secure-tls-policy
+message: |
+  You should not use outdated/insecure TLS versions for encryption. You should be using TLS v1.2+.
+  
+  Remediation: Use a more recent TLS/SSL policy for the load balancer
+pattern: |
+  (?:minimum_tls_version|tls_version)\s*=\s*"(?:TLS1_0|TLSv1|1\.0)"

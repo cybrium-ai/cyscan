@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0005
+title:     "Web App uses the latest HTTP version"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-appservice-enable-http2
+message: |
+  Use the latest version of HTTP to ensure you are benefiting from security fixes
+  
+  Remediation: Use the latest version of HTTP
+pattern: |
+  resource\s+"azurerm_app_service"

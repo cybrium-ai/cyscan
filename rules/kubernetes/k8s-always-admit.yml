@@ -1,0 +1,12 @@
+id:        CBR-K8S-ALWAYS-ADMIT
+title:     "Admission controller AlwaysAdmit enabled"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy/kubernetes-admission-alwaysadmit
+message: |
+  The AlwaysAdmit admission controller is enabled, which admits all requests without checks.
+  
+  Remediation: Remove AlwaysAdmit from --enable-admission-plugins.
+pattern: |
+  --enable-admission-plugins=.*AlwaysAdmit

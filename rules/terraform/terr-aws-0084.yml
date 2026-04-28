@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0084
+title:     "Redshift clusters should use at rest encryption"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-redshift-encryption-customer-key
+message: |
+  Redshift clusters that contain sensitive data or are subject to regulation should be encrypted at rest to prevent data leakage should the infrastructure be compromised.
+  
+  Remediation: Enable encryption using CMK
+pattern: |
+  encrypted\s*=\s*false

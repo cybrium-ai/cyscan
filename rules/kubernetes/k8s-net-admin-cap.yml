@@ -1,0 +1,12 @@
+id:        CBR-K8S-NET-ADMIN-CAP
+title:     "Container has NET_ADMIN capability"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-250']
+source:    trivy/kubernetes-NET-ADMIN-capability
+message: |
+  Container has NET_ADMIN capability which allows network configuration changes.
+  
+  Remediation: Remove NET_ADMIN unless the container needs to configure networking.
+pattern: |
+  add:\s*\n\s*-\s*(?:NET_ADMIN|"NET_ADMIN")

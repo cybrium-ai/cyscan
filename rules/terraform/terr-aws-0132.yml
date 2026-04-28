@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0132
+title:     "S3 encryption should use Customer Managed Keys"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-s3-encryption-customer-key
+message: |
+  Encryption using AWS keys provides protection for your S3 buckets. To gain greater control over encryption, such as key rotation, access policies, and auditability, use customer managed keys (CMKs) with SSE-KMS.
+  Note that SSE-KMS is not supported for S3 server access logging destination buckets; in such cases, use SSE-S3 instead.
+  
+  Remediation: Use SSE-KMS with a customer managed key (CMK)
+pattern: |
+  encrypted\s*=\s*false

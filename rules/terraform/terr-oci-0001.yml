@@ -1,0 +1,14 @@
+id:        CBR-TERR-OCI-0001
+title:     "Compute instance requests an IP reservation from a public pool"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/oracle-compute-no-public-ip
+message: |
+  Compute instance requests an IP reservation from a public pool
+  
+  The compute instance has the ability to be reached from outside, you might want to sonder the use of a non public IP.
+  
+  Remediation: Reconsider the use of an public IP
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

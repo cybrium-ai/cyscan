@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0039
+title:     "Password authentication should be disabled on Azure virtual machines"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/azure-compute-disable-password-authentication
+message: |
+  Access to virtual machines should be authenticated using SSH keys. Removing the option of password authentication enforces more secure methods while removing the risks inherent with passwords.
+  
+  Remediation: Use ssh authentication for virtual machines
+pattern: |
+  (?:password|admin_password)\s*=\s*"[^"]*"

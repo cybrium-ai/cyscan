@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0078
+title:     "Cloud Storage Bucket Versioning Disabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-storage-enable-bucket-versioning
+message: |
+  Object versioning in Cloud Storage is recommended to protect against accidental or malicious deletions.
+  
+  Remediation: Enable object versioning on Cloud Storage buckets to preserve older versions of objects. In Terraform, set `versioning { enabled = true }` for the bucket resource.
+pattern: |
+  versioning\s*\{[^}]*enabled\s*=\s*false

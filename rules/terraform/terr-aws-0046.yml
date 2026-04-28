@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0046
+title:     "Elasticsearch doesn't enforce HTTPS traffic."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-elasticsearch-enforce-https
+message: |
+  Plain HTTP is unencrypted and human-readable. This means that if a malicious actor was to eavesdrop on your connection, they would be able to see all of your data flowing back and forth.
+  You should use HTTPS, which is HTTP over an encrypted (TLS) connection, meaning eavesdroppers cannot read your traffic.
+  
+  Remediation: Enforce the use of HTTPS for ElasticSearch
+pattern: |
+  resource\s+"aws_elasticsearch_domain"

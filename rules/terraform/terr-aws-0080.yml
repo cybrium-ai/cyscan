@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0080
+title:     "RDS encryption has not been enabled at a DB Instance level."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-rds-encrypt-instance-storage-data
+message: |
+  Encryption should be enabled for an RDS Database instances.
+  When enabling encryption by setting the kms_key_id.
+  
+  Remediation: Enable encryption for RDS instances
+pattern: |
+  encrypted\s*=\s*false

@@ -1,0 +1,12 @@
+id:        CBR-DOCK-YUM-NO-CLEAN
+title:     "yum install without yum clean all"
+severity:  low
+languages: ['docker']
+cwe:       ['CWE-459']
+source:    trivy/docker-yum-clean-all-missing
+message: |
+  yum install called without a subsequent yum clean all. This leaves cached packages in the image.
+  
+  Remediation: Add && yum clean all at the end of the RUN instruction.
+pattern: |
+  ^\s*RUN\s+.*yum\s+install\s+(?!.*yum\s+clean)

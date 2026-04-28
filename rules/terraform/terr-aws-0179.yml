@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0179
+title:     "A MSK cluster allows unencrypted data at rest."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-msk-enable-at-rest-encryption
+message: |
+  Encryption should be forced for Kafka clusters, including at rest. This ensures sensitive data is kept private.
+  
+  Remediation: Enable at rest encryption
+pattern: |
+  encrypted\s*=\s*false

@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0046
+title:     "BigQuery datasets should only be accessible within the organisation"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/google-bigquery-no-public-access
+message: |
+  Using 'allAuthenticatedUsers' provides any GCP user - even those outside of your organisation - access to your BigQuery dataset.
+  
+  Remediation: Configure access permissions with higher granularity
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0026
+title:     "Databases should have the minimum TLS set for connections"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-326']
+source:    trivy/azure-database-secure-tls-policy
+message: |
+  You should not use outdated/insecure TLS versions for encryption. You should be using TLS v1.2+.
+  
+  Remediation: Use the most modern TLS policies available
+pattern: |
+  (?:minimum_tls_version|tls_version)\s*=\s*"(?:TLS1_0|TLSv1|1\.0)"

@@ -1,0 +1,12 @@
+id:        CBR-DOCK-ZYPPER-NO-CLEAN
+title:     "zypper install without zypper clean"
+severity:  low
+languages: ['docker']
+cwe:       ['CWE-459']
+source:    trivy/docker-zypper-clean-all-missing
+message: |
+  zypper install called without a subsequent zypper clean. This leaves cached packages in the image.
+  
+  Remediation: Add && zypper clean at the end of the RUN instruction.
+pattern: |
+  ^\s*RUN\s+.*zypper\s+install\s+(?!.*zypper\s+clean)

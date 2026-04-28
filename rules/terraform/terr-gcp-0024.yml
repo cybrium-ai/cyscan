@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0024
+title:     "Enable automated backups to recover from data-loss"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-sql-enable-backup
+message: |
+  Automated backups are not enabled by default. Backups are an easy way to restore data in a corruption or data-loss scenario.
+  
+  Remediation: Enable automated backups
+pattern: |
+  backup_retention_period\s*=\s*0

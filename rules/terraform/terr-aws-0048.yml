@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0048
+title:     "Elasticsearch domain isn't encrypted at rest."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-elasticsearch-enable-domain-encryption
+message: |
+  You should ensure your Elasticsearch data is encrypted at rest to help prevent sensitive information from being read by unauthorised users.
+  
+  Remediation: Enable ElasticSearch domain encryption
+pattern: |
+  encrypted\s*=\s*false

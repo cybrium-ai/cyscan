@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0009
+title:     "When using Queue Services for a storage account, logging should be enabled."
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/azure-storage-queue-services-logging-enabled
+message: |
+  Storage Analytics logs detailed information about successful and failed requests to a storage service.
+  This information can be used to monitor individual requests and to diagnose issues with a storage service.
+  Requests are logged on a best-effort basis.
+  
+  Remediation: Enable logging for Queue Services
+pattern: |
+  (?:logging|access_logs)\s*\{

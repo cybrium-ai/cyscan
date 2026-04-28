@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0005
+title:     "Users should not be granted service account access at the folder level"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-iam-no-folder-level-service-account-impersonation
+message: |
+  Users with service account access at folder level can impersonate any service account. Instead, they should be given access to particular service accounts as required.
+  
+  Remediation: Provide access at the service-level instead of folder-level, if required
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

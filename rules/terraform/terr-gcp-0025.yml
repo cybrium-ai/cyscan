@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0025
+title:     "Ensure that logging of checkpoints is enabled."
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/google-sql-pg-log-checkpoints
+message: |
+  Logging checkpoints provides useful diagnostic data, which can identify performance issues in an application and potential DoS vectors.
+  
+  Remediation: Enable checkpoints logging.
+pattern: |
+  resource\s+"google_sql_database_instance"

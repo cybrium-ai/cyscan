@@ -1,0 +1,12 @@
+id:        CBR-DOCK-APT-NO-RECOMMENDS
+title:     "apt-get install without --no-install-recommends"
+severity:  low
+languages: ['docker']
+cwe:       ['CWE-459']
+source:    trivy/docker-apt-get-missing-no-install-recommends
+message: |
+  apt-get install called without --no-install-recommends. This pulls in unnecessary packages, increasing image size and attack surface.
+  
+  Remediation: Use apt-get install --no-install-recommends.
+pattern: |
+  ^\s*RUN\s+.*apt-get\s+install\s+(?!.*--no-install-recommends)

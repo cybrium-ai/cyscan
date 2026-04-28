@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0045
+title:     "No wildcard verb roles"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-732']
+source:    trivy/kubernetes-no-wildcard-verb-role
+message: |
+  Check whether role permits wildcard verb on specific resources
+  
+  Remediation: Create a role which does not permit wildcard verb on specific resources
+pattern: |
+  (?:verbs|resources|apiGroups):\s*\n\s*-\s*"\*"

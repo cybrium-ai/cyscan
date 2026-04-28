@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0102
+title:     "Tiller Is Deployed"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-693']
+source:    trivy/kubernetes-no-tiller
+message: |
+  Check if Helm Tiller component is deployed.
+  
+  Remediation: Migrate to Helm v3 which no longer has Tiller component
+pattern: |
+  name:\s*tiller

@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0032
+title:     "Disable serial port connectivity for all instances"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-200']
+source:    trivy/google-compute-no-serial-port
+message: |
+  When serial port access is enabled, the access is not governed by network security rules meaning the port can be exposed publicly.
+  
+  Remediation: Disable serial port access
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

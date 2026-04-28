@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0038
+title:     "Enable disk encryption on managed disk"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/azure-compute-enable-disk-encryption
+message: |
+  Manage disks should be encrypted at rest. When specifying the <code>encryption_settings</code> block, the enabled attribute should be set to <code>true</code>.
+  
+  Remediation: Enable encryption on managed disks
+pattern: |
+  encrypted\s*=\s*false

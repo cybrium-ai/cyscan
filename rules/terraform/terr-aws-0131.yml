@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0131
+title:     "Instance with unencrypted block device."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-ec2-enable-at-rest-encryption
+message: |
+  Block devices should be encrypted to ensure sensitive data is held securely at rest.
+  
+  Remediation: Turn on encryption for all block devices
+pattern: |
+  encrypted\s*=\s*false

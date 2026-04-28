@@ -1,0 +1,12 @@
+id:        CBR-K8S-AUTOMOUNT-SA-TOKEN
+title:     "Service account token auto-mounted"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-automount-service-account-token
+message: |
+  Pod has automountServiceAccountToken enabled. This exposes the SA token to all containers in the pod.
+  
+  Remediation: Set automountServiceAccountToken to false unless the pod needs Kubernetes API access.
+pattern: |
+  automountServiceAccountToken:\s*true

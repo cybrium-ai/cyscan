@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0020
+title:     "Ensure that logging of lock waits is enabled."
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/google-sql-pg-log-lock-waits
+message: |
+  Lock waits are often an indication of poor performance and often an indicator of a potential denial of service vulnerability, therefore occurrences should be logged for analysis.
+  
+  Remediation: Enable lock wait logging.
+pattern: |
+  resource\s+"google_sql_database_instance"

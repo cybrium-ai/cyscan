@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0059
+title:     "Storage account should have secure transfer and minimum TLS version configured"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/azure-storage-log-storage-encryption
+message: |
+  Storage accounts should enforce HTTPS for secure data transfer and use a minimum TLS version of 1.2 or higher.
+  This ensures that logs and data stored in the storage account are encrypted in transit.
+  Azure Storage encrypts all data at rest by default, but transport encryption is also critical.
+  
+  Remediation: Enable secure transfer and set minimum TLS version to TLS1_2 or higher
+pattern: |
+  encrypted\s*=\s*false
