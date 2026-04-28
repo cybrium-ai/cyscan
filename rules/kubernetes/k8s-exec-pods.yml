@@ -1,0 +1,12 @@
+id:        CBR-K8S-EXEC-PODS
+title:     "RBAC role allows exec into pods"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-get-shell-on-pod
+message: |
+  RBAC role allows creating pod exec subresources which grants shell access to running containers.
+  
+  Remediation: Restrict this permission to admin roles only.
+pattern: |
+  resources:\s*\n(?:\s*-\s*\S+\n)*\s*-\s*(?:"pods/exec"|pods/exec)

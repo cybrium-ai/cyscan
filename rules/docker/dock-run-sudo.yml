@@ -1,0 +1,12 @@
+id:        CBR-DOCK-RUN-SUDO
+title:     "RUN instruction uses sudo"
+severity:  medium
+languages: ['docker']
+cwe:       ['CWE-250']
+source:    trivy/docker-run-using-sudo
+message: |
+  RUN instruction uses sudo. During image build, commands run as root by default — sudo is unnecessary and may mask privilege issues.
+  
+  Remediation: Remove sudo from RUN instructions. Use USER to switch to non-root after installing packages.
+pattern: |
+  ^\s*RUN\s+.*\bsudo\b

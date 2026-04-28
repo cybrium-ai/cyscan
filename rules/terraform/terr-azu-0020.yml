@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0020
+title:     "SSL should be enforced on database connections where applicable"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-326']
+source:    trivy/azure-database-enable-ssl-enforcement
+message: |
+  SSL connections should be enforced were available to ensure secure transfer and reduce the risk of compromising data in flight.
+  
+  Remediation: Enable SSL enforcement
+pattern: |
+  (?:ssl_enforcement|minimum_tls_version|ssl_mode)

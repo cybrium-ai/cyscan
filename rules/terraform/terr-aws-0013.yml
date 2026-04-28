@@ -1,0 +1,15 @@
+id:        CBR-TERR-AWS-0013
+title:     "CloudFront distribution uses outdated SSL/TLS protocols."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-326']
+source:    trivy/aws-cloudfront-use-secure-tls-policy
+message: |
+  You should not use outdated/insecure TLS versions for encryption. You should be using the latest TLS policies available.
+  Note: that setting *minimum_protocol_version = "TLSv1.X"* is only possible when *cloudfront_default_certificate* is false (eg. you are not using the cloudfront.net domain name).
+  If *cloudfront_default_certificate* is true then the Cloudfront API will only allow setting *minimum_protocol_version = "TLSv1"*, and setting it to any other value will result in a perpetual diff in your *terraform plan*'s.
+  The only option when using the cloudfront.net domain name is to ignore this rule.
+  
+  Remediation: Use the most modern TLS/SSL policies available
+pattern: |
+  (?:minimum_tls_version|tls_version)\s*=\s*"(?:TLS1_0|TLSv1|1\.0)"

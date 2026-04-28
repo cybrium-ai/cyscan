@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0101
+title:     "AWS best practice to not use the default VPC for workflows"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-276']
+source:    trivy/aws-ec2-no-default-vpc
+message: |
+  Default VPC does not have a lot of the critical security features that standard VPC comes with, new resources should not be created in the default VPC and it should not be present in the Terraform.
+  
+  Remediation: Create a non-default vpc for resources to be created in
+pattern: |
+  resource\s+"aws_instance"

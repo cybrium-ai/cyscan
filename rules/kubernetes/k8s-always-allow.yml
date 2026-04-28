@@ -1,0 +1,12 @@
+id:        CBR-K8S-ALWAYS-ALLOW
+title:     "Authorization mode set to AlwaysAllow"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy/kubernetes-authorization-mode-alwaysallow
+message: |
+  API server authorization mode includes AlwaysAllow, which grants all requests without authorization checks.
+  
+  Remediation: Use Node,RBAC authorization mode instead.
+pattern: |
+  --authorization-mode=.*AlwaysAllow

@@ -1,0 +1,12 @@
+id:        CBR-DOCK-MAINTAINER-DEPRECATED
+title:     "MAINTAINER instruction is deprecated"
+severity:  info
+languages: ['docker']
+cwe:       ['CWE-1078']
+source:    trivy/docker-maintainer-deprecated
+message: |
+  MAINTAINER instruction is deprecated since Docker 1.13.
+  
+  Remediation: Use LABEL maintainer="name <email>" instead.
+pattern: |
+  ^\s*MAINTAINER\s+

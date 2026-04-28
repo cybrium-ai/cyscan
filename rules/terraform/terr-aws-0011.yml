@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0011
+title:     "CloudFront distribution does not have a WAF in front."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-cloudfront-enable-waf
+message: |
+  You should configure a Web Application Firewall in front of your CloudFront distribution. This will mitigate many types of attacks on your web application.
+  
+  Remediation: Enable WAF for the CloudFront distribution
+pattern: |
+  resource\s+"aws_cloudfront_distribution"

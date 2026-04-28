@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0110
+title:     "SAM API must have data cache enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-sam-enable-api-cache-encryption
+message: |
+  Method cache encryption ensures that any sensitive data in the cache is not vulnerable to compromise in the event of interception
+  
+  Remediation: Enable cache encryption
+pattern: |
+  encrypted\s*=\s*false

@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0026
+title:     "Disable local_infile setting in MySQL"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-sql-mysql-no-local-infile
+message: |
+  Arbitrary files can be read from the system using LOAD_DATA unless this setting is disabled.
+  
+  Remediation: Disable the local infile setting
+pattern: |
+  resource\s+"google_sql_database_instance"

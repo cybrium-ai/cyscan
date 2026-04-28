@@ -1,0 +1,12 @@
+id:        CBR-DOCK-MULTIPLE-ENTRYPOINT
+title:     "Multiple ENTRYPOINT instructions"
+severity:  medium
+languages: ['docker']
+cwe:       ['CWE-1078']
+source:    trivy/docker-multiple-entrypoint
+message: |
+  Multiple ENTRYPOINT instructions found. Only the last one takes effect, which may be confusing.
+  
+  Remediation: Use only one ENTRYPOINT per Dockerfile.
+pattern: |
+  ^\s*ENTRYPOINT\s+

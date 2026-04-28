@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0007
+title:     "Athena workgroups should enforce configuration to prevent client disabling encryption"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-athena-no-encryption-override
+message: |
+  Clients can ignore encryption requirements without enforced configuration. Athena workgroup configuration should be enforced to prevent client side changes to disable encryption settings.
+  
+  Remediation: Enforce the configuration to prevent client overrides
+pattern: |
+  encrypted\s*=\s*false

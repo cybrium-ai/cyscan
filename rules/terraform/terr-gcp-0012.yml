@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0012
+title:     "Zone signing should not use RSA SHA1"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-dns-no-rsa-sha1
+message: |
+  RSA SHA1 is a weaker algorithm than SHA2-based algorithms such as RSA SHA256/512
+  
+  Remediation: Use RSA SHA512
+pattern: |
+  resource\s+"google_dns_managed_zone"

@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0064
+title:     "Kinesis stream is unencrypted."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-kinesis-enable-in-transit-encryption
+message: |
+  Kinesis streams should be encrypted to ensure sensitive data is kept private. Additionally, non-default KMS keys should be used so granularity of access control can be ensured.
+  
+  Remediation: Enable in transit encryption
+pattern: |
+  encrypted\s*=\s*false

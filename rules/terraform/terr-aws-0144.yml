@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0144
+title:     "Credentials which are no longer used should be disabled."
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-iam-disable-unused-credentials
+message: |
+  CIS recommends that you remove or deactivate all credentials that have been unused in 90 days or more. Disabling or removing unnecessary credentials reduces the window of opportunity for credentials associated with a compromised or abandoned account to be used.
+  
+  Remediation: Disable credentials which are no longer used.
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

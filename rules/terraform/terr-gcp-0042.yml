@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0042
+title:     "OS Login should be enabled at project level"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/google-compute-project-level-oslogin
+message: |
+  OS Login automatically revokes the relevant SSH keys when an IAM user has their access revoked.
+  
+  Remediation: Enable OS Login at project level
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

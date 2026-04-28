@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0043
+title:     "Instances should not have IP forwarding enabled"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-compute-no-ip-forwarding
+message: |
+  Disabling IP forwarding ensures the instance can only receive packets addressed to the instance and can only send packets with a source address of the instance.
+  
+  Remediation: Disable IP forwarding
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

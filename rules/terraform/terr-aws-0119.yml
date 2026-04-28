@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0119
+title:     "SAM State machine must have logging enabled"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/aws-sam-enable-state-machine-logging
+message: |
+  Logging enables end-to-end debugging and analysis of all state machine activities.
+  
+  Remediation: Enable logging
+pattern: |
+  (?:logging|access_logs)\s*\{

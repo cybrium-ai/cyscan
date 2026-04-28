@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0036
+title:     "Instances should not override the project setting for OS Login"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/google-compute-no-oslogin-override
+message: |
+  OS Login automatically revokes the relevant SSH keys when an IAM user has their access revoked.
+  
+  Remediation: Enable OS Login at project level and remove instance-level overrides
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0152
+title:     "Ensure a log metric filter and alarm exist for AWS Management Console authentication failures"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/aws-cloudwatch-require-console-login-failures-alarm
+message: |
+  You can do real-time monitoring of API calls by directing CloudTrail logs to CloudWatch Logs and establishing corresponding metric filters and alarms.
+  CIS recommends that you create a metric filter and alarm for failed console authentication attempts. Monitoring failed console logins might decrease lead time to detect an attempt to brute-force a credential, which might provide an indicator, such as source IP, that you can use in other event correlations.
+  
+  Remediation: Create an alarm to alert on console login failures
+pattern: |
+  resource\s+"aws_cloudwatch_(?:log_group|metric_alarm)"

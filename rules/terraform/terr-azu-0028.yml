@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0028
+title:     "No threat detections are set"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-database-all-threat-alerts-enabled
+message: |
+  SQL Server can alert for security issues including SQL Injection, vulnerabilities, access anomalies and data exfiltration. Ensure none of these are disabled to benefit from the best protection
+  
+  Remediation: Use all provided threat alerts
+pattern: |
+  resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

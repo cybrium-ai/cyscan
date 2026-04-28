@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0051
+title:     "Elasticache Replication Group uses unencrypted traffic."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-elasticache-enable-in-transit-encryption
+message: |
+  Traffic flowing between Elasticache replication nodes should be encrypted to ensure sensitive data is kept private.
+  
+  Remediation: Enable in transit encryption for replication group
+pattern: |
+  encrypted\s*=\s*false

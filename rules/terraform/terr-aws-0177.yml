@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0177
+title:     "RDS Deletion Protection Disabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-rds-enable-deletion-protection
+message: |
+  Ensure deletion protection is enabled for RDS database instances.
+  
+  Remediation: Modify the RDS instances to enable deletion protection.
+pattern: |
+  resource\s+"aws_(?:db_instance|rds_cluster)"

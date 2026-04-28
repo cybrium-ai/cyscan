@@ -1,0 +1,12 @@
+id:        CBR-K8S-WILDCARD-VERB
+title:     "RBAC role with wildcard verbs"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-732']
+source:    trivy/kubernetes-any-verb
+message: |
+  RBAC role grants wildcard (*) verbs, allowing all operations on the specified resources.
+  
+  Remediation: Restrict verbs to only those needed (get, list, watch, etc.).
+pattern: |
+  verbs:\s*\n\s*-\s*"\*"

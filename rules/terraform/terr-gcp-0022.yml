@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0022
+title:     "Ensure that logging of disconnections is enabled."
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/google-sql-pg-log-disconnections
+message: |
+  Logging disconnections provides useful diagnostic data such as session length, which can identify performance issues in an application and potential DoS vectors.
+  
+  Remediation: Enable disconnection logging.
+pattern: |
+  resource\s+"google_sql_database_instance"

@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0092
+title:     "S3 Buckets not publicly accessible through ACL."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-s3-no-public-access-with-acl
+message: |
+  Buckets should not have ACLs that allow public access
+  
+  Remediation: Don't use canned ACLs or switch to private acl
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

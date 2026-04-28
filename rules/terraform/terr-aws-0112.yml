@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0112
+title:     "SAM API domain name uses outdated SSL/TLS protocols."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-326']
+source:    trivy/aws-sam-api-use-secure-tls-policy
+message: |
+  You should not use outdated/insecure TLS versions for encryption. You should be using TLS v1.2+.
+  
+  Remediation: Use the most modern TLS/SSL policies available
+pattern: |
+  (?:minimum_tls_version|tls_version)\s*=\s*"(?:TLS1_0|TLSv1|1\.0)"

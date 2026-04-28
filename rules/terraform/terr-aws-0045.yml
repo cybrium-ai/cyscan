@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0045
+title:     "Elasticache Replication Group stores unencrypted data at-rest."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/aws-elasticache-enable-at-rest-encryption
+message: |
+  Data stored within an Elasticache replication node should be encrypted to ensure sensitive data is kept private.
+  
+  Remediation: Enable at-rest encryption for replication group
+pattern: |
+  encrypted\s*=\s*false

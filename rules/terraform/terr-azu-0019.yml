@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0019
+title:     "Ensure server parameter 'log_connections' is set to 'ON' for PostgreSQL Database Server"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/azure-database-postgres-configuration-log-connections
+message: |
+  Postgresql can generate logs for successful connections to improve visibility for audit and configuration issue resolution.
+  
+  Remediation: Enable connection logging
+pattern: |
+  resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

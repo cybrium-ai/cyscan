@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0029
+title:     "VPC flow logs should be enabled for all subnetworks"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/google-compute-enable-vpc-flow-logs
+message: |
+  VPC flow logs record information about all traffic, which is a vital tool in reviewing anomalous traffic.
+  
+  Remediation: Enable VPC flow logs
+pattern: |
+  flow_log

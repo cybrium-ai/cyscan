@@ -1,0 +1,12 @@
+id:        CBR-TERR-DIG-0008
+title:     "Kubernetes clusters should be auto-upgraded to ensure that they always contain the latest security patches."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/digitalocean-compute-kubernetes-auto-upgrades-not-enabled
+message: |
+  
+  
+  Remediation: Set maintenance policy deterministically when auto upgrades are enabled
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

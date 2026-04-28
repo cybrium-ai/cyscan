@@ -1,0 +1,12 @@
+id:        CBR-TERR-NIF-0016
+title:     "Missing security group for router."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/nifcloud-network-add-security-group-to-router
+message: |
+  Need to add a security group to your router.
+  
+  Remediation: Add security group for all routers
+pattern: |
+  resource\s+"azurerm_(?:network_security_group|virtual_network)"

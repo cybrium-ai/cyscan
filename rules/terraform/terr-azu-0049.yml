@@ -1,0 +1,16 @@
+id:        CBR-TERR-AZU-0049
+title:     "Retention policy for flow logs should be enabled and set to greater than 90 days"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/azure-network-retention-policy-set
+message: |
+  Flow logs are the source of truth for all network activity in your cloud environment.
+  
+  To enable analysis in security event that was detected late, you need to have the logs available.
+  
+  Setting an retention policy will help ensure as much information is available for review.
+  
+  Remediation: Ensure flow log retention is turned on with an expiry of >90 days
+pattern: |
+  resource\s+"azurerm_(?:network_security_group|virtual_network)"

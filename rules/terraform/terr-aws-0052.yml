@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0052
+title:     "Load balancers should drop invalid headers"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/aws-elb-drop-invalid-headers
+message: |
+  Passing unknown or invalid headers through to the target poses a potential risk of compromise.
+  By setting drop_invalid_header_fields to true, anything that does not conform to well known, defined headers will be removed by the load balancer.
+  
+  Remediation: Set drop_invalid_header_fields to true
+pattern: |
+  resource\s+"aws_(?:lb|alb|elb)"

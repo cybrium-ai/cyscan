@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0123
+title:     "IAM groups should have MFA enforcement activated."
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-308']
+source:    trivy/aws-iam-enforce-group-mfa
+message: |
+  IAM groups should be protected with multi factor authentication to add safe guards to password compromise.
+  
+  Remediation: Use terraform-module/enforce-mfa/aws to ensure that MFA is enforced
+pattern: |
+  mfa_delete\s*=\s*(?:false|"Disabled")

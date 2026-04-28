@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0067
+title:     "Ensure AKS cluster has disk encryption set ID configured"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/azure-container-enable-disk-encryption
+message: |
+  Azure Kubernetes clusters should define a disk encryption set ID to ensure encrypted storage for OS and data disks. This provides an additional layer of security by encrypting data at rest.
+  
+  Remediation: Configure a disk encryption set ID for the AKS cluster to enable customer-managed key encryption.
+pattern: |
+  encrypted\s*=\s*false

@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0035
+title:     "Data Factory should have public access disabled, the default is enabled."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/azure-datafactory-no-public-access
+message: |
+  Data Factory has public access set to true by default.
+  
+  Disabling public network access is applicable only to the self-hosted integration runtime, not to Azure Integration Runtime and SQL Server Integration Services (SSIS) Integration Runtime.
+  
+  Remediation: Set public access to disabled for Data Factory
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

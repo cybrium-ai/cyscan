@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0140
+title:     "Root account usage should be avoided"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-250']
+source:    trivy/aws-iam-limit-root-account-usage
+message: |
+  The root user has unrestricted access to all services and resources in an AWS account. We highly recommend that you avoid using the root user for daily tasks. Minimizing the use of the root user and adopting the principle of least privilege for access management reduce the risk of accidental changes and unintended disclosure of highly privileged credentials.
+  
+  Remediation: Use lower privileged accounts instead, so only required privileges are available.
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

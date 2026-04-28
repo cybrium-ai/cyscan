@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS-0097
+title:     "AWS SQS policy document has wildcard action statement."
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-732']
+source:    trivy/aws-sqs-no-wildcards-in-policy-documents
+message: |
+  SQS Policy actions should always be restricted to a specific set.
+  This ensures that the queue itself cannot be modified or deleted, and prevents possible future additions to queue actions to be implicitly allowed.
+  
+  Remediation: Keep policy scope to the minimum that is required to be effective
+pattern: |
+  (?:actions|principals)\s*=\s*\[\s*"\*"\s*\]

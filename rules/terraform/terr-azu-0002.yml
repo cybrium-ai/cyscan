@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0002
+title:     "Web App has registration with AD enabled"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-appservice-account-identity-registered
+message: |
+  Registering the identity used by an App with AD allows it to interact with other services without using username and password
+  
+  Remediation: Register the app identity with AD
+pattern: |
+  resource\s+"azurerm_app_service"

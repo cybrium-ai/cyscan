@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0060
+title:     "Storage account should use customer-managed keys for encryption"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-311']
+source:    trivy/azure-storage-blob-container-cmk-encrypted
+message: |
+  Storage accounts should use customer-managed keys (CMK) for encryption to provide additional control over the encryption keys.
+  Customer-managed keys allow you to create, rotate, disable, and revoke access controls.
+  They also provide greater flexibility to audit the encryption keys that are used to protect your data.
+  
+  Remediation: Configure customer-managed keys for storage account encryption
+pattern: |
+  encrypted\s*=\s*false

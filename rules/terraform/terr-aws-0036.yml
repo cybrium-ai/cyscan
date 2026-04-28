@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0036
+title:     "Task definition defines sensitive environment variable(s)."
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/aws-ecs-no-plaintext-secrets
+message: |
+  You should not make secrets available to a user in plaintext in any scenario. Secrets can instead be pulled from a secure secret storage system by the service requiring them.
+  
+  Remediation: Use secrets for the task definition
+pattern: |
+  resource\s+"aws_ecs_(?:service|task_definition)"

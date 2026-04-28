@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0044
+title:     "Instances should not use the default service account"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-276']
+source:    trivy/google-compute-no-default-service-account
+message: |
+  The default service account has full project access. Instances should instead be assigned the minimal access they need.
+  
+  Remediation: Remove use of default service account
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

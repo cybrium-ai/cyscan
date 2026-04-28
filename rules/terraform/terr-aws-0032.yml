@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0032
+title:     "ECR repository policy must block public access"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-ecr-no-public-access
+message: |
+  Allowing public access to the ECR repository risks leaking sensitive of abusable information
+  
+  Remediation: Do not allow public access in the policy
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

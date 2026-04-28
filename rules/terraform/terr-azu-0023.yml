@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0023
+title:     "Security threat alerts go to subscription owners and co-administrators"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/azure-database-threat-alert-email-to-owner
+message: |
+  Subscription owners should be notified when there are security alerts. By ensuring the administrators of the account have been notified they can quickly assist in any required remediation
+  
+  Remediation: Enable email to subscription owners
+pattern: |
+  resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

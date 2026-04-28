@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0009
+title:     "Users should not be granted service account access at the organization level"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-iam-no-org-level-service-account-impersonation
+message: |
+  Users with service account access at organization level can impersonate any service account. Instead, they should be given access to particular service accounts as required.
+  
+  Remediation: Provide access at the service-level instead of organization-level, if required
+pattern: |
+  resource\s+"aws_iam_(?:policy|role|user)"

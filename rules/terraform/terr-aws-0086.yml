@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0086
+title:     "S3 Access block should block public ACL"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-s3-block-public-acls
+message: |
+  S3 buckets should block public ACLs on buckets and any objects they contain. By blocking, PUTs with fail if the object has any public ACL a.
+  
+  Remediation: Enable blocking any PUT calls with a public ACL specified
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

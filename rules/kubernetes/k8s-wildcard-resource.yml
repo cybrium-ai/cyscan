@@ -1,0 +1,12 @@
+id:        CBR-K8S-WILDCARD-RESOURCE
+title:     "RBAC role with wildcard resources"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-732']
+source:    trivy/kubernetes-wildcard-resources
+message: |
+  RBAC role grants access to all resources via wildcard (*). This violates the principle of least privilege.
+  
+  Remediation: Specify only the resources the role needs access to.
+pattern: |
+  resources:\s*\n\s*-\s*"\*"

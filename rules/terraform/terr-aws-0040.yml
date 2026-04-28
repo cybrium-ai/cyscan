@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0040
+title:     "EKS Clusters should have the public access disabled"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-eks-no-public-cluster-access
+message: |
+  EKS clusters are available publicly by default, this should be explicitly disabled in the vpc_config of the EKS cluster resource.
+  
+  Remediation: Don't enable public access to EKS Clusters
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

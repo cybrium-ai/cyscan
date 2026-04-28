@@ -1,0 +1,12 @@
+id:        CBR-DOCK-APK-NO-CACHE
+title:     "apk add without --no-cache"
+severity:  low
+languages: ['docker']
+cwe:       ['CWE-459']
+source:    trivy/docker-missing-apk-no-cache
+message: |
+  apk add called without --no-cache flag. This leaves the package index in the image, increasing its size.
+  
+  Remediation: Use apk add --no-cache to avoid caching the index.
+pattern: |
+  ^\s*RUN\s+.*apk\s+add\s+(?!.*--no-cache)

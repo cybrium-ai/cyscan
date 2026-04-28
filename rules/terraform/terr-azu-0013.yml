@@ -1,0 +1,14 @@
+id:        CBR-TERR-AZU-0013
+title:     "Key vault should have the network acl block specified"
+severity:  critical
+languages: ['terraform']
+cwe:       ['CWE-798']
+source:    trivy/azure-keyvault-specify-network-acl
+message: |
+  Network ACLs allow you to reduce your exposure to risk by limiting what can access your key vault.
+  
+  The default action of the Network ACL should be set to deny for when IPs are not matched. Azure services can be allowed to bypass.
+  
+  Remediation: Set a network ACL for the key vault
+pattern: |
+  resource\s+"azurerm_key_vault"

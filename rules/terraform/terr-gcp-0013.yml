@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0013
+title:     "Cloud DNS should use DNSSEC"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-dns-enable-dnssec
+message: |
+  DNSSEC authenticates DNS responses, preventing MITM attacks and impersonation.
+  
+  Remediation: Enable DNSSEC
+pattern: |
+  resource\s+"google_dns_managed_zone"

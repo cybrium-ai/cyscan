@@ -1,0 +1,12 @@
+id:        CBR-TERR-GCP-0045
+title:     "Instances should have Shielded VM integrity monitoring enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/google-compute-enable-shielded-vm-im
+message: |
+  Integrity monitoring helps you understand and make decisions about the state of your VM instances.
+  
+  Remediation: Enable Shielded VM Integrity Monitoring
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

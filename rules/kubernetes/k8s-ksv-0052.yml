@@ -1,0 +1,12 @@
+id:        CBR-K8S-KSV-0052
+title:     "Do not allow role to create ClusterRoleBindings and association with privileged role"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-269']
+source:    trivy/kubernetes-allow-role-clusterrolebindings-associate-privileged-cluster-role
+message: |
+  Check whether role permits creating role ClusterRoleBindings and association with privileged cluster role
+  
+  Remediation: Create a role which does not permit to create role clusterrolebindings and associate to privileged cluster role
+pattern: |
+  privileged:\s*true

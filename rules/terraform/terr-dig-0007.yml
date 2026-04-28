@@ -1,0 +1,12 @@
+id:        CBR-TERR-DIG-0007
+title:     "Spaces buckets should have versioning enabled"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-693']
+source:    trivy/digitalocean-spaces-versioning-enabled
+message: |
+  Versioning is a means of keeping multiple variants of an object in the same bucket. You can use the Spaces (S3) Versioning feature to preserve, retrieve, and restore every version of every object stored in your buckets. With versioning you can recover more easily from both unintended user actions and application failures.
+  
+  Remediation: Enable versioning to protect against accidental or malicious removal or modification
+pattern: |
+  versioning\s*\{[^}]*enabled\s*=\s*false

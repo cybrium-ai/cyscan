@@ -1,0 +1,18 @@
+id:        CBR-TERR-NIF-0006
+title:     "Delete expired SSL certificates"
+severity:  low
+languages: ['terraform']
+cwe:       ['CWE-326']
+source:    trivy/nifcloud-sslcertificate-remove-expired-certificates
+message: |
+  Removing expired SSL/TLS certificates eliminates the risk that an invalid certificate will be
+  
+  deployed accidentally to a resource such as NIFCLOUD Load Balancer(L4LB), which candamage the
+  
+  credibility of the application/website behind the L4LB. As a best practice, it is
+  
+  recommended to delete expired certificates.
+  
+  Remediation: Remove expired certificates
+pattern: |
+  (?:ssl_enforcement|minimum_tls_version|ssl_mode)

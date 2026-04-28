@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0010
+title:     "Cloudfront distribution should have Access Logging configured"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    trivy/aws-cloudfront-enable-logging
+message: |
+  You should configure CloudFront Access Logging to create log files that contain detailed information about every user request that CloudFront receives
+  
+  Remediation: Enable logging for CloudFront distributions
+pattern: |
+  (?:logging|access_logs)\s*\{

@@ -1,0 +1,12 @@
+id:        CBR-TERR-AZU-0068
+title:     "VM Not Attached To Network"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/azure-compute-vm-not-attached-to-network
+message: |
+  VMs without NSGs are exposed without traffic control or inspection.
+  
+  Remediation: Associate an NSG to the VM's NIC or subnet to control traffic.
+pattern: |
+  resource\s+"google_compute_(?:instance|firewall|network)"

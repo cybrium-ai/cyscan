@@ -1,0 +1,12 @@
+id:        CBR-TERR-AWS-0180
+title:     "RDS Publicly Accessible"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-284']
+source:    trivy/aws-rds-enable-public-access
+message: |
+  Ensures RDS instances and RDS Cluster instances are not launched into the public cloud.
+  
+  Remediation: Remove the public endpoint from the RDS instance.
+pattern: |
+  (?:public_access|publicly_accessible|public)\s*=\s*true

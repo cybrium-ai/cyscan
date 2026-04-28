@@ -1,0 +1,12 @@
+id:        CBR-DOCK-WORKDIR-RELATIVE
+title:     "WORKDIR uses relative path"
+severity:  low
+languages: ['docker']
+cwe:       ['CWE-426']
+source:    trivy/docker-workdir-path-not-absolute
+message: |
+  WORKDIR uses a relative path. Relative paths depend on the previous WORKDIR state and can lead to unexpected behavior.
+  
+  Remediation: Always use absolute paths for WORKDIR (e.g. WORKDIR /app).
+pattern: |
+  ^\s*WORKDIR\s+(?!/)
