@@ -109,6 +109,17 @@ enum Cmd {
         cmd: RulesCmd,
     },
 
+    /// Check repository security health (governance, secrets, supply chain).
+    Health {
+        /// Target directory to analyze.
+        #[arg(default_value = ".")]
+        target: PathBuf,
+
+        /// Output format.
+        #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
+        format: Format,
+    },
+
     /// Detect frameworks used in the codebase.
     Frameworks {
         /// Target directory to analyze.
@@ -256,6 +267,35 @@ pub fn run() -> Result<ExitCode> {
             let pack = load_pack(rules.as_deref())?;
             println!("✓ {} rule(s) parsed cleanly", pack.rules().len());
             Ok(ExitCode::from(0))
+        }
+
+        Cmd::Health { target, format } => {
+            let health = crate::framework::check_repo_health(&target);
+            match format {
+                Format::Json => {
+                    println!("{}", serde_json::to_string_pretty(&health).unwrap_or_default());
+                }
+                _ => {
+                    let icon = if health.score >= 80 { "PASS" } else if health.score >= 50 { "WARN" } else { "FAIL" };
+                    println!("\nRepository Health Score: {}/100 [{}]\n", health.score, icon);
+                    for check in &health.checks {
+                        let status = if check.passed { " PASS " } else { " FAIL " };
+                        let sev = match check.severity {
+                            "critical" => "CRIT",
+                            "high" => "HIGH",
+                            "medium" => "MED ",
+                            "low" => "LOW ",
+                            _ => "INFO",
+                        };
+                        println!("  [{}] [{}] {}", status, sev, check.name);
+                        if !check.passed {
+                            println!("         → {}", check.detail);
+                        }
+                    }
+                    println!();
+                }
+            }
+            Ok(ExitCode::from(if health.score >= 50 { 0 } else { 1 }))
         }
 
         Cmd::Frameworks { target, format } => {
