@@ -5,7 +5,7 @@ use std::{path::PathBuf, process::ExitCode};
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::{finding::Severity, fixer, output, rule::RulePack, scanner, supply};
+use crate::{finding::Severity, fixer, output, rule::RulePack, scanner, self_update, supply};
 
 #[derive(Debug, Parser)]
 #[command(

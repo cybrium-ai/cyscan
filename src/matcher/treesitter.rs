@@ -10,7 +10,9 @@ use crate::{finding::Finding, lang::Lang, rule::Rule};
 
 pub fn parse(lang: Lang, source: &str) -> Result<Tree> {
     let mut parser = Parser::new();
-    parser.set_language(&lang.tree_sitter())
+    let grammar = lang.tree_sitter()
+        .with_context(|| format!("no tree-sitter grammar for {lang}"))?;
+    parser.set_language(&grammar)
         .with_context(|| format!("setting tree-sitter language {lang}"))?;
     parser.parse(source, None)
         .context("tree-sitter parse returned None")
@@ -25,7 +27,8 @@ pub fn match_rule(
 ) -> Vec<Finding> {
     let Some(q_str) = rule.query.as_deref() else { return Vec::new() };
 
-    let query = match Query::new(&lang.tree_sitter(), q_str) {
+    let Some(grammar) = lang.tree_sitter() else { return Vec::new() };
+    let query = match Query::new(&grammar, q_str) {
         Ok(q)  => q,
         Err(e) => {
             log::warn!("rule {}: query compile failed: {e}", rule.id);

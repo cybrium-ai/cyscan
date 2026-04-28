@@ -43,7 +43,7 @@ pub fn run_rules<'a>(
             }
             let (tree, _) = parsed.as_ref().unwrap();
             findings.extend(treesitter::match_rule(rule, lang, path, source, tree));
-        } else if rule.regex.is_some() {
+        } else if rule.regex.is_some() || rule.pattern.is_some() {
             findings.extend(regex::match_rule(rule, path, source));
         }
     }
