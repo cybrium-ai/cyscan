@@ -1,0 +1,11 @@
+id:        CBR-RUBY-RUBY_JWT_EXPOSED_DATA
+title:     "Ruby Jwt Exposed Data"
+severity:  high
+languages: ['ruby']
+cwe:       ['CWE-522']
+source:    semgrep/ruby-jwt-exposed-data
+message: |
+  The object is passed strictly to jsonwebtoken.sign(...) Make sure that sensitive information is not exposed through JWT token payload.
+pattern: |
+  JWT.encode($INPUT,...)
+  

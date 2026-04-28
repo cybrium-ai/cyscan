@@ -1,0 +1,12 @@
+id:        CBR-TYPE-REACT_LEGACY_COMPONENT
+title:     "React Legacy Component"
+severity:  high
+languages: ['typescript', 'javascript']
+source:    semgrep/react-legacy-component
+message: |
+  Legacy component lifecycle was detected - $METHOD.
+pattern: |
+  $METHOD(...) {
+    ...
+  }
+  

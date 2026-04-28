@@ -1,0 +1,10 @@
+id:        CBR-SCAL-DANGEROUS_SHELL_RUN
+title:     "Dangerous Shell Run"
+severity:  critical
+languages: ['scala']
+cwe:       ['CWE-78']
+source:    semgrep/dangerous-shell-run
+message: |
+  Found dynamic content used for the external process. This is dangerous if arbitrary data can reach this function call because it allows a malicious actor to execute commands. Ensure your variables are not controlled by users or sufficiently sanitized.
+pattern: |
+  Seq($SH, "-c", $CMD, ...)

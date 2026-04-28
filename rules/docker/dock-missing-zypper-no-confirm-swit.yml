@@ -1,0 +1,10 @@
+id:        CBR-DOCK-MISSING_ZYPPER_NO_CONFIRM_SWIT
+title:     "Missing Zypper No Confirm Switch"
+severity:  high
+languages: ['docker']
+source:    semgrep/missing-zypper-no-confirm-switch
+message: |
+  This 'zypper install' is missing the '-y' switch. This might stall builds because it requires human intervention. Add the '-y' switch.
+pattern: |
+  RUN ... zypper install ...
+  

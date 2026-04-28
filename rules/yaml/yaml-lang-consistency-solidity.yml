@@ -1,0 +1,11 @@
+id:        CBR-YAML-LANG_CONSISTENCY_SOLIDITY
+title:     "Lang Consistency Solidity"
+severity:  high
+languages: ['yaml']
+source:    semgrep/lang-consistency-solidity
+message: |
+  Found '$X' in language config which diverges from semgrep.dev normalization. Please use 'solidity' instead.
+pattern: |
+  $X
+fix: |
+  solidity

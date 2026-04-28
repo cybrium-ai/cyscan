@@ -1,0 +1,15 @@
+id:        CBR-GENE-ALIAS_PATH_TRAVERSAL
+title:     "Alias Path Traversal"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-22']
+source:    semgrep/alias-path-traversal
+message: |
+  The alias in this location block is subject to a path traversal because the location path does not end in a path separator (e.g., '/'). To fix, add a path separator to the end of the path.
+pattern: |
+  location $...LOCATION {
+    ...
+    alias .../;
+    ...
+  }
+  

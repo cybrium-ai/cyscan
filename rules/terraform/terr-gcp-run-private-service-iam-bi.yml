@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_RUN_PRIVATE_SERVICE_IAM_BI
+title:     "Gcp Run Private Service Iam Binding"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-run-private-service-iam-binding
+message: |
+  Ensure that GCP Cloud Run services are not anonymously or publicly accessible
+pattern: |
+  resource

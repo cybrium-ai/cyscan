@@ -1,0 +1,10 @@
+id:        CBR-YAML-MULTI_LINE_MESSAGE
+title:     "Multi Line Message"
+severity:  high
+languages: ['yaml']
+source:    semgrep/multi-line-message
+message: |
+  This rule has a multi-line message field, which may display poorly in a terminal. Consider ensuring it is on one line. For example, use `message: >-`, not `message: |`.
+pattern: |
+  message: "=~/[\\n\\r]/"
+  

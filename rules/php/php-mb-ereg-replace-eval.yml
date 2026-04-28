@@ -1,0 +1,10 @@
+id:        CBR-PHP-MB_EREG_REPLACE_EVAL
+title:     "Mb Ereg Replace Eval"
+severity:  critical
+languages: ['php']
+cwe:       ['CWE-94']
+source:    semgrep/mb-ereg-replace-eval
+message: |
+  Calling mb_ereg_replace with user input in the options can lead to arbitrary code execution. The eval modifier (`e`) evaluates the replacement argument as code.
+pattern: |
+  mb_ereg_replace($PATTERN, $REPL, $STR, $OPTIONS);

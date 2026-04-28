@@ -1,0 +1,12 @@
+id:         CBR-JS-POSTMESSAGE-WILDCARD
+title:      "postMessage with wildcard targetOrigin"
+severity:   medium
+languages:  [javascript, typescript]
+cwe:        [CWE-346]
+message: |
+  Calling postMessage(…, "*") sends the payload to any listener in
+  any origin that happens to hold a reference to the window. For
+  anything beyond a toy demo, specify the exact origin you trust so
+  the browser refuses delivery to unrelated frames.
+regex: |
+  \.postMessage\s*\([^,]+,\s*['"]\*['"]\s*\)

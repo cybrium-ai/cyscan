@@ -1,0 +1,10 @@
+id:        CBR-PYTH-INSECURE_OPENERDIRECTOR_OPEN
+title:     "Insecure Openerdirector Open"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-319']
+source:    semgrep/insecure-openerdirector-open
+message: |
+  Detected an unsecured transmission channel. 'OpenerDirector.open(...)' is being used with 'http://'. Use 'https://' instead to secure the channel.
+pattern: |
+  urllib.request.OpenerDirector(...).open("=~/[Hh][Tt][Tt][Pp]://.*/", ...)

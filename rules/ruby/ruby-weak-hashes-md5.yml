@@ -1,0 +1,10 @@
+id:        CBR-RUBY-WEAK_HASHES_MD5
+title:     "Weak Hashes Md5"
+severity:  high
+languages: ['ruby']
+cwe:       ['CWE-328']
+source:    semgrep/weak-hashes-md5
+message: |
+  Should not use md5 to generate hashes. md5 is proven to be vulnerable through the use of brute-force attacks. Could also result in collisions, leading to potential collision attacks. Use SHA256 or other hashing functions instead.
+pattern: |
+  Digest::MD5.base64digest $X

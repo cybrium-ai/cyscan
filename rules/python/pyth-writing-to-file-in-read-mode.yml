@@ -1,0 +1,9 @@
+id:        CBR-PYTH-WRITING_TO_FILE_IN_READ_MODE
+title:     "Writing To File In Read Mode"
+severity:  critical
+languages: ['python']
+source:    semgrep/writing-to-file-in-read-mode
+message: |
+  The file object '$FD' was opened in read mode, but is being written to. This will cause a runtime error.
+pattern: |
+  $FD.write(...)

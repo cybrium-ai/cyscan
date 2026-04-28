@@ -1,0 +1,9 @@
+id:        CBR-JAVA-JAVASCRIPT_DEBUGGER
+title:     "Javascript Debugger"
+severity:  high
+languages: ['javascript', 'typescript']
+source:    semgrep/javascript-debugger
+message: |
+  found debugger call; should this be in production code?
+pattern: |
+  debugger;

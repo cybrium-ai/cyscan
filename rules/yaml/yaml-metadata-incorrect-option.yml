@@ -1,0 +1,10 @@
+id:        CBR-YAML-METADATA_INCORRECT_OPTION
+title:     "Metadata Incorrect Option"
+severity:  medium
+languages: ['yaml']
+source:    semgrep/metadata-incorrect-option
+message: |
+  It looks like $KEY is not in the default list of expected options, if this is a new key update this rule
+pattern: |
+  $KEY: $VALUE
+  

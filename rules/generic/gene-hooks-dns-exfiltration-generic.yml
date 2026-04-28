@@ -1,0 +1,10 @@
+id:        CBR-GENE-HOOKS_DNS_EXFILTRATION_GENERIC
+title:     "Hooks Dns Exfiltration Generic"
+severity:  critical
+languages: ['generic']
+cwe:       ['CWE-201']
+source:    semgrep/hooks-dns-exfiltration-generic
+message: |
+  DNS lookup command uses a variable in the hostname, which could exfiltrate sensitive data via DNS queries. In Claude Code and Cursor hooks, this pattern can leak secrets or environment data to attacker-controlled domains. Use static hostnames only in DNS commands.
+regex: |
+  \b(ping|nslookup|dig|host)\s+.*\$

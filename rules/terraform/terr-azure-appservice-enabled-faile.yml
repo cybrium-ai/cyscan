@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_APPSERVICE_ENABLED_FAILE
+title:     "Azure Appservice Enabled Failed Request"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-778']
+source:    semgrep/azure-appservice-enabled-failed-request
+message: |
+  Ensure that App service enables failed request tracing
+pattern: |
+  resource

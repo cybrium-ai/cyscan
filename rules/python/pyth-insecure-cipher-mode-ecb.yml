@@ -1,0 +1,12 @@
+id:        CBR-PYTH-INSECURE_CIPHER_MODE_ECB
+title:     "Insecure Cipher Mode Ecb"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-327']
+source:    semgrep/insecure-cipher-mode-ecb
+message: |
+  ECB (Electronic Code Book) is the simplest mode of operation for block ciphers.  Each block of data is encrypted in the same way.  This means identical plaintext blocks will always result in identical ciphertext blocks, which can leave significant patterns in the output. Use a different, cryptographically strong mode instead, such as GCM.
+pattern: |
+  cryptography.hazmat.primitives.ciphers.modes.ECB($IV)
+fix: |
+  cryptography.hazmat.primitives.ciphers.modes.GCM($IV)

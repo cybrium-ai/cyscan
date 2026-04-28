@@ -1,0 +1,11 @@
+id:        CBR-PYTH-PASS_BODY_FN
+title:     "Pass Body Fn"
+severity:  high
+languages: ['python']
+source:    semgrep/pass-body-fn
+message: |
+  `pass` is the body of function $X. Consider removing this or raise NotImplementedError() if this is a TODO
+pattern: |
+  def $X(...):
+      pass
+  

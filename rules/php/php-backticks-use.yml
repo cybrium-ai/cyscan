@@ -1,0 +1,10 @@
+id:        CBR-PHP-BACKTICKS_USE
+title:     "Backticks Use"
+severity:  critical
+languages: ['php']
+cwe:       ['CWE-94']
+source:    semgrep/backticks-use
+message: |
+  Backticks use may lead to command injection vulnerabilities.
+pattern: |
+  `...`;

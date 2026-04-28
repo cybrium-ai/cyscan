@@ -1,0 +1,11 @@
+id:        CBR-JAVA-WEAK_RANDOM
+title:     "Weak Random"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-330']
+source:    semgrep/weak-random
+message: |
+  Detected use of the functions `Math.random()` or `java.util.Random()`. These are both not cryptographically strong random number generators (RNGs). If you are using these RNGs to create passwords or secret tokens, use `java.security.SecureRandom` instead.
+pattern: |
+  new java.util.Random(...).$FUNC(...)
+  

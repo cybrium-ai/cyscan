@@ -1,0 +1,18 @@
+id:        CBR-TYPE-NESTJS_HEADER_XSS_DISABLED
+title:     "Nestjs Header Xss Disabled"
+severity:  high
+languages: ['typescript']
+cwe:       ['CWE-79']
+source:    semgrep/nestjs-header-xss-disabled
+message: |
+  X-XSS-Protection header is set to 0. This will disable the browser's XSS Filter.
+pattern: |
+  class $CN {
+      ...
+      @Header("=~/[Xx]-[Xx][Ss][Ss]-[Pp][Rr][Oo][Tt][Ee][Cc][Tt][Ii][Oo][Nn]/", '0')
+      $FN(...) {
+          ...
+      }
+      ...
+  }
+  

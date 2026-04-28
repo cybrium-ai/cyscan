@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_SQLSERVER_NO_PUBLIC_ACCE
+title:     "Azure Sqlserver No Public Access"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/azure-sqlserver-no-public-access
+message: |
+  Ensure no SQL Databases allow ingress from 0.0.0.0/0 (ANY IP)
+pattern: |
+  resource

@@ -1,0 +1,17 @@
+id:        CBR-YAML-SECCOMP_CONFINEMENT_DISABLED
+title:     "Seccomp Confinement Disabled"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    semgrep/seccomp-confinement-disabled
+message: |
+  Service '$SERVICE' is explicitly disabling seccomp confinement. This runs the service in an unrestricted state. Remove 'seccomp:unconfined' to prevent this.
+pattern: |
+  $SERVICE:
+    ...
+    image: ...
+    ...
+    security_opt:
+      - ...
+      - seccomp:unconfined
+  

@@ -1,0 +1,9 @@
+id:        CBR-PYTH-STRING_CONCAT_IN_LIST
+title:     "String Concat In List"
+severity:  high
+languages: ['python']
+source:    semgrep/string-concat-in-list
+message: |
+  Detected strings that are implicitly concatenated inside a list. Python will implicitly concatenate strings when not explicitly delimited. Was this supposed to be individual elements of the list?
+pattern: |
+  "..." "..."

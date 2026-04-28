@@ -1,0 +1,15 @@
+id:        CBR-TERR-GCP_INSECURE_LOAD_BALANCER_TLS
+title:     "Gcp Insecure Load Balancer Tls Version"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-326']
+source:    semgrep/gcp-insecure-load-balancer-tls-version
+message: |
+  Detected GCP Load Balancer to be using an insecure version of TLS. To fix this set your "min_tls_version" to "TLS_1_2"
+pattern: |
+  resource "google_compute_ssl_policy" $ANYTHING {
+    ...
+    min_tls_version = "..."
+    ...
+  }
+  

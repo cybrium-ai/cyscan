@@ -1,0 +1,10 @@
+id:        CBR-JAVA-WILDCARD_POSTMESSAGE_CONFIGURA
+title:     "Wildcard Postmessage Configuration"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-345']
+source:    semgrep/wildcard-postmessage-configuration
+message: |
+  The target origin of the window.postMessage() API is set to "*". This could allow for information disclosure due to the possibility of any origin allowed to receive the message.
+pattern: |
+  $OBJECT.postMessage(...,'*',...)

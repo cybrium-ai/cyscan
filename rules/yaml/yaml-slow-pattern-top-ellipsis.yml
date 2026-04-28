@@ -1,0 +1,9 @@
+id:        CBR-YAML-SLOW_PATTERN_TOP_ELLIPSIS
+title:     "Slow Pattern Top Ellipsis"
+severity:  high
+languages: ['yaml']
+source:    semgrep/slow-pattern-top-ellipsis
+message: |
+  Using the ellipsis operator `...` at the top of the pattern drastically slows down the rule performance.
+regex: |
+  \|\s*\n\s*\.\.\.\s*\n[^\n]*\n\s*\.\.\.

@@ -1,0 +1,16 @@
+id:        CBR-TYPE-NESTJS_HEADER_CORS_ANY
+title:     "Nestjs Header Cors Any"
+severity:  high
+languages: ['typescript']
+cwe:       ['CWE-183']
+source:    semgrep/nestjs-header-cors-any
+message: |
+  Access-Control-Allow-Origin response header is set to "*". This will disable CORS Same Origin Policy restrictions.
+pattern: |
+  class $CN {
+      @Header("=~/[Aa][Cc][Cc][Ee][Ss][Ss]-[Cc][Oo][Nn][Tt][Rr][Oo][Ll]-[Aa][Ll][Ll][Oo][Ww]-[Oo][Rr][Ii][Gg][Ii][Nn]/", '*')
+      $FN(...) {
+          ...
+      }
+  }
+  

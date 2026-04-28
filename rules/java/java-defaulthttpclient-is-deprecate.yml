@@ -1,0 +1,10 @@
+id:        CBR-JAVA-DEFAULTHTTPCLIENT_IS_DEPRECATE
+title:     "Defaulthttpclient Is Deprecated"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-326']
+source:    semgrep/defaulthttpclient-is-deprecated
+message: |
+  DefaultHttpClient is deprecated. Further, it does not support connections using TLS1.2, which makes using DefaultHttpClient a security hazard. Use HttpClientBuilder instead.
+pattern: |
+  new DefaultHttpClient(...);

@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_AKS_APISERVER_AUTH_IP_RA
+title:     "Azure Aks Apiserver Auth Ip Ranges"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/azure-aks-apiserver-auth-ip-ranges
+message: |
+  Ensure AKS has an API Server Authorized IP Ranges enabled	
+pattern: |
+  resource

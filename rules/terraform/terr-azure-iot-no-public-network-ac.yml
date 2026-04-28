@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_IOT_NO_PUBLIC_NETWORK_AC
+title:     "Azure Iot No Public Network Access"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/azure-iot-no-public-network-access
+message: |
+  Ensure that Azure IoT Hub disables public network access
+pattern: |
+  resource

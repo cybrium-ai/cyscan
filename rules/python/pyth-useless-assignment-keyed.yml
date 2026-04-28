@@ -1,0 +1,11 @@
+id:        CBR-PYTH-USELESS_ASSIGNMENT_KEYED
+title:     "Useless Assignment Keyed"
+severity:  medium
+languages: ['python']
+source:    semgrep/useless-assignment-keyed
+message: |
+  key `$Y` in `$X` is assigned twice; the first assignment is useless
+pattern: |
+  $X[$Y] = ...
+  $X[$Y] = ...
+  

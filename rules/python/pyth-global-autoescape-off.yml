@@ -1,0 +1,14 @@
+id:        CBR-PYTH-GLOBAL_AUTOESCAPE_OFF
+title:     "Global Autoescape Off"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-79']
+source:    semgrep/global-autoescape-off
+message: |
+  Autoescape is globally disbaled for this Django application. If you are rendering any web pages, this exposes your application to cross-site scripting (XSS) vulnerabilities. Remove 'autoescape: False' or set it to 'True'.
+pattern: |
+  {..., 'BACKEND': ..., 'OPTIONS': {..., 'autoescape': $FALSE, ...}, ...}
+  
+fix: |
+  True
+  

@@ -1,0 +1,10 @@
+id:        CBR-TERR-AZURE_DATAFACTORY_USES_GIT_REP
+title:     "Azure Datafactory Uses Git Repository"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/azure-datafactory-uses-git-repository
+message: |
+  Ensure that Azure Data Factory uses Git repository for source control
+pattern: |
+  resource

@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_MARIADB_GEO_BACKUP_ENABL
+title:     "Azure Mariadb Geo Backup Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-mariadb-geo-backup-enabled
+message: |
+  Ensure that MariaDB server enables geo-redundant backups
+pattern: |
+  resource

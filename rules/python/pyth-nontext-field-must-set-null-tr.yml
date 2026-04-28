@@ -1,0 +1,9 @@
+id:        CBR-PYTH-NONTEXT_FIELD_MUST_SET_NULL_TR
+title:     "Nontext Field Must Set Null True"
+severity:  critical
+languages: ['python']
+source:    semgrep/nontext-field-must-set-null-true
+message: |
+  null=True should be set if blank=True is set on non-text fields.
+pattern: |
+  $F = $X(..., blank=True, ...)

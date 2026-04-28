@@ -1,0 +1,10 @@
+id:        CBR-RUBY-AVOID_RENDER_INLINE
+title:     "Avoid Render Inline"
+severity:  high
+languages: ['ruby']
+cwe:       ['CWE-79']
+source:    semgrep/avoid-render-inline
+message: |
+  'render inline: ...' renders an entire ERB template inline and is dangerous. If external data can reach here, this exposes your application to server-side template injection (SSTI) or cross-site scripting (XSS) attacks. Instead, consider using a partial or another safe rendering method.
+pattern: |
+  render inline: ...

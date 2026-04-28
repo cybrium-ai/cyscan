@@ -1,0 +1,11 @@
+id:        CBR-JAVA-ECB_CIPHER
+title:     "Ecb Cipher"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-327']
+source:    semgrep/ecb-cipher
+message: |
+  Cipher in ECB mode is detected. ECB mode produces the same output for the same input each time which allows an attacker to intercept and replay the data. Further, ECB mode does not provide any integrity checking. See https://find-sec-bugs.github.io/bugs.htm#CIPHER_INTEGRITY.
+pattern: |
+  Cipher $VAR = $CIPHER.getInstance($MODE);
+  

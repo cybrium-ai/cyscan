@@ -1,0 +1,10 @@
+id:        CBR-PHP-WP_AJAX_NO_AUTH_AND_AUTH_HOOKS
+title:     "Wp Ajax No Auth And Auth Hooks Audit"
+severity:  high
+languages: ['php']
+cwe:       ['CWE-285']
+source:    semgrep/wp-ajax-no-auth-and-auth-hooks-audit
+message: |
+  These hooks allow the developer to handle the custom AJAX endpoints."wp_ajax_$action" hook get fires for any authenticated user and "wp_ajax_nopriv_$action" hook get fires for non-authenticated users.
+pattern: |
+  add_action($HOOK,...)

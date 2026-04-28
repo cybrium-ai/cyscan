@@ -1,0 +1,11 @@
+id:        CBR-JAVA-OPENAI_HARDCODED_API_KEY_JAVAS
+title:     "Openai Hardcoded Api Key Javascript"
+severity:  critical
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-798']
+source:    semgrep/openai-hardcoded-api-key-javascript
+message: |
+  OpenAI API key is hardcoded in source code. Use environment variables or a secrets manager instead.
+pattern: |
+  new OpenAI({apiKey: "$KEY", ...})
+  

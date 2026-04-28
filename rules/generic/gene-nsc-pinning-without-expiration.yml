@@ -1,0 +1,10 @@
+id:        CBR-GENE-NSC_PINNING_WITHOUT_EXPIRATION
+title:     "Nsc Pinning Without Expiration"
+severity:  medium
+languages: ['generic']
+source:    semgrep/nsc-pinning-without-expiration
+message: |
+  Your app uses TLS public key pinning without specifying an expiration date. If your users do not update the app to receive new pins in time, expired or replaced certificates can lead to connectivity issues until they install an update. It is considered best practice to set an expiration time, after which the system will default to trusting system CAs and disregard the pin.
+pattern: |
+  <pin-set ...>... ... ...</pin-set>
+  

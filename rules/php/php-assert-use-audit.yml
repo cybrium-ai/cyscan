@@ -1,0 +1,10 @@
+id:        CBR-PHP-ASSERT_USE_AUDIT
+title:     "Assert Use Audit"
+severity:  critical
+languages: ['php']
+cwe:       ['CWE-95']
+source:    semgrep/assert-use-audit
+message: |
+  Calling assert with user input is equivalent to eval'ing.
+pattern: |
+  assert($ASSERT, ...);

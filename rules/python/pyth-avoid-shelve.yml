@@ -1,0 +1,10 @@
+id:        CBR-PYTH-AVOID_SHELVE
+title:     "Avoid Shelve"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-502']
+source:    semgrep/avoid-shelve
+message: |
+  Avoid using `shelve`, which uses `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.
+pattern: |
+  shelve.$FUNC(...)

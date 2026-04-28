@@ -1,0 +1,10 @@
+id:        CBR-PYTH-FORMATHTML_FSTRING_PARAMETER
+title:     "Formathtml Fstring Parameter"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-79']
+source:    semgrep/formathtml-fstring-parameter
+message: |
+  Passing a formatted string as first parameter to `format_html` disables the proper encoding of variables. Any HTML in the first parameter is not encoded. Using a formatted string as first parameter obscures which parameters are encoded. Correct use of `format_html` is passing a static format string as first parameter, and the variables to substitute as subsequent parameters.
+pattern: |
+  format_html(<... f"..." ...>, ...)

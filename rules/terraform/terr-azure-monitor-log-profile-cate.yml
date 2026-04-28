@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_MONITOR_LOG_PROFILE_CATE
+title:     "Azure Monitor Log Profile Categories"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-monitor-log-profile-categories
+message: |
+  Ensure audit profile captures all the activities
+pattern: |
+  resource

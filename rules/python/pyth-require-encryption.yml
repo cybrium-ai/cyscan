@@ -1,0 +1,14 @@
+id:        CBR-PYTH-REQUIRE_ENCRYPTION
+title:     "Require Encryption"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-319']
+source:    semgrep/require-encryption
+message: |
+  Initializing a security context for Dask (`distributed`) without "require_encryption" keyword argument may silently fail to provide security.
+pattern: |
+  distributed.security.Security(..., require_encryption=$VAL, ...)
+  
+fix: |
+  True
+  

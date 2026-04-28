@@ -1,0 +1,10 @@
+id:        CBR-PYTH-EMPTY_AES_KEY
+title:     "Empty Aes Key"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-327', 'CWE-310']
+source:    semgrep/empty-aes-key
+message: |
+  Potential empty AES encryption key. Using an empty key in AES encryption can result in weak encryption and may allow attackers to easily decrypt sensitive data. Ensure that a strong, non-empty key is used for AES encryption.
+pattern: |
+  AES.new("",...)

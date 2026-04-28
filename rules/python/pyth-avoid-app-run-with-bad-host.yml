@@ -1,0 +1,10 @@
+id:        CBR-PYTH-AVOID_APP_RUN_WITH_BAD_HOST
+title:     "Avoid App Run With Bad Host"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-668']
+source:    semgrep/avoid_app_run_with_bad_host
+message: |
+  Running flask app with host 0.0.0.0 could expose the server publicly.
+pattern: |
+  app.run(..., host="0.0.0.0", ...)

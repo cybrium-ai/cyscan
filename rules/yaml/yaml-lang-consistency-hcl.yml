@@ -1,0 +1,11 @@
+id:        CBR-YAML-LANG_CONSISTENCY_HCL
+title:     "Lang Consistency Hcl"
+severity:  high
+languages: ['yaml']
+source:    semgrep/lang-consistency-hcl
+message: |
+  Found '$X' in language config which diverges from semgrep.dev normalization. Please use 'hcl' instead.
+pattern: |
+  $X
+fix: |
+  hcl

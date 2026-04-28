@@ -1,0 +1,10 @@
+id:        CBR-PYTH-AVOID_HARDCODED_CONFIG_TESTING
+title:     "Avoid Hardcoded Config Testing"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-489']
+source:    semgrep/avoid_hardcoded_config_TESTING
+message: |
+  Hardcoded variable `TESTING` detected. Use environment variables or config files instead
+pattern: |
+  $M.config['TESTING'] = True

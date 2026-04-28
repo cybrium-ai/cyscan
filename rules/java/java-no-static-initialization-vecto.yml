@@ -1,0 +1,15 @@
+id:        CBR-JAVA-NO_STATIC_INITIALIZATION_VECTO
+title:     "No Static Initialization Vector"
+severity:  high
+languages: ['java']
+cwe:       ['CWE-329']
+source:    semgrep/no-static-initialization-vector
+message: |
+  Initialization Vectors (IVs) for block ciphers should be randomly generated each time they are used. Using a static IV means the same plaintext encrypts to the same ciphertext every time, weakening the strength of the encryption.
+pattern: |
+  byte[] $IV = {
+      ...
+  };
+  ...
+  new IvParameterSpec($IV, ...);
+  

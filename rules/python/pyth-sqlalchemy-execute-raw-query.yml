@@ -1,0 +1,11 @@
+id:        CBR-PYTH-SQLALCHEMY_EXECUTE_RAW_QUERY
+title:     "Sqlalchemy Execute Raw Query"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-89']
+source:    semgrep/sqlalchemy-execute-raw-query
+message: |
+  Avoiding SQL string concatenation: untrusted input concatenated with raw SQL query can result in SQL Injection. In order to execute raw query safely, prepared statement should be used. SQLAlchemy provides TextualSQL to easily used prepared statement with named parameters. For complex SQL composition, use SQL Expression Language or Schema Definition Language. In most cases, SQLAlchemy ORM will be a better option.
+pattern: |
+  $CONNECTION.execute( $SQL + ..., ... )
+  

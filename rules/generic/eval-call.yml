@@ -1,0 +1,18 @@
+id:         CBR-JS-CODE-EVAL
+title:      "eval() / new Function() / setTimeout-string"
+severity:   critical
+languages:  [javascript, typescript]
+cwe:        [CWE-95, CWE-94]
+fix_recipe: CBR-CODE-AVOID-EVAL
+message: |
+  Passing a string to eval, Function(), setTimeout, or setInterval
+  turns it into executable JS. Any attacker influence = script
+  injection. Use explicit parsers, JSON.parse, or precompiled handlers.
+query: |
+  (call_expression
+    function: [
+      (identifier) @fn
+      (new_expression constructor: (identifier) @ctor)
+    ]
+    (#match? @fn "^(eval|setTimeout|setInterval)$")
+    (#match? @ctor "^Function$")) @call

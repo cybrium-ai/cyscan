@@ -1,0 +1,10 @@
+id:        CBR-TERR-GCP_FOLDER_IMPERSONATION_ROLES
+title:     "Gcp Folder Impersonation Roles Iam Binding"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-1220']
+source:    semgrep/gcp-folder-impersonation-roles-iam-binding
+message: |
+  Ensure no roles that enable to impersonate and manage all service accounts are used at a folder level	
+pattern: |
+  resource

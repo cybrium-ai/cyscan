@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_APPSERVICE_PYTHON_VERSIO
+title:     "Azure Appservice Python Version"
+severity:  medium
+languages: ['terraform']
+source:    semgrep/azure-appservice-python-version
+message: |
+  Ensure that Python version is the latest, if used to run the web app
+pattern: |
+  resource

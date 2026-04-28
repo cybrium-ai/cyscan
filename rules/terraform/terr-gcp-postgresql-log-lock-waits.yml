@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_POSTGRESQL_LOG_LOCK_WAITS
+title:     "Gcp Postgresql Log Lock Waits"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-postgresql-log-lock-waits
+message: |
+  Ensure PostgreSQL database 'log_lock_waits' flag is set to 'on'
+pattern: |
+  resource

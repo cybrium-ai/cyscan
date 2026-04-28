@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_POSTGRESQL_LOG_CONNECTION
+title:     "Gcp Postgresql Log Connection"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-postgresql-log-connection
+message: |
+  Ensure PostgreSQL database 'log_connections' flag is set to 'on'
+pattern: |
+  resource

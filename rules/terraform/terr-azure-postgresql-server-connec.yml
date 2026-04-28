@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_POSTGRESQL_SERVER_CONNEC
+title:     "Azure Postgresql Server Connection Throttling Enabled"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-postgresql-server-connection-throttling-enabled
+message: |
+  Ensure server parameter connection_throttling is set to ON for PostgreSQL Database Server
+pattern: |
+  resource

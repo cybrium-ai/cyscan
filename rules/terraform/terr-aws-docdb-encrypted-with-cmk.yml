@@ -1,0 +1,13 @@
+id:        CBR-TERR-AWS_DOCDB_ENCRYPTED_WITH_CMK
+title:     "Aws Docdb Encrypted With Cmk"
+severity:  high
+languages: ['terraform']
+cwe:       ['CWE-320']
+source:    semgrep/aws-docdb-encrypted-with-cmk
+message: |
+  Ensure DocDB is encrypted at rest using KMS CMKs. CMKs gives you control over the encryption key in terms of access and rotation.
+pattern: |
+  resource "aws_docdb_cluster" $ANYTHING {
+    ...
+  }
+  

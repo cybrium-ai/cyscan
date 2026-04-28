@@ -1,0 +1,12 @@
+id:         CBR-PY-REQUESTS-VERIFY-FALSE
+title:      "requests call with verify=False"
+severity:   high
+languages:  [python]
+cwe:        [CWE-295]
+fix_recipe: CBR-TLS-VERIFY
+message: |
+  Disabling TLS certificate verification makes the request vulnerable
+  to trivial MITM attacks. Fix the underlying certificate-chain or
+  trust-store issue instead of silencing the check.
+regex: |
+  \brequests\.(get|post|put|patch|delete|head|request)\s*\([^)]*verify\s*=\s*False

@@ -1,0 +1,10 @@
+id:        CBR-PYTH-AVOID_QUERY_SET_EXTRA
+title:     "Avoid Query Set Extra"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-89']
+source:    semgrep/avoid-query-set-extra
+message: |
+  QuerySet.extra' does not provide safeguards against SQL injection and requires very careful use. SQL injection can lead to critical data being stolen by attackers. Instead of using '.extra', use the Django ORM and parameterized queries such as `People.objects.get(name='Bob')`.
+pattern: |
+  $MODEL.extra(...)

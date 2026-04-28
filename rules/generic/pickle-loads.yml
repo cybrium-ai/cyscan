@@ -1,0 +1,16 @@
+id:         CBR-PY-PICKLE-LOADS
+title:      "pickle.loads on untrusted bytes"
+severity:   critical
+languages:  [python]
+cwe:        [CWE-502]
+fix_recipe: CBR-PY-AVOID-PICKLE
+message: |
+  pickle.loads instantiates arbitrary Python objects and runs their
+  __reduce__ methods — a classic unauthenticated RCE sink. For
+  untrusted data use JSON, protobuf, or msgpack. If pickle is
+  mandatory, wrap in a cryptographic MAC.
+query: |
+  (call
+    function: (attribute
+      object: (identifier) @m (#eq? @m "pickle")
+      attribute: (identifier) @fn (#match? @fn "^(loads?)$"))) @call

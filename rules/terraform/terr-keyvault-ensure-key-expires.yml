@@ -1,0 +1,10 @@
+id:        CBR-TERR-KEYVAULT_ENSURE_KEY_EXPIRES
+title:     "Keyvault Ensure Key Expires"
+severity:  medium
+languages: ['terraform']
+cwe:       ['CWE-262']
+source:    semgrep/keyvault-ensure-key-expires
+message: |
+  Ensure that the expiration date is set on all keys
+pattern: |
+  resource

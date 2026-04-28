@@ -1,0 +1,14 @@
+id:        CBR-GO-IMPORT_TEXT_TEMPLATE
+title:     "Import Text Template"
+severity:  high
+languages: ['go']
+cwe:       ['CWE-79']
+source:    semgrep/import-text-template
+message: |
+  When working with web applications that involve rendering user-generated  content, it's important to properly escape any HTML content to prevent  Cross-Site Scripting (XSS) attacks. In Go, the `text/template` package does  not automatically escape HTML content, which can leave your application  vulnerable to these types of attacks. To mitigate this risk, it's  recommended to use the `html/template` package instead, which provides  built-in functionality for HTML escaping. By using `html/template
+pattern: |
+  import "$IMPORT"
+  
+fix: |
+  html/template
+  

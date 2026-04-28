@@ -1,0 +1,11 @@
+id:       CBR-DEP-EVENT-STREAM-MALWARE
+title:    "event-stream 3.3.6 was trojaned"
+severity: critical
+cwe:      [CWE-506]
+message: |
+  This exact release was compromised to steal Bitcoin wallet
+  credentials. Upgrade past the fixed version.
+dependency:
+  ecosystem: npm
+  name:      event-stream
+  version:   { min: "3.3.6", max: "3.3.6" }

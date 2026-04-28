@@ -1,0 +1,20 @@
+id:        CBR-PY-SQLI-STRING-CONCAT
+title:     "String-concatenated SQL into cursor.execute"
+severity:  high
+languages: [python]
+cwe:       [CWE-89]
+fix_recipe: CWE-89-PARAMETERIZE
+message: |
+  A SQL query is assembled via string concatenation and passed to
+  cursor.execute(). Any attacker-controlled component breaks out of
+  the intended statement. Use parameterised queries instead:
+    cursor.execute("SELECT * FROM t WHERE id = %s", (val,))
+# Tree-sitter query against the Python grammar.
+# Matches: cursor.execute(<binop + string/id>)
+query: |
+  (call
+    function: (attribute
+                object: (_) @obj
+                attribute: (identifier) @method (#eq? @method "execute"))
+    arguments: (argument_list
+                 (binary_operator) @concat)) @call

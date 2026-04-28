@@ -1,0 +1,10 @@
+id:        CBR-GENE-CONF_INSECURE_COOKIE_SETTINGS
+title:     "Conf Insecure Cookie Settings"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-614']
+source:    semgrep/conf-insecure-cookie-settings
+message: |
+  Session cookie `Secure` flag is explicitly disabled. The `secure` flag for cookies prevents the client from transmitting the cookie over insecure channels such as HTTP. Set the `Secure` flag by setting `secure` to `true` in configuration file.
+pattern: |
+  secure = false

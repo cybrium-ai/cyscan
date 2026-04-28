@@ -1,0 +1,10 @@
+id:        CBR-GENE-MANIFEST_USESCLEARTEXTTRAFFIC_
+title:     "Manifest Usescleartexttraffic True"
+severity:  medium
+languages: ['generic']
+source:    semgrep/manifest-usesCleartextTraffic-true
+message: |
+  The Android manifest is configured to allow non-encrypted connections. Evaluate if this is necessary for your app, and disable it if appropriate. This flag is ignored on Android 7 (API 24) and above if a Network Security Config is present.
+pattern: |
+  android:usesCleartextTraffic="true"
+  

@@ -1,0 +1,9 @@
+id:        CBR-PYTH-PYTHON37_COMPATIBILITY_IPV6NET
+title:     "Python37 Compatibility Ipv6Network1"
+severity:  critical
+languages: ['python']
+source:    semgrep/python37-compatibility-ipv6network1
+message: |
+  IPv6Network.subnet_of is only available on Python 3.7+ and is therefore not backwards compatible. Instead, check if the subnet is in 'subnets'.
+pattern: |
+  ipaddress.IPv6Network.subnet_of($X)

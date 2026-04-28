@@ -1,0 +1,9 @@
+id:        CBR-TERR-AZURE_KEYVAULT_ENABLES_FIREWAL
+title:     "Azure Keyvault Enables Firewall Rules Settings"
+severity:  high
+languages: ['terraform']
+source:    semgrep/azure-keyvault-enables-firewall-rules-settings
+message: |
+  Ensure that key vault allows firewall rules settings
+pattern: |
+  resource

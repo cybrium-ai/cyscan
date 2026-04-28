@@ -1,0 +1,9 @@
+id:        CBR-TERR-GCP_GKE_HAS_LABELS
+title:     "Gcp Gke Has Labels"
+severity:  high
+languages: ['terraform']
+source:    semgrep/gcp-gke-has-labels
+message: |
+  Ensure Kubernetes Clusters are configured with Labels
+pattern: |
+  resource

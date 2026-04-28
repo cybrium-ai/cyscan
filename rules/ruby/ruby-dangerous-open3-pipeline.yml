@@ -1,0 +1,11 @@
+id:        CBR-RUBY-DANGEROUS_OPEN3_PIPELINE
+title:     "Dangerous Open3 Pipeline"
+severity:  high
+languages: ['ruby']
+cwe:       ['CWE-94']
+source:    semgrep/dangerous-open3-pipeline
+message: |
+  Detected non-static command inside $PIPE. Audit the input to '$PIPE'. If unverified user data can reach this call site, this is a code injection vulnerability. A malicious actor can inject a malicious script to execute arbitrary code.
+pattern: |
+  Open3.$PIPE(...)
+  

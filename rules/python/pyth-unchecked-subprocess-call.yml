@@ -1,0 +1,11 @@
+id:        CBR-PYTH-UNCHECKED_SUBPROCESS_CALL
+title:     "Unchecked Subprocess Call"
+severity:  high
+languages: ['python']
+source:    semgrep/unchecked-subprocess-call
+message: |
+  This is not checking the return value of this subprocess call; if it fails no exception will be raised. Consider subprocess.check_call() instead
+pattern: |
+  subprocess.$CALL(...)
+fix: |
+  check_call

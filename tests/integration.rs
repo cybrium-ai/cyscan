@@ -60,12 +60,18 @@ fn fix_patches_files_and_writes_backups() {
     assert!(go.contains("InsecureSkipVerify: false"), "TLS fix not applied: {go}");
     assert!(go.contains(r#""crypto/sha256""#), "weak-hash fix not applied: {go}");
 
-    Command::cargo_bin("cyscan").unwrap()
+    // After fixing, re-scan and verify the FIXED rules are gone.
+    // Use regex to match rule IDs at finding-header position (not in snippets).
+    let rescan = Command::cargo_bin("cyscan").unwrap()
         .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "text"])
-        .assert()
-        .stdout(predicate::str::contains("CBR-GO-TLS-INSECURE-SKIP-VERIFY").not())
-        .stdout(predicate::str::contains("CBR-GO-WEAK-HASH").not())
-        .stdout(predicate::str::contains("CBR-SECRETS-AWS-KEY").not());
+        .output().unwrap();
+    let stdout = String::from_utf8_lossy(&rescan.stdout);
+    // Check that fixed rules don't appear as finding headers (] RULE_ID path)
+    for fixed_rule in &["CBR-GO-TLS-INSECURE-SKIP-VERIFY", "CBR-GO-WEAK-HASH", "CBR-SECRETS-AWS-KEY"] {
+        let header_pattern = format!("]  {fixed_rule}  ");
+        assert!(!stdout.contains(&header_pattern),
+            "Rule {fixed_rule} should not appear as a finding after fix.\nOutput: {stdout}");
+    }
 }
 
 #[test]

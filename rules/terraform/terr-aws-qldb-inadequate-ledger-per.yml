@@ -1,0 +1,14 @@
+id:        CBR-TERR-AWS_QLDB_INADEQUATE_LEDGER_PER
+title:     "Aws Qldb Inadequate Ledger Permissions Mode"
+severity:  high
+languages: ['terraform']
+source:    semgrep/aws-qldb-inadequate-ledger-permissions-mode
+message: |
+  The AWS QLDB ledger permissions are too permissive. Consider using "'STANDARD'" permissions mode if possible.
+pattern: |
+  resource "aws_qldb_ledger" $ANYTHING {
+    ...
+    permissions_mode = "ALLOW_ALL"
+    ...
+  }
+  

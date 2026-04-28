@@ -1,0 +1,10 @@
+id:        CBR-GENE-REQUEST_HOST_USED
+title:     "Request Host Used"
+severity:  high
+languages: ['generic']
+cwe:       ['CWE-290']
+source:    semgrep/request-host-used
+message: |
+  '$http_host' and '$host' variables may contain a malicious value from attacker controlled 'Host' request header. Use an explicitly configured host value or a allow list for validation.
+pattern: |
+  $http_host

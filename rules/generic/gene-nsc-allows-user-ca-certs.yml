@@ -1,0 +1,10 @@
+id:        CBR-GENE-NSC_ALLOWS_USER_CA_CERTS
+title:     "Nsc Allows User Ca Certs"
+severity:  high
+languages: ['generic']
+source:    semgrep/nsc-allows-user-ca-certs
+message: |
+  The Network Security Config is set to accept user-installed CAs. Evaluate if this is necessary for your app, and disable it if appropriate. (To hide this warning, set `xmlns:tools="http://schemas.android.com/tools" tools:ignore="AcceptsUserCertificates"` as parameters to your `<network-security-config>`)
+pattern: |
+  <certificates ... user ... />
+  

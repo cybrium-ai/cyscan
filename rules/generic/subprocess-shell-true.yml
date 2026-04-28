@@ -1,0 +1,13 @@
+id:         CBR-PY-SUBPROCESS-SHELL-TRUE
+title:      "subprocess call with shell=True + dynamic command"
+severity:   high
+languages:  [python]
+cwe:        [CWE-78]
+fix_recipe: CBR-OS-COMMAND-SAFE-ARGS
+message: |
+  subprocess.* with shell=True passes the argument through the
+  system shell, giving attacker-controlled input full command-
+  injection scope. Prefer argv lists (shell=False) and never
+  concatenate user input into the command string.
+regex: |
+  \bsubprocess\.(run|call|check_call|check_output|Popen)\s*\([^)]*shell\s*=\s*True

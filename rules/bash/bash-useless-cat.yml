@@ -1,0 +1,10 @@
+id:        CBR-BASH-USELESS_CAT
+title:     "Useless Cat"
+severity:  high
+languages: ['bash']
+source:    semgrep/useless-cat
+message: |
+  Useless call to 'cat' in a pipeline. Use '<' and '>' for any command to read from a file or write to a file.
+pattern: |
+  cat | ...
+  

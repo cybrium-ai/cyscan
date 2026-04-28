@@ -1,0 +1,9 @@
+id:        CBR-JAVA-ASSIGNMENT_COMPARISON
+title:     "Assignment Comparison"
+severity:  critical
+languages: ['java']
+source:    semgrep/assignment-comparison
+message: |
+  The value of `$X` is being ignored and will be used in the conditional test
+pattern: |
+  if ($X=true) { ... }

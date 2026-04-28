@@ -1,0 +1,16 @@
+id:        CBR-YAML-API_KEY_IN_QUERY_PARAMETER
+title:     "Api Key In Query Parameter"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-598']
+source:    semgrep/api-key-in-query-parameter
+message: |
+  The $SECURITY_SCHEME security scheme passes an API key in a query parameter. API keys should not be passed as query parameters in security schemes.  Pass the API key in the header or body. If using a query parameter is necessary, ensure that the API key is tightly scoped and short lived.
+pattern: |
+  $SECURITY_SCHEME:
+    ...
+    type: apiKey
+    ...
+    in: query
+    
+  
