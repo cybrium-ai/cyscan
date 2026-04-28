@@ -1,9 +1,0 @@
-id:        CBR-TERR-GCP_GKE_ALIAS_IP_ENABLED
-title:     "Gcp Gke Alias Ip Enabled"
-severity:  high
-languages: ['terraform']
-source:    semgrep/gcp-gke-alias-ip-enabled
-message: |
-  Ensure Kubernetes Cluster is created with Alias IP ranges enabled
-pattern: |
-  resource

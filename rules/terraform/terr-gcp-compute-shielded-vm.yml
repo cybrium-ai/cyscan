@@ -1,9 +1,0 @@
-id:        CBR-TERR-GCP_COMPUTE_SHIELDED_VM
-title:     "Gcp Compute Shielded Vm"
-severity:  high
-languages: ['terraform']
-source:    semgrep/gcp-compute-shielded-vm
-message: |
-  Ensure Compute instances are launched with Shielded VM enabled
-pattern: |
-  resource

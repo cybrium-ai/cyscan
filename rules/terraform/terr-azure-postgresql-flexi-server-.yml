@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_POSTGRESQL_FLEXI_SERVER_
-title:     "Azure Postgresql Flexi Server Geo Backup Enabled"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-postgresql-flexi-server-geo-backup-enabled
-message: |
-  Ensure that PostgreSQL Flexible server enables geo-redundant backups
-pattern: |
-  resource

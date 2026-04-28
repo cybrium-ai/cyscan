@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_DEFENDERON_SQLSERVERS_VM
-title:     "Azure Defenderon Sqlservers Vms"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-defenderon-sqlservers-vms
-message: |
-  Ensure that Azure Defender is set to On for SQL servers on machines
-pattern: |
-  resource

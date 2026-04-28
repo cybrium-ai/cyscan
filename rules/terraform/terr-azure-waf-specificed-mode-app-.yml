@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_WAF_SPECIFICED_MODE_APP_
-title:     "Azure Waf Specificed Mode App Gw"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-waf-specificed-mode-app-gw
-message: |
-  Ensure that Application Gateway uses WAF in “Detection” or “Prevention” modes
-pattern: |
-  resource

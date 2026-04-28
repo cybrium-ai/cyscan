@@ -1,9 +1,0 @@
-id:        CBR-PYTH-EQEQ_IS_BAD
-title:     "Eqeq Is Bad"
-severity:  critical
-languages: ['python']
-source:    semgrep/eqeq-is-bad
-message: |
-  $X == $X is a useless equality check
-pattern: |
-  $X == $X

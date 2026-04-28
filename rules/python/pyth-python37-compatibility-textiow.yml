@@ -1,9 +1,0 @@
-id:        CBR-PYTH-PYTHON37_COMPATIBILITY_TEXTIOW
-title:     "Python37 Compatibility Textiowrapper"
-severity:  critical
-languages: ['python']
-source:    semgrep/python37-compatibility-textiowrapper
-message: |
-  Found usage of 'importlib.abc.ResourceReader'. This module is only available on Python 3.7+ and is therefore not backwards compatible. Instead, use another loader.
-pattern: |
-  TextIOWrapper.reconfigure(...)

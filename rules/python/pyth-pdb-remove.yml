@@ -1,9 +1,0 @@
-id:        CBR-PYTH-PDB_REMOVE
-title:     "Pdb Remove"
-severity:  high
-languages: ['python']
-source:    semgrep/pdb-remove
-message: |
-  pdb is an interactive debugging tool and you may have forgotten to remove it before committing your code
-pattern: |
-  pdb.$X(...)

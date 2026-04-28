@@ -1,9 +1,0 @@
-id:        CBR-KOTL-DETECT_GEMINI
-title:     "Detect Gemini"
-severity:  medium
-languages: ['kotlin']
-source:    semgrep/detect-gemini
-message: |
-  Possibly found usage of AI: Gemini
-pattern: |
-  import com.google.ai

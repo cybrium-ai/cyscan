@@ -1,9 +1,0 @@
-id:        CBR-CSHA-DETECT_OPENAI
-title:     "Detect Openai"
-severity:  medium
-languages: ['csharp']
-source:    semgrep/detect-openai
-message: |
-  Possibly found usage of AI: OpenAI
-pattern: |
-  using OpenAI

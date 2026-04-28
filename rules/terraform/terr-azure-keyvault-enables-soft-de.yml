@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_KEYVAULT_ENABLES_SOFT_DE
-title:     "Azure Keyvault Enables Soft Delete"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-keyvault-enables-soft-delete
-message: |
-  Ensure that key vault enables soft delete
-pattern: |
-  resource

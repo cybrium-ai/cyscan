@@ -1,9 +1,0 @@
-id:        CBR-PYTH-PYTHON36_COMPATIBILITY_POPEN1
-title:     "Python36 Compatibility Popen1"
-severity:  critical
-languages: ['python']
-source:    semgrep/python36-compatibility-Popen1
-message: |
-  the `errors` argument to Popen is only available on Python 3.6+
-pattern: |
-  subprocess.Popen(errors=$X, ...)

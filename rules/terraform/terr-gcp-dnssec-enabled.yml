@@ -1,9 +1,0 @@
-id:        CBR-TERR-GCP_DNSSEC_ENABLED
-title:     "Gcp Dnssec Enabled"
-severity:  high
-languages: ['terraform']
-source:    semgrep/gcp-dnssec-enabled
-message: |
-  Ensure that RSASHA1 is not used for the zone-signing and key-signing keys in Cloud DNS DNSSEC	
-pattern: |
-  resource

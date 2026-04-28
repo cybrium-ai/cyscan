@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_APPSERVICE_HTTPS_20_ENAB
-title:     "Azure Appservice Https 20 Enabled"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-appservice-https-20-enabled
-message: |
-  Ensure that HTTP Version is the latest if used to run the web app
-pattern: |
-  resource

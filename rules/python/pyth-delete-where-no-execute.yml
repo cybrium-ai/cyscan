@@ -1,9 +1,0 @@
-id:        CBR-PYTH-DELETE_WHERE_NO_EXECUTE
-title:     "Delete Where No Execute"
-severity:  critical
-languages: ['python']
-source:    semgrep/delete-where-no-execute
-message: |
-  .delete().where(...) results in a no-op in SQLAlchemy unless the command is executed, use .filter(...).delete() instead.
-pattern: |
-  $X.delete().where(...)

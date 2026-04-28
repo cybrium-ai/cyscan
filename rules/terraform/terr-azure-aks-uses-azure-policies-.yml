@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_AKS_USES_AZURE_POLICIES_
-title:     "Azure Aks Uses Azure Policies Addon"
-severity:  medium
-languages: ['terraform']
-source:    semgrep/azure-aks-uses-azure-policies-addon
-message: |
-  Ensure that AKS uses Azure Policies Add-on
-pattern: |
-  resource

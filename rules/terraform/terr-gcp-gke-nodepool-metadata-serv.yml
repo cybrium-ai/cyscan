@@ -1,9 +1,0 @@
-id:        CBR-TERR-GCP_GKE_NODEPOOL_METADATA_SERV
-title:     "Gcp Gke Nodepool Metadata Server Enabled"
-severity:  high
-languages: ['terraform']
-source:    semgrep/gcp-gke-nodepool-metadata-server-enabled
-message: |
-  Ensure the GKE Metadata Server is Enabled	
-pattern: |
-  resource
