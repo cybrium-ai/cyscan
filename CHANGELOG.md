@@ -2,6 +2,11 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.8.1] — 2026-04-29
+
+### Added
+- **Endpoint security scanner** — `cyscan endpoint` scans the local machine for security posture issues. 23 macOS checks (FileVault, Gatekeeper, SIP, Firewall, auto-update, screen lock, SSH, ARD, sharing services, XProtect, Find My Mac, guest account, unsigned kexts) and 12 Linux checks (LUKS, UFW/iptables, SELinux/AppArmor, SSH hardening, SUID binaries, ASLR, auditd). Scored 0-100 weighted by severity. Supports `--format json` and `--fail-below` for CI gates.
+
 ## [0.8.0] — 2026-04-28
 
 ### Added
