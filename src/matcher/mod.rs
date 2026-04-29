@@ -1,5 +1,6 @@
 //! Matcher dispatch — picks regex vs tree-sitter per rule, emits findings.
 
+pub mod entropy;
 pub mod regex;
 pub mod treesitter;
 
@@ -47,5 +48,10 @@ pub fn run_rules<'a>(
             findings.extend(regex::match_rule(rule, path, source));
         }
     }
+
+    // Entropy-based secret detection — runs on every file regardless of rules.
+    // Catches secrets that don't match any known pattern.
+    findings.extend(entropy::scan_file(path, source));
+
     findings
 }

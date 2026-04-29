@@ -107,6 +107,10 @@ impl Lang {
             "json" => Self::Json,
             "yml" | "yaml" => Self::Yaml,
             "tf" | "hcl" => Self::Terraform,
+            // Config / env files — scan as generic for secret detection
+            "env" | "cfg" | "conf" | "config" | "secret" | "secrets"
+                | "credentials" | "pem" | "key" | "crt" | "cert"
+                | "keystore" | "jks" | "p12" | "pfx" => Self::Generic,
             _ => return None,
         })
     }
@@ -122,6 +126,11 @@ impl Lang {
                 "CMakeLists.txt" => return Some(Self::Cmake),
                 "Gemfile" | "Rakefile" => return Some(Self::Ruby),
                 "BUILD" | "BUILD.bazel" | "WORKSPACE" => return Some(Self::Bazel),
+                // Config / secret files — scan as generic for entropy detection
+                ".env" | ".env.local" | ".env.production" | ".env.staging"
+                    | ".env.development" | ".env.test" | ".npmrc" | ".pypirc"
+                    | ".netrc" | ".pgpass" | ".my.cnf" | ".git-credentials"
+                    | "credentials" | "config" => return Some(Self::Generic),
                 _ => {}
             }
             // Ansible playbooks / roles
