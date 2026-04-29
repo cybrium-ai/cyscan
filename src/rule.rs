@@ -7,6 +7,48 @@ use serde::{Deserialize, Serialize};
 
 use crate::{finding::Severity, lang::Lang, supply::policy::DependencyPolicy};
 
+/// CIA impact level for a finding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum CiaImpact {
+    #[default]
+    None,
+    Low,
+    Medium,
+    High,
+}
+
+impl CiaImpact {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::None   => "none",
+            Self::Low    => "low",
+            Self::Medium => "medium",
+            Self::High   => "high",
+        }
+    }
+
+    pub fn score(self) -> u32 {
+        match self {
+            Self::None   => 0,
+            Self::Low    => 1,
+            Self::Medium => 2,
+            Self::High   => 3,
+        }
+    }
+}
+
+/// CIA triad impact classification for a rule.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CiaTriad {
+    #[serde(default)]
+    pub confidentiality: CiaImpact,
+    #[serde(default)]
+    pub integrity:       CiaImpact,
+    #[serde(default)]
+    pub availability:    CiaImpact,
+}
+
 /// A single detection rule as authored in YAML.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Rule {
@@ -49,9 +91,22 @@ pub struct Rule {
     /// Source attribution (e.g., "semgrep/rule-id", "peridex/auto").
     #[serde(default)]
     pub source:    Option<String>,
+    /// CIA triad impact classification. Rules without explicit `cia:` get
+    /// auto-classified by the heuristic in `cia_auto_classify()`.
+    #[serde(default)]
+    pub cia:       Option<CiaTriad>,
 }
 
 impl Rule {
+    /// Returns the CIA impact for this rule — explicit if set, otherwise
+    /// auto-classified from the rule's CWE, title, and category.
+    pub fn cia_impact(&self) -> CiaTriad {
+        if let Some(ref cia) = self.cia {
+            return cia.clone();
+        }
+        cia_auto_classify(self)
+    }
+
     pub fn validate(&self) -> Result<()> {
         if self.id.is_empty() {
             bail!("rule has empty id");
@@ -70,6 +125,124 @@ impl Rule {
             bail!("rule {}: neither query, regex, nor pattern set", self.id);
         }
         Ok(())
+    }
+}
+
+/// Heuristic CIA classification based on CWE, rule ID, and title.
+fn cia_auto_classify(rule: &Rule) -> CiaTriad {
+    let id = rule.id.to_uppercase();
+    let title = rule.title.to_lowercase();
+    let cwes: Vec<&str> = rule.cwe.iter().map(|s| s.as_str()).collect();
+
+    // Secret / credential rules → C:high, I:medium, A:low
+    if id.contains("SEC-") || id.contains("SECRET") || id.contains("CREDENTIAL")
+        || id.contains("PASSWORD") || id.contains("TOKEN") || id.contains("API-KEY")
+        || cwes.contains(&"CWE-798") || cwes.contains(&"CWE-312")
+    {
+        return CiaTriad {
+            confidentiality: CiaImpact::High,
+            integrity: CiaImpact::Medium,
+            availability: CiaImpact::Low,
+        };
+    }
+
+    // Encryption rules → C:high, I:low, A:low
+    if title.contains("encrypt") || title.contains("tls") || title.contains("ssl")
+        || cwes.contains(&"CWE-311") || cwes.contains(&"CWE-326") || cwes.contains(&"CWE-319")
+    {
+        return CiaTriad {
+            confidentiality: CiaImpact::High,
+            integrity: CiaImpact::Low,
+            availability: CiaImpact::Low,
+        };
+    }
+
+    // Injection / RCE rules → C:high, I:high, A:high
+    if title.contains("injection") || title.contains("rce") || title.contains("command")
+        || title.contains("deserialization") || title.contains("code execution")
+        || cwes.contains(&"CWE-78") || cwes.contains(&"CWE-79") || cwes.contains(&"CWE-89")
+        || cwes.contains(&"CWE-94") || cwes.contains(&"CWE-502")
+    {
+        return CiaTriad {
+            confidentiality: CiaImpact::High,
+            integrity: CiaImpact::High,
+            availability: CiaImpact::High,
+        };
+    }
+
+    // Access control / RBAC / privilege rules → C:high, I:high, A:medium
+    if title.contains("privilege") || title.contains("rbac") || title.contains("wildcard")
+        || title.contains("root") || title.contains("admin") || title.contains("permission")
+        || cwes.contains(&"CWE-269") || cwes.contains(&"CWE-250") || cwes.contains(&"CWE-732")
+        || cwes.contains(&"CWE-284")
+    {
+        return CiaTriad {
+            confidentiality: CiaImpact::High,
+            integrity: CiaImpact::High,
+            availability: CiaImpact::Medium,
+        };
+    }
+
+    // Public access / exposure rules → C:high, I:medium, A:low
+    if title.contains("public") || title.contains("exposed") || title.contains("open to")
+        || title.contains("0.0.0.0") || title.contains("ingress")
+    {
+        return CiaTriad {
+            confidentiality: CiaImpact::High,
+            integrity: CiaImpact::Medium,
+            availability: CiaImpact::Low,
+        };
+    }
+
+    // Backup / availability rules → C:low, I:low, A:high
+    if title.contains("backup") || title.contains("redundan") || title.contains("health check")
+        || title.contains("rate limit") || title.contains("dos") || title.contains("timeout")
+        || cwes.contains(&"CWE-693") || cwes.contains(&"CWE-770")
+    {
+        return CiaTriad {
+            confidentiality: CiaImpact::Low,
+            integrity: CiaImpact::Low,
+            availability: CiaImpact::High,
+        };
+    }
+
+    // Logging / audit rules → C:medium, I:medium, A:low
+    if title.contains("logging") || title.contains("audit") || title.contains("monitor")
+        || cwes.contains(&"CWE-778")
+    {
+        return CiaTriad {
+            confidentiality: CiaImpact::Medium,
+            integrity: CiaImpact::Medium,
+            availability: CiaImpact::Low,
+        };
+    }
+
+    // Integrity-focused (signing, hashing, verification)
+    if title.contains("sign") || title.contains("hash") || title.contains("verif")
+        || title.contains("integrity") || title.contains("tampering")
+        || cwes.contains(&"CWE-354") || cwes.contains(&"CWE-345")
+    {
+        return CiaTriad {
+            confidentiality: CiaImpact::Low,
+            integrity: CiaImpact::High,
+            availability: CiaImpact::Low,
+        };
+    }
+
+    // License compliance → C:none, I:none, A:none (legal, not security)
+    if id.contains("LIC-") {
+        return CiaTriad {
+            confidentiality: CiaImpact::None,
+            integrity: CiaImpact::None,
+            availability: CiaImpact::None,
+        };
+    }
+
+    // Default: medium across the board
+    CiaTriad {
+        confidentiality: CiaImpact::Medium,
+        integrity: CiaImpact::Medium,
+        availability: CiaImpact::Low,
     }
 }
 

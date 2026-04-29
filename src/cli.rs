@@ -46,9 +46,12 @@ enum Cmd {
         jobs: Option<usize>,
 
         /// Verify detected secrets are live by making safe, read-only API calls.
-        /// Supports 20+ providers (GitHub, Slack, Stripe, OpenAI, etc.).
         #[arg(long, default_value_t = false)]
         verify: bool,
+
+        /// Show CIA triad posture summary (Confidentiality, Integrity, Availability scores).
+        #[arg(long, default_value_t = false)]
+        cia: bool,
     },
 
     /// Scan dependency lockfiles against advisories + typosquat + policy.
@@ -250,7 +253,7 @@ pub fn run() -> Result<ExitCode> {
         _ => {}
     }
     match cli.cmd {
-        Cmd::Scan { target, rules, format, fail_on, jobs, verify } => {
+        Cmd::Scan { target, rules, format, fail_on, jobs, verify, cia: show_cia } => {
             if let Some(n) = jobs {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(n)
@@ -273,6 +276,19 @@ pub fn run() -> Result<ExitCode> {
                 Format::Text  => output::text::emit(&findings)?,
                 Format::Json  => output::json::emit(&findings)?,
                 Format::Sarif => output::sarif::emit(&findings)?,
+            }
+
+            if show_cia {
+                let cia_scores = crate::cia::score(&findings, &pack);
+                match format {
+                    Format::Json => {
+                        println!("{}", serde_json::to_string_pretty(&cia_scores).unwrap_or_default());
+                    }
+                    _ => {
+                        crate::cia::print_summary(&cia_scores, &findings, &pack);
+                    }
+                    Format::Sarif => {}
+                }
             }
 
             let fail_hit = match fail_on {
