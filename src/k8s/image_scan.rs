@@ -96,7 +96,8 @@ fn extract_packages(image_tar: &std::path::Path) -> Result<Vec<OsPackage>> {
     let mut packages = Vec::new();
     let mut dpkg_status = String::new();
     let mut apk_installed = String::new();
-    let mut rpm_db: Vec<u8> = Vec::new();
+    let mut rpm_manifest = String::new();
+    let mut pacman_local: Vec<(String, String)> = Vec::new();
 
     // Image tarball contains layer tarballs
     for entry in archive.entries()? {
@@ -131,10 +132,24 @@ fn extract_packages(image_tar: &std::path::Path) -> Result<Vec<OsPackage>> {
                         layer_entry.read_to_string(&mut apk_installed).ok();
                     }
 
-                    // rpm (RHEL/CentOS/Fedora) — binary DB, parse names from directory listing
-                    if lpath_str.contains("var/lib/rpm/") {
-                        rpm_db.clear();
-                        layer_entry.read_to_end(&mut rpm_db).ok();
+                    // rpm (RHEL/CentOS/Fedora) — text manifest or rpmdb.sqlite
+                    if lpath_str.ends_with("var/lib/rpm/Packages") || lpath_str.ends_with("var/lib/rpm/rpmdb.sqlite") {
+                        // Binary DB — fall back to rpm -qa inside container later
+                    }
+                    // rpm manifest (newer dnf-based systems)
+                    if lpath_str.ends_with("var/lib/dnf/history.sqlite") || lpath_str.contains("var/log/dnf.rpm.log") {
+                        rpm_manifest.clear();
+                        layer_entry.read_to_string(&mut rpm_manifest).ok();
+                    }
+
+                    // pacman (Arch Linux) — /var/lib/pacman/local/<pkg>-<ver>/desc
+                    if lpath_str.contains("var/lib/pacman/local/") && lpath_str.ends_with("/desc") {
+                        let mut desc = String::new();
+                        if layer_entry.read_to_string(&mut desc).is_ok() {
+                            if let Some((name, ver)) = parse_pacman_desc(&desc) {
+                                pacman_local.push((name, ver));
+                            }
+                        }
                     }
                 }
             }
@@ -147,6 +162,22 @@ fn extract_packages(image_tar: &std::path::Path) -> Result<Vec<OsPackage>> {
     }
     if !apk_installed.is_empty() {
         packages.extend(parse_apk_installed(&apk_installed));
+    }
+    if !pacman_local.is_empty() {
+        for (name, ver) in &pacman_local {
+            packages.push(OsPackage {
+                name: name.clone(),
+                version: ver.clone(),
+                source: "pacman".into(),
+            });
+        }
+    }
+
+    // If no package DB found in layers, try `docker run rpm -qa` for rpm-based images
+    if packages.is_empty() {
+        if let Ok(rpm_pkgs) = extract_rpm_via_docker(image_tar) {
+            packages.extend(rpm_pkgs);
+        }
     }
 
     Ok(packages)
@@ -220,6 +251,96 @@ fn parse_apk_installed(content: &str) -> Vec<OsPackage> {
     packages
 }
 
+/// Parse pacman desc file.
+/// Format: sections delimited by %NAME%, %VERSION%, etc.
+fn parse_pacman_desc(content: &str) -> Option<(String, String)> {
+    let mut name = None;
+    let mut version = None;
+    let mut current_section = "";
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('%') && trimmed.ends_with('%') {
+            current_section = trimmed;
+        } else if !trimmed.is_empty() {
+            match current_section {
+                "%NAME%" => name = Some(trimmed.to_string()),
+                "%VERSION%" => version = Some(trimmed.to_string()),
+                _ => {}
+            }
+        }
+    }
+
+    match (name, version) {
+        (Some(n), Some(v)) => Some((n, v)),
+        _ => None,
+    }
+}
+
+/// Extract RPM packages by running rpm -qa inside a temporary container.
+/// This handles rpm-based images (RHEL, CentOS, Fedora, Amazon Linux)
+/// where the binary rpmdb can't be parsed directly.
+fn extract_rpm_via_docker(image_tar: &std::path::Path) -> Result<Vec<OsPackage>> {
+    // Get the image name from the tar manifest
+    let file = std::fs::File::open(image_tar)?;
+    let mut archive = tar::Archive::new(file);
+    let mut image_name = String::new();
+
+    for entry in archive.entries()? {
+        let mut entry = entry?;
+        let path = entry.path()?.to_path_buf();
+        if path.to_string_lossy() == "manifest.json" {
+            let mut content = String::new();
+            entry.read_to_string(&mut content).ok();
+            if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(tags) = manifest.as_array()
+                    .and_then(|a| a.first())
+                    .and_then(|m| m.get("RepoTags"))
+                    .and_then(|t| t.as_array())
+                {
+                    if let Some(tag) = tags.first().and_then(|t| t.as_str()) {
+                        image_name = tag.to_string();
+                    }
+                }
+            }
+            break;
+        }
+    }
+
+    if image_name.is_empty() {
+        bail!("could not determine image name from tarball");
+    }
+
+    // Run rpm -qa inside a temporary container
+    let out = Command::new("docker")
+        .args(["run", "--rm", "--entrypoint", "rpm", &image_name, "-qa", "--queryformat", "%{NAME} %{VERSION}-%{RELEASE}\n"])
+        .output()?;
+
+    if !out.status.success() {
+        bail!("rpm -qa failed inside container");
+    }
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let mut packages = Vec::new();
+
+    for line in stdout.lines() {
+        let mut parts = line.splitn(2, ' ');
+        if let (Some(name), Some(version)) = (parts.next(), parts.next()) {
+            let name = name.trim().to_string();
+            let version = version.trim().to_string();
+            if !name.is_empty() && !version.is_empty() && name != "(none)" {
+                packages.push(OsPackage {
+                    name,
+                    version,
+                    source: "rpm".into(),
+                });
+            }
+        }
+    }
+
+    Ok(packages)
+}
+
 /// Look up vulnerabilities for OS packages via OSV.dev API.
 fn lookup_vulns(packages: &[OsPackage], image: &str) -> Result<Vec<Finding>> {
     let client = reqwest::blocking::Client::builder()
@@ -232,10 +353,11 @@ fn lookup_vulns(packages: &[OsPackage], image: &str) -> Result<Vec<Finding>> {
     for chunk in packages.chunks(1000) {
         let queries: Vec<serde_json::Value> = chunk.iter().map(|pkg| {
             let ecosystem = match pkg.source.as_str() {
-                "dpkg" => "Debian",
-                "apk"  => "Alpine",
-                "rpm"  => "Red Hat",
-                _      => "Linux",
+                "dpkg"   => "Debian",
+                "apk"    => "Alpine",
+                "rpm"    => "Red Hat",
+                "pacman" => "Arch Linux",
+                _        => "Linux",
             };
             serde_json::json!({
                 "package": { "name": pkg.name, "ecosystem": ecosystem },
