@@ -81,6 +81,17 @@ pub struct RulePack {
 impl RulePack {
     pub fn rules(&self) -> &[Rule] { &self.rules }
 
+    /// Return a new RulePack containing only rules for the given languages.
+    pub fn filter_languages(&self, langs: &[&str]) -> Self {
+        let rules = self.rules.iter()
+            .filter(|r| {
+                r.languages.iter().any(|l| langs.contains(&l.as_str()))
+            })
+            .cloned()
+            .collect();
+        Self { rules }
+    }
+
     /// Parse every `.yml` / `.yaml` file under `dir` as a rule.
     pub fn load_dir(dir: &Path) -> Result<Self> {
         if !dir.exists() {

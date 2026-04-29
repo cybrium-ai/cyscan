@@ -5,7 +5,7 @@ use std::{path::PathBuf, process::ExitCode};
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::{finding::Severity, fixer, output, rule::RulePack, scanner, self_update, supply};
+use crate::{finding::Severity, fixer, k8s, output, rule::RulePack, scanner, self_update, supply};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -131,11 +131,45 @@ enum Cmd {
         format: Format,
     },
 
+    /// Scan a live Kubernetes cluster for vulnerabilities, misconfigs, and secrets.
+    K8s {
+        /// Kubeconfig file path (uses default if omitted).
+        #[arg(long)]
+        kubeconfig: Option<PathBuf>,
+
+        /// Scan a specific namespace only (default: all namespaces).
+        #[arg(long, short = 'n')]
+        namespace: Option<String>,
+
+        /// Report format: summary (table) or full (detailed findings).
+        #[arg(long, default_value = "summary")]
+        report: K8sReportMode,
+
+        /// Also scan container images for CVEs (requires grype or trivy).
+        #[arg(long, default_value_t = false)]
+        scan_images: bool,
+
+        /// Rule pack directory.
+        #[arg(long, short = 'r')]
+        rules: Option<PathBuf>,
+
+        /// Exit with non-zero if any finding at or above this severity.
+        #[arg(long)]
+        fail_on: Option<Severity>,
+    },
+
     /// Check for updates and self-update the binary.
     Update,
 
     /// Show version and check for updates.
     Version,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+pub enum K8sReportMode {
+    #[default]
+    Summary,
+    Full,
 }
 
 #[derive(Debug, Subcommand)]
@@ -321,6 +355,28 @@ pub fn run() -> Result<ExitCode> {
                 }
             }
             Ok(ExitCode::from(0))
+        }
+
+        Cmd::K8s { kubeconfig, namespace, report, scan_images, rules, fail_on } => {
+            print_banner();
+            let pack = load_pack(rules.as_deref())?;
+            let opts = k8s::K8sOptions {
+                kubeconfig,
+                namespace,
+                scan_images,
+            };
+            let k8s_report = k8s::run(&pack, &opts)?;
+
+            match report {
+                K8sReportMode::Summary => k8s::summary::print_summary(&k8s_report),
+                K8sReportMode::Full    => k8s::summary::print_full(&k8s_report),
+            }
+
+            let fail_hit = match fail_on {
+                Some(min) => k8s_report.all_findings.iter().any(|f| f.severity >= min),
+                None      => false,
+            };
+            Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
         }
 
         Cmd::Update => {
