@@ -5,6 +5,7 @@
 //! same modules. The binary at `src/main.rs` is a ~10-line wrapper.
 
 pub mod cli;
+pub mod endpoint;
 pub mod finding;
 pub mod fixer;
 pub mod framework;

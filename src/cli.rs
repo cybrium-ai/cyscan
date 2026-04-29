@@ -167,6 +167,17 @@ enum Cmd {
         fail_on: Option<Severity>,
     },
 
+    /// Scan this endpoint for security posture (encryption, firewall, updates, etc.).
+    Endpoint {
+        /// Output format.
+        #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
+        format: Format,
+
+        /// Exit with non-zero if score is below this threshold (0-100).
+        #[arg(long)]
+        fail_below: Option<u32>,
+    },
+
     /// Check for updates and self-update the binary.
     Update,
 
@@ -397,6 +408,65 @@ pub fn run() -> Result<ExitCode> {
             let fail_hit = match fail_on {
                 Some(min) => k8s_report.all_findings.iter().any(|f| f.severity >= min),
                 None      => false,
+            };
+            Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
+        }
+
+        Cmd::Endpoint { format, fail_below } => {
+            print_banner();
+            let report = crate::endpoint::scan();
+
+            match format {
+                Format::Json => {
+                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                }
+                _ => {
+                    let icon = if report.score >= 80 { "\x1b[32mGOOD\x1b[0m" }
+                        else if report.score >= 50 { "\x1b[33mFAIR\x1b[0m" }
+                        else { "\x1b[31mPOOR\x1b[0m" };
+
+                    println!();
+                    println!("  Endpoint: {} ({})", report.hostname, report.os);
+                    println!("  OS Version: {}", report.os_version);
+                    println!();
+                    println!("  Security Score: {}/100 [{}]", report.score, icon);
+                    println!("  Passed: {}  Failed: {}  Total: {}", report.passed, report.failed, report.total);
+                    println!();
+
+                    for check in &report.checks {
+                        let status = if check.passed {
+                            "\x1b[32m PASS \x1b[0m"
+                        } else {
+                            match check.severity.as_str() {
+                                "critical" => "\x1b[31m FAIL \x1b[0m",
+                                "high"     => "\x1b[33m FAIL \x1b[0m",
+                                _          => "\x1b[36m FAIL \x1b[0m",
+                            }
+                        };
+                        let sev = match check.severity.as_str() {
+                            "critical" => "CRIT",
+                            "high" => "HIGH",
+                            "medium" => "MED ",
+                            "low" => "LOW ",
+                            _ => "INFO",
+                        };
+                        println!("  [{}] [{}] {}", status, sev, check.name);
+                        if !check.passed {
+                            println!("           {}", check.detail);
+                            println!("           \x1b[2m{}\x1b[0m", check.remediation);
+                        }
+                    }
+                    println!();
+                }
+                Format::Sarif => {
+                    // Convert to findings for SARIF output
+                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                }
+            }
+
+            let fail_hit = match fail_below {
+                Some(threshold) => report.score < threshold,
+                None => false,
             };
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
         }
