@@ -10,6 +10,7 @@
 //! against the SARIF this module emits. See docs/sprints/sprint-34.md.
 
 pub mod advisory;
+pub mod license;
 pub mod lockfile;
 pub mod policy;
 pub mod typosquat;
@@ -31,6 +32,7 @@ pub fn run(target: &Path, pack: &RulePack, advisories: &advisory::Snapshot) -> R
     findings.extend(advisory::scan(&deps, advisories));
     findings.extend(typosquat::scan(&deps));
     findings.extend(policy::scan(&deps, pack.rules()));
+    findings.extend(license::scan(&deps));
 
     findings.sort_by(|a, b| {
         b.severity.cmp(&a.severity)

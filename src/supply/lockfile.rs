@@ -42,6 +42,8 @@ pub struct Dependency {
     pub name:      String,
     pub version:   String,
     pub lockfile:  PathBuf,
+    /// SPDX license identifier (if available from lockfile/manifest).
+    pub license:   Option<String>,
 }
 
 /// Walk `root`, parsing every lockfile into a flat list of deps.
@@ -89,6 +91,7 @@ fn parse_cargo_lock(path: &Path) -> Result<Vec<Dependency>> {
             name:      p.name,
             version:   p.version,
             lockfile:  path.to_path_buf(),
+            license:   None, // Cargo.lock doesn't carry license; Cargo.toml would
         }).collect())
 }
 
@@ -112,11 +115,14 @@ fn parse_npm_lock(path: &Path) -> Result<Vec<Dependency>> {
             // last `node_modules/` segment.
             let name = key.rsplit("node_modules/").next().unwrap_or(key).to_string();
             let Some(ver) = meta.get("version").and_then(|x| x.as_str()) else { continue };
+            // npm v2+ packages carry a "license" field
+            let license = meta.get("license").and_then(|l| l.as_str()).map(|s| s.to_string());
             out.push(Dependency {
                 ecosystem: Ecosystem::Npm,
                 name,
                 version:   ver.to_string(),
                 lockfile:  path.to_path_buf(),
+                license,
             });
         }
         return Ok(out);
@@ -137,6 +143,7 @@ fn walk_npm_v1(deps: &serde_json::Map<String, serde_json::Value>, path: &Path, o
                 name:      name.clone(),
                 version:   ver.to_string(),
                 lockfile:  path.to_path_buf(),
+                license:   None,
             });
         }
         if let Some(nested) = meta.get("dependencies").and_then(|x| x.as_object()) {
@@ -183,6 +190,7 @@ fn parse_yarn_lock(path: &Path) -> Result<Vec<Dependency>> {
                     name:      name.clone(),
                     version,
                     lockfile:  path.to_path_buf(),
+                    license:   None,
                 });
                 current_name = None;
             }
@@ -215,6 +223,7 @@ fn parse_go_sum(path: &Path) -> Result<Vec<Dependency>> {
             name:      name.to_string(),
             version,
             lockfile:  path.to_path_buf(),
+            license:   None,
         });
     }
     Ok(out)
@@ -245,6 +254,7 @@ fn parse_requirements(path: &Path) -> Result<Vec<Dependency>> {
             name,
             version,
             lockfile: path.to_path_buf(),
+            license:  None,
         });
     }
     Ok(out)
@@ -265,5 +275,6 @@ fn parse_poetry_lock(path: &Path) -> Result<Vec<Dependency>> {
         name:      p.name,
         version:   p.version,
         lockfile:  path.to_path_buf(),
+        license:   None,
     }).collect())
 }
