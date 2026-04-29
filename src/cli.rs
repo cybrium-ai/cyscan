@@ -44,6 +44,11 @@ enum Cmd {
         /// Parallelism override. Default = rayon's detected CPU count.
         #[arg(long)]
         jobs: Option<usize>,
+
+        /// Verify detected secrets are live by making safe, read-only API calls.
+        /// Supports 20+ providers (GitHub, Slack, Stripe, OpenAI, etc.).
+        #[arg(long, default_value_t = false)]
+        verify: bool,
     },
 
     /// Scan dependency lockfiles against advisories + typosquat + policy.
@@ -220,7 +225,7 @@ pub fn run() -> Result<ExitCode> {
         _ => {}
     }
     match cli.cmd {
-        Cmd::Scan { target, rules, format, fail_on, jobs } => {
+        Cmd::Scan { target, rules, format, fail_on, jobs, verify } => {
             if let Some(n) = jobs {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(n)
@@ -228,7 +233,16 @@ pub fn run() -> Result<ExitCode> {
                     .ok();
             }
             let pack = load_pack(rules.as_deref())?;
-            let findings = scanner::run(&target, &pack)?;
+            let mut findings = scanner::run(&target, &pack)?;
+
+            if verify {
+                eprintln!("Verifying detected secrets...");
+                crate::matcher::verify::enrich_findings(&mut findings);
+                let live_count = findings.iter()
+                    .filter(|f| f.evidence.get("verified").and_then(|v| v.as_bool()) == Some(true))
+                    .count();
+                eprintln!("  {} live secrets confirmed", live_count);
+            }
 
             match format {
                 Format::Text  => output::text::emit(&findings)?,
