@@ -2,6 +2,12 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.8.2] — 2026-04-29
+
+### Added
+- **Application package scanner** — `cyscan app` scans .app, .ipa, .pkg, .apk, .aab, .exe, .msi, .deb, .rpm for security issues. macOS .app checks (12+): code signing, entitlements, sandbox, ATS, Hardened Runtime, notarization, privacy manifest, binary secrets, framework signing. iOS .ipa: provisioning profile, ATS, privacy manifest, binary secrets. Android .apk: debuggable flag, backup, cleartext traffic, permissions (13 dangerous), DEX secrets. Package installers (.pkg/.deb/.rpm): script analysis (curl-pipe-bash, chmod 777, hardcoded passwords), signing, SUID binaries.
+- **NOTICE file** with trademark protection for all Cybrium marks (Cybrium, CyConscious, Cymind, PeriDex, Dexter, cyscan, cyweb, cyprobe, cysense, cyguard, cywave, cydeep, cymail).
+
 ## [0.8.1] — 2026-04-29
 
 ### Added
