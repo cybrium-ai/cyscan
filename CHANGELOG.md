@@ -2,6 +2,32 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.8.0] — 2026-04-28
+
+### Added
+- **Kubernetes cluster scanning** — `cyscan k8s` connects to live clusters via kubectl, extracts manifests from 19 resource types, scans for misconfigurations/secrets, and renders a Trivy-style summary table. Supports `--report summary|full`, `--format json|sarif`, `--namespace`, `--scan-images`, `--fail-on`.
+- **Native container image CVE scanning** — `cyscan k8s --scan-images` extracts OS packages (dpkg, apk, rpm, pacman) from image layers and queries OSV + NVD + GitHub Advisories. No grype/trivy dependency required.
+- **296 secret detection rules** — full GitLeaks rule set (222 patterns) plus 74 custom rules covering AI providers, database URIs, IaC secrets, and generic patterns. Covers 100+ providers including 1Password, Adobe, Alibaba, Facebook, Fly.io, Grafana, HubSpot, Notion, Twitter/X, and more.
+- **Entropy-based secret detection** — Shannon entropy analysis catches high-randomness strings that don't match any known pattern. Thresholds: hex >= 3.0, base64 >= 4.0, generic >= 4.5 bits/char. False positive suppression for UUIDs, git SHAs, URLs, file paths, semver.
+- **Secret liveness verification** — `cyscan scan --verify` tests if detected credentials are live via safe, read-only API calls. 20+ providers supported (GitHub, Slack, Stripe, OpenAI, Anthropic, etc.). Live secrets escalated to CRITICAL.
+- **License compliance scanning** — `cyscan supply` now flags risky licenses (AGPL, GPL, LGPL, SSPL, BUSL, Elastic). Handles compound SPDX expressions. Five risk categories: permissive, weak-copyleft, copyleft, network-copyleft, restricted.
+- **Cloud-native IaC rules** — 59 rules for AWS CloudFormation (22), Azure ARM templates (19), GCP Deployment Manager (18). Covers S3, RDS, IAM, NSG, SQL Server, Key Vault, Compute, Firewall, GKE, and more.
+- **.env and config file scanning** — `.env`, `.npmrc`, `.pypirc`, `.netrc`, `.pgpass`, `.git-credentials`, `.pem`, `.key` files now scanned for secrets.
+- **Generic rules apply to all files** — rules tagged `generic` now fire on Python, JavaScript, Go, Java, etc. Not just files classified as Generic.
+
+### Changed
+- `RulePack.filter_languages()` for scoping rules to specific language sets (used by K8s scanner)
+- `Dependency` struct gains `license` field (populated from package-lock.json v2+)
+- `tempfile` moved from dev to regular dependency
+
+### Stats
+- 1,815 total rules (up from 1,067)
+- 296 secret detection rules (up from ~30)
+- 767 IaC rules across Terraform, CloudFormation, ARM, GCP DM, Kubernetes, Docker
+- 75+ languages
+- Native K8s cluster + container image scanning
+- Multi-source CVE database (OSV + NVD + GitHub Advisories)
+
 ## [0.7.0] — 2026-04-28
 
 ### Added
