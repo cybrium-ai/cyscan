@@ -4,6 +4,7 @@
 //! (tests, a platform sidecar wrapping this in a service) import the
 //! same modules. The binary at `src/main.rs` is a ~10-line wrapper.
 
+pub mod appscan;
 pub mod cli;
 pub mod endpoint;
 pub mod finding;

@@ -167,6 +167,20 @@ enum Cmd {
         fail_on: Option<Severity>,
     },
 
+    /// Scan an application package (.app, .ipa, .pkg, .apk, .exe, .msi, .deb, .rpm).
+    App {
+        /// Path to the application package.
+        target: PathBuf,
+
+        /// Output format.
+        #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
+        format: Format,
+
+        /// Exit with non-zero if score is below this threshold (0-100).
+        #[arg(long)]
+        fail_below: Option<u32>,
+    },
+
     /// Scan this endpoint for security posture (encryption, firewall, updates, etc.).
     Endpoint {
         /// Output format.
@@ -408,6 +422,82 @@ pub fn run() -> Result<ExitCode> {
             let fail_hit = match fail_on {
                 Some(min) => k8s_report.all_findings.iter().any(|f| f.severity >= min),
                 None      => false,
+            };
+            Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
+        }
+
+        Cmd::App { target, format, fail_below } => {
+            print_banner();
+            let report = crate::appscan::scan(&target)?;
+
+            match format {
+                Format::Json => {
+                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                }
+                _ => {
+                    let icon = if report.score >= 80 { "\x1b[32mGOOD\x1b[0m" }
+                        else if report.score >= 50 { "\x1b[33mFAIR\x1b[0m" }
+                        else { "\x1b[31mPOOR\x1b[0m" };
+
+                    println!();
+                    println!("  App: {} ({})", report.app_name, report.app_type);
+                    println!("  Bundle ID: {}", report.bundle_id);
+                    println!("  Version: {}", report.version);
+                    if !report.frameworks.is_empty() {
+                        println!("  Frameworks: {}", report.frameworks.len());
+                    }
+                    println!();
+                    println!("  Security Score: {}/100 [{}]", report.score, icon);
+                    println!("  Passed: {}  Failed: {}  Total: {}", report.passed, report.failed, report.passed + report.failed);
+                    println!();
+
+                    for f in &report.findings {
+                        let status = if f.passed {
+                            "\x1b[32m PASS \x1b[0m"
+                        } else {
+                            match f.severity.as_str() {
+                                "critical" => "\x1b[31m FAIL \x1b[0m",
+                                "high"     => "\x1b[33m FAIL \x1b[0m",
+                                _          => "\x1b[36m FAIL \x1b[0m",
+                            }
+                        };
+                        let sev = match f.severity.as_str() {
+                            "critical" => "CRIT", "high" => "HIGH", "medium" => "MED ", "low" => "LOW ", _ => "INFO",
+                        };
+                        println!("  [{}] [{}] {}", status, sev, f.check);
+                        if !f.passed {
+                            println!("           {}", f.detail);
+                            if !f.remediation.is_empty() {
+                                println!("           \x1b[2m{}\x1b[0m", f.remediation);
+                            }
+                        }
+                    }
+
+                    if !report.entitlements.is_empty() {
+                        println!();
+                        println!("  Entitlements ({}):", report.entitlements.len());
+                        for ent in &report.entitlements {
+                            println!("    {}", ent);
+                        }
+                    }
+
+                    if !report.frameworks.is_empty() {
+                        println!();
+                        println!("  Embedded Frameworks ({}):", report.frameworks.len());
+                        for fw in &report.frameworks {
+                            println!("    {}", fw);
+                        }
+                    }
+                    println!();
+                }
+                Format::Sarif => {
+                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                }
+            }
+
+            let fail_hit = match fail_below {
+                Some(threshold) => report.score < threshold,
+                None => false,
             };
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
         }
