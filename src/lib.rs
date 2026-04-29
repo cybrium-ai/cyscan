@@ -8,6 +8,7 @@ pub mod cli;
 pub mod finding;
 pub mod fixer;
 pub mod framework;
+pub mod k8s;
 pub mod lang;
 pub mod matcher;
 pub mod output;
