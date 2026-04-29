@@ -1,0 +1,1 @@
+rules/advisories/*.jsonl filter=lfs diff=lfs merge=lfs -text
