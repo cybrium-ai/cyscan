@@ -3,6 +3,7 @@
 pub mod entropy;
 pub mod regex;
 pub mod treesitter;
+pub mod verify;
 
 use std::path::Path;
 
