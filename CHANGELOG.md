@@ -2,6 +2,14 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.9.0] — 2026-04-29
+
+### Added
+- **CIA triad posture scoring** — `cyscan scan --cia` produces Confidentiality, Integrity, and Availability scores (0-100) with top risks per dimension. Every finding auto-classified via CWE + rule heuristic. Rules can also declare explicit `cia:` blocks. Supports JSON output for dashboards.
+- **Application package scanner** — `cyscan app` scans .app, .ipa, .pkg, .apk, .aab, .exe, .msi, .deb, .rpm for security issues (moved from 0.8.2 patch to this release).
+- **Git LFS** for advisory snapshots (npm.jsonl 185MB exceeds GitHub limit).
+- **NOTICE file** with trademark protection for all Cybrium marks.
+
 ## [0.8.2] — 2026-04-29
 
 ### Added
