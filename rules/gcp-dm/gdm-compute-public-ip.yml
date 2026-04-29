@@ -1,0 +1,12 @@
+id:        CBR-GDM-COMPUTE-PUBLIC-IP
+title:     "Compute instance with public IP"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP Deployment Manager compute instance has a public IP assigned.
+  
+  Remediation: Remove accessConfigs or use Cloud NAT for outbound access.
+pattern: |
+  accessConfigs.*natIP|accessConfigs.*ONE_TO_ONE_NAT

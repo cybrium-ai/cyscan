@@ -1,0 +1,12 @@
+id:        CBR-CFN-ALB-HTTP-LISTENER
+title:     "ALB listener using HTTP instead of HTTPS"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-319']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation ALB listener uses HTTP protocol. Traffic is unencrypted.
+  
+  Remediation: Use HTTPS protocol with a valid SSL certificate.
+pattern: |
+  Protocol.*HTTP(?!S)

@@ -1,0 +1,12 @@
+id:        CBR-GDM-SQL-NO-SSL
+title:     "Cloud SQL instance without SSL enforcement"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-319']
+source:    trivy-cloud-native/auto
+message: |
+  GCP Cloud SQL instance does not require SSL for connections.
+  
+  Remediation: Set requireSsl to true.
+pattern: |
+  requireSsl.*false

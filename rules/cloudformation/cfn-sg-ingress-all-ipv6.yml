@@ -1,0 +1,12 @@
+id:        CBR-CFN-SG-INGRESS-ALL-IPV6
+title:     "Security group allows ingress from ::/0"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation security group allows inbound traffic from any IPv6 address.
+  
+  Remediation: Restrict CidrIpv6 to specific ranges.
+pattern: |
+  CidrIpv6.*::/0

@@ -1,0 +1,12 @@
+id:        CBR-CFN-IAM-WILDCARD-ACTION
+title:     "IAM policy with wildcard actions"
+severity:  critical
+languages: ['json']
+cwe:       ['CWE-732']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation IAM policy grants Action: '*' (all actions).
+  
+  Remediation: Follow least privilege — specify only required actions.
+pattern: |
+  Action.*["\']?\*["\']?

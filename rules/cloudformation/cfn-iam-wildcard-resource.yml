@@ -1,0 +1,12 @@
+id:        CBR-CFN-IAM-WILDCARD-RESOURCE
+title:     "IAM policy with wildcard resource"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-732']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation IAM policy applies to Resource: '*' (all resources).
+  
+  Remediation: Scope resources to specific ARNs.
+pattern: |
+  Resource.*["\']?\*["\']?

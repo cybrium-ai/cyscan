@@ -1,0 +1,12 @@
+id:        CBR-ARM-NSG-INBOUND-ANY
+title:     "NSG rule allows inbound from any source"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template NSG rule allows inbound traffic from any source (*).
+  
+  Remediation: Restrict sourceAddressPrefix to specific IP ranges.
+pattern: |
+  sourceAddressPrefix.*\*

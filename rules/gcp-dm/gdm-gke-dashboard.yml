@@ -1,0 +1,12 @@
+id:        CBR-GDM-GKE-DASHBOARD
+title:     "GKE cluster with Kubernetes Dashboard enabled"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP GKE cluster has the Kubernetes Dashboard addon enabled. It is a known attack vector.
+  
+  Remediation: Disable kubernetesDashboard addon.
+pattern: |
+  kubernetesDashboard.*disabled.*false

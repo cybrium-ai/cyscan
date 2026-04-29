@@ -1,0 +1,12 @@
+id:        CBR-ARM-NSG-RDP-OPEN
+title:     "NSG allows RDP from any source"
+severity:  critical
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template NSG rule exposes RDP (port 3389) to all sources.
+  
+  Remediation: Restrict RDP to specific IP ranges or use Azure Bastion.
+pattern: |
+  destinationPortRange.*3389[^}]*sourceAddressPrefix.*\*

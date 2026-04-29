@@ -1,0 +1,12 @@
+id:        CBR-ARM-APPSERVICE-TLS
+title:     "App Service with weak TLS version"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-326']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template App Service allows TLS 1.0 or 1.1.
+  
+  Remediation: Set minTlsVersion to 1.2.
+pattern: |
+  minTlsVersion.*1\.[01]
