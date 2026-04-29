@@ -145,6 +145,10 @@ enum Cmd {
         #[arg(long, default_value = "summary")]
         report: K8sReportMode,
 
+        /// Output format (applies to full report mode).
+        #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
+        format: Format,
+
         /// Also scan container images for CVEs (requires grype or trivy).
         #[arg(long, default_value_t = false)]
         scan_images: bool,
@@ -357,7 +361,7 @@ pub fn run() -> Result<ExitCode> {
             Ok(ExitCode::from(0))
         }
 
-        Cmd::K8s { kubeconfig, namespace, report, scan_images, rules, fail_on } => {
+        Cmd::K8s { kubeconfig, namespace, report, format, scan_images, rules, fail_on } => {
             print_banner();
             let pack = load_pack(rules.as_deref())?;
             let opts = k8s::K8sOptions {
@@ -369,7 +373,11 @@ pub fn run() -> Result<ExitCode> {
 
             match report {
                 K8sReportMode::Summary => k8s::summary::print_summary(&k8s_report),
-                K8sReportMode::Full    => k8s::summary::print_full(&k8s_report),
+                K8sReportMode::Full => match format {
+                    Format::Text  => k8s::summary::print_full(&k8s_report),
+                    Format::Json  => output::json::emit(&k8s_report.all_findings)?,
+                    Format::Sarif => output::sarif::emit(&k8s_report.all_findings)?,
+                },
             }
 
             let fail_hit = match fail_on {
