@@ -40,7 +40,7 @@ pub struct EndpointReport {
 
 /// Run all endpoint checks for the current platform.
 pub fn scan() -> EndpointReport {
-    let mut checks = Vec::new();
+    let mut checks: Vec<EndpointCheck> = Vec::new();
 
     #[cfg(target_os = "macos")]
     {
