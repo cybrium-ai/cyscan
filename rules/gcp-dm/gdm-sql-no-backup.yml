@@ -1,0 +1,12 @@
+id:        CBR-GDM-SQL-NO-BACKUP
+title:     "Cloud SQL instance without automated backups"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-693']
+source:    trivy-cloud-native/auto
+message: |
+  GCP Cloud SQL instance does not enable automated backups.
+  
+  Remediation: Set backupConfiguration.enabled to true.
+pattern: |
+  backupConfiguration.*enabled.*false

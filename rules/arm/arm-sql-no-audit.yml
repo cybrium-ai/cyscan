@@ -1,0 +1,12 @@
+id:        CBR-ARM-SQL-NO-AUDIT
+title:     "SQL Server without auditing"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-778']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template SQL Server does not enable auditing.
+  
+  Remediation: Add Microsoft.Sql/servers/auditingSettings resource with state: Enabled.
+pattern: |
+  Microsoft\.Sql/servers[^}]*(?!auditingSettings)

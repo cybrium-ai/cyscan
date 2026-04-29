@@ -1,0 +1,12 @@
+id:        CBR-ARM-APPSERVICE-FTP
+title:     "App Service with FTP enabled"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-319']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template App Service has FTP enabled. FTP transmits credentials in cleartext.
+  
+  Remediation: Set ftpsState to FtpsOnly or Disabled.
+pattern: |
+  ftpsState.*AllAllowed

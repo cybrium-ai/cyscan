@@ -1,0 +1,12 @@
+id:        CBR-GDM-FIREWALL-RDP-OPEN
+title:     "Firewall rule opens RDP to the world"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP firewall rule exposes RDP (port 3389) to 0.0.0.0/0.
+  
+  Remediation: Restrict source ranges or use IAP for remote access.
+pattern: |
+  (?:ports.*3389|port.*3389)[^}]*sourceRanges.*0\.0\.0\.0/0

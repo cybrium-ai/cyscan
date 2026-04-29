@@ -1,0 +1,12 @@
+id:        CBR-CFN-RDS-PUBLIC
+title:     "RDS instance publicly accessible"
+severity:  critical
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation RDS instance has PubliclyAccessible set to true.
+  
+  Remediation: Set PubliclyAccessible to false and access via VPC.
+pattern: |
+  PubliclyAccessible.*true

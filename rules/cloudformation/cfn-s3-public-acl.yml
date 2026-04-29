@@ -1,0 +1,12 @@
+id:        CBR-CFN-S3-PUBLIC-ACL
+title:     "S3 bucket with public access ACL"
+severity:  critical
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation S3 bucket uses a public ACL, exposing data to the internet.
+  
+  Remediation: Set AccessControl to Private or remove it entirely. Add PublicAccessBlockConfiguration.
+pattern: |
+  AccessControl.*(?:PublicRead|PublicReadWrite|AuthenticatedRead)

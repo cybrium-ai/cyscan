@@ -1,0 +1,12 @@
+id:        CBR-ARM-AKS-NO-RBAC
+title:     "AKS cluster without RBAC"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template AKS cluster does not enable RBAC.
+  
+  Remediation: Set enableRBAC to true.
+pattern: |
+  enableRBAC.*false

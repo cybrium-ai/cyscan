@@ -1,0 +1,12 @@
+id:        CBR-GDM-FIREWALL-ALL-INGRESS
+title:     "Firewall rule allows ingress from 0.0.0.0/0"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP firewall rule allows inbound traffic from any IP.
+  
+  Remediation: Restrict sourceRanges to specific CIDR blocks.
+pattern: |
+  sourceRanges.*0\.0\.0\.0/0

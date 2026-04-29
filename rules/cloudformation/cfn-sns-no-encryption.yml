@@ -1,0 +1,12 @@
+id:        CBR-CFN-SNS-NO-ENCRYPTION
+title:     "SNS topic without encryption"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-311']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation SNS topic does not use KMS encryption.
+  
+  Remediation: Set KmsMasterKeyId to a valid KMS key.
+pattern: |
+  Type.*AWS::SNS::Topic[^}]*(?!KmsMasterKeyId)

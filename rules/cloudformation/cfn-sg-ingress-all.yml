@@ -1,0 +1,12 @@
+id:        CBR-CFN-SG-INGRESS-ALL
+title:     "Security group allows ingress from 0.0.0.0/0"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation security group allows inbound traffic from any IP address.
+  
+  Remediation: Restrict CidrIp to specific IP ranges.
+pattern: |
+  CidrIp.*0\.0\.0\.0/0

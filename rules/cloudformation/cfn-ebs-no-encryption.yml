@@ -1,0 +1,12 @@
+id:        CBR-CFN-EBS-NO-ENCRYPTION
+title:     "EBS volume without encryption"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-311']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation EBS volume does not enable encryption.
+  
+  Remediation: Set Encrypted to true.
+pattern: |
+  Encrypted.*false

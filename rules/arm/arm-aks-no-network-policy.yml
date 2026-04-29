@@ -1,0 +1,12 @@
+id:        CBR-ARM-AKS-NO-NETWORK-POLICY
+title:     "AKS cluster without network policy"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template AKS cluster does not configure network policy.
+  
+  Remediation: Set networkPolicy to azure or calico.
+pattern: |
+  Microsoft\.ContainerService/managedClusters[^}]*(?!networkPolicy)

@@ -1,0 +1,12 @@
+id:        CBR-GDM-STORAGE-NO-UNIFORM-ACL
+title:     "Cloud Storage bucket without uniform bucket-level access"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP Cloud Storage bucket does not use uniform bucket-level access.
+  
+  Remediation: Enable uniformBucketLevelAccess.
+pattern: |
+  uniformBucketLevelAccess.*enabled.*false

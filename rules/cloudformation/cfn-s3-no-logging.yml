@@ -1,0 +1,12 @@
+id:        CBR-CFN-S3-NO-LOGGING
+title:     "S3 bucket without access logging"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-778']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation S3 bucket does not enable access logging.
+  
+  Remediation: Add LoggingConfiguration with DestinationBucketName.
+pattern: |
+  Type.*AWS::S3::Bucket[^}]*(?!LoggingConfiguration)

@@ -1,0 +1,12 @@
+id:        CBR-GDM-SQL-PUBLIC-IP
+title:     "Cloud SQL instance with public IP"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP Cloud SQL instance has a public IP address.
+  
+  Remediation: Use private IP only and connect via Cloud SQL Proxy.
+pattern: |
+  ipv4Enabled.*true

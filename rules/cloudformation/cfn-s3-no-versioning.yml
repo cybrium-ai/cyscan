@@ -1,0 +1,12 @@
+id:        CBR-CFN-S3-NO-VERSIONING
+title:     "S3 bucket without versioning"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-693']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation S3 bucket does not enable versioning. Without it, deleted or overwritten objects cannot be recovered.
+  
+  Remediation: Add VersioningConfiguration with Status: Enabled.
+pattern: |
+  Type.*AWS::S3::Bucket[^}]*(?!VersioningConfiguration)

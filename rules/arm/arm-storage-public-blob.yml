@@ -1,0 +1,12 @@
+id:        CBR-ARM-STORAGE-PUBLIC-BLOB
+title:     "Storage account allows public blob access"
+severity:  critical
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template storage account allows public access to blobs.
+  
+  Remediation: Set allowBlobPublicAccess to false.
+pattern: |
+  allowBlobPublicAccess.*true

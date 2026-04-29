@@ -1,0 +1,12 @@
+id:        CBR-ARM-SQL-NO-TDE
+title:     "SQL Database without transparent data encryption"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-311']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template SQL Database does not enable Transparent Data Encryption.
+  
+  Remediation: Add Microsoft.Sql/servers/databases/transparentDataEncryption with status: Enabled.
+pattern: |
+  Microsoft\.Sql/servers/databases[^}]*(?!transparentDataEncryption)

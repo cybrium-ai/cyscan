@@ -1,0 +1,12 @@
+id:        CBR-ARM-NSG-SSH-OPEN
+title:     "NSG allows SSH from any source"
+severity:  critical
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template NSG rule exposes SSH (port 22) to all sources.
+  
+  Remediation: Restrict SSH to specific IP ranges or use Azure Bastion.
+pattern: |
+  destinationPortRange.*22[^}]*sourceAddressPrefix.*\*

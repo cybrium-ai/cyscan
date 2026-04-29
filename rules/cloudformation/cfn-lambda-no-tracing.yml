@@ -1,0 +1,12 @@
+id:        CBR-CFN-LAMBDA-NO-TRACING
+title:     "Lambda function without X-Ray tracing"
+severity:  low
+languages: ['json']
+cwe:       ['CWE-778']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation Lambda function does not enable X-Ray tracing.
+  
+  Remediation: Set TracingConfig.Mode to Active.
+pattern: |
+  Type.*AWS::Lambda::Function[^}]*(?!TracingConfig)

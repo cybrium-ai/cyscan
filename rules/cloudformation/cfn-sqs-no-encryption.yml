@@ -1,0 +1,12 @@
+id:        CBR-CFN-SQS-NO-ENCRYPTION
+title:     "SQS queue without encryption"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-311']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation SQS queue does not use KMS encryption.
+  
+  Remediation: Set KmsMasterKeyId or SqsManagedSseEnabled to true.
+pattern: |
+  Type.*AWS::SQS::Queue[^}]*(?!KmsMasterKeyId|SqsManagedSseEnabled)

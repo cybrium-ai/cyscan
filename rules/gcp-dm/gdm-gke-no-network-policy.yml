@@ -1,0 +1,12 @@
+id:        CBR-GDM-GKE-NO-NETWORK-POLICY
+title:     "GKE cluster without network policy"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP GKE cluster does not enable network policy.
+  
+  Remediation: Set networkPolicy.enabled to true.
+pattern: |
+  container\.v1\.cluster[^}]*(?!networkPolicy)

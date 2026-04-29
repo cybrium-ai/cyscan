@@ -1,0 +1,12 @@
+id:        CBR-CFN-CLOUDTRAIL-NO-ENCRYPTION
+title:     "CloudTrail logs not encrypted"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-311']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation CloudTrail does not use KMS encryption for logs.
+  
+  Remediation: Set KMSKeyId to a valid KMS key ARN.
+pattern: |
+  Type.*AWS::CloudTrail::Trail[^}]*(?!KMSKeyId)

@@ -1,0 +1,12 @@
+id:        CBR-ARM-KV-NO-PURGE-PROTECTION
+title:     "Key Vault without purge protection"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-693']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template Key Vault does not enable purge protection.
+  
+  Remediation: Set enablePurgeProtection to true.
+pattern: |
+  enablePurgeProtection.*false

@@ -1,0 +1,12 @@
+id:        CBR-CFN-CLOUDTRAIL-NO-LOG-VALIDATION
+title:     "CloudTrail without log file validation"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-354']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation CloudTrail does not enable log file validation.
+  
+  Remediation: Set EnableLogFileValidation to true.
+pattern: |
+  EnableLogFileValidation.*false

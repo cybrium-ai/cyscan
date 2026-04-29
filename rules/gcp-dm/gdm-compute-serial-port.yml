@@ -1,0 +1,12 @@
+id:        CBR-GDM-COMPUTE-SERIAL-PORT
+title:     "Compute instance with serial port enabled"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-200']
+source:    trivy-cloud-native/auto
+message: |
+  GCP compute instance has serial port access enabled.
+  
+  Remediation: Set serial-port-enable to false in metadata.
+pattern: |
+  serial-port-enable.*true

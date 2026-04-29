@@ -1,0 +1,12 @@
+id:        CBR-ARM-STORAGE-NO-ENCRYPTION
+title:     "Storage account without encryption"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-311']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template storage account does not enable encryption services.
+  
+  Remediation: Configure encryption.services with blob and file encryption enabled.
+pattern: |
+  Microsoft\.Storage/storageAccounts[^}]*(?!encryption)

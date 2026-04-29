@@ -1,0 +1,12 @@
+id:        CBR-CFN-SG-RDP-OPEN
+title:     "RDP port 3389 open to the world"
+severity:  critical
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation security group exposes RDP (port 3389) to 0.0.0.0/0.
+  
+  Remediation: Restrict RDP access to specific IP ranges or use a bastion host.
+pattern: |
+  FromPort.*3389[^}]*CidrIp.*0\.0\.0\.0/0

@@ -1,0 +1,12 @@
+id:        CBR-CFN-RDS-NO-DELETION-PROTECTION
+title:     "RDS instance without deletion protection"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-693']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation RDS instance does not have DeletionProtection enabled.
+  
+  Remediation: Set DeletionProtection to true.
+pattern: |
+  DeletionProtection.*false

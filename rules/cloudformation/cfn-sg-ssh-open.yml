@@ -1,0 +1,12 @@
+id:        CBR-CFN-SG-SSH-OPEN
+title:     "SSH port 22 open to the world"
+severity:  critical
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation security group exposes SSH (port 22) to 0.0.0.0/0.
+  
+  Remediation: Restrict SSH access to specific IP ranges or use SSM Session Manager.
+pattern: |
+  FromPort.*22[^}]*CidrIp.*0\.0\.0\.0/0
