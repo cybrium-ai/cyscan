@@ -17,7 +17,7 @@ pub fn run_rules<'a>(
     source: &str,
 ) -> Vec<Finding> {
     let applicable: Vec<&Rule> = rules.iter()
-        .filter(|r| r.languages.contains(&lang))
+        .filter(|r| r.languages.contains(&lang) || r.languages.contains(&Lang::Generic))
         .collect();
 
     if applicable.is_empty() {
