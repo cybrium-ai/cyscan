@@ -1,0 +1,12 @@
+id:        CBR-CFN-RDS-NO-BACKUP
+title:     "RDS instance with backup disabled"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-693']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation RDS instance has BackupRetentionPeriod set to 0.
+  
+  Remediation: Set BackupRetentionPeriod to at least 7 days.
+pattern: |
+  BackupRetentionPeriod.*0

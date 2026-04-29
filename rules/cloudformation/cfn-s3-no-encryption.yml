@@ -1,0 +1,12 @@
+id:        CBR-CFN-S3-NO-ENCRYPTION
+title:     "S3 bucket without server-side encryption"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-311']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation S3 bucket does not enable server-side encryption. Data at rest is unprotected.
+  
+  Remediation: Add BucketEncryption with SSEAlgorithm: aws:kms or AES256.
+pattern: |
+  Type.*AWS::S3::Bucket[^}]*(?!BucketEncryption)

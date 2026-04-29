@@ -1,0 +1,12 @@
+id:        CBR-GDM-GKE-NO-PRIVATE
+title:     "GKE cluster not using private nodes"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP GKE cluster does not use private nodes. Nodes have public IPs.
+  
+  Remediation: Set enablePrivateNodes to true.
+pattern: |
+  enablePrivateNodes.*false

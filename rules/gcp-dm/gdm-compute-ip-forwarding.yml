@@ -1,0 +1,12 @@
+id:        CBR-GDM-COMPUTE-IP-FORWARDING
+title:     "Compute instance with IP forwarding enabled"
+severity:  medium
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP compute instance has IP forwarding enabled, allowing it to act as a router.
+  
+  Remediation: Set canIpForward to false unless the instance is a NAT gateway.
+pattern: |
+  canIpForward.*true

@@ -1,0 +1,12 @@
+id:        CBR-ARM-SQL-FIREWALL-ALL
+title:     "SQL Server firewall allows all Azure services"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template SQL Server firewall rule with startIpAddress 0.0.0.0 allows all Azure services.
+  
+  Remediation: Restrict firewall rules to specific IP ranges.
+pattern: |
+  startIpAddress.*0\.0\.0\.0.*endIpAddress.*0\.0\.0\.0

@@ -1,0 +1,12 @@
+id:        CBR-GDM-STORAGE-PUBLIC
+title:     "Cloud Storage bucket with public access"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP Cloud Storage bucket grants access to allUsers or allAuthenticatedUsers.
+  
+  Remediation: Remove public access and use IAM for fine-grained control.
+pattern: |
+  (?:allUsers|allAuthenticatedUsers)

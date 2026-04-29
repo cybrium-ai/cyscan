@@ -1,0 +1,12 @@
+id:        CBR-ARM-APPSERVICE-HTTP
+title:     "App Service without HTTPS enforcement"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-319']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template App Service does not enforce HTTPS.
+  
+  Remediation: Set httpsOnly to true.
+pattern: |
+  httpsOnly.*false

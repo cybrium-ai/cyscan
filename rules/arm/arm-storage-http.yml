@@ -1,0 +1,12 @@
+id:        CBR-ARM-STORAGE-HTTP
+title:     "Storage account allows HTTP access"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-319']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template storage account does not enforce HTTPS-only access.
+  
+  Remediation: Set supportsHttpsTrafficOnly to true.
+pattern: |
+  supportsHttpsTrafficOnly.*false

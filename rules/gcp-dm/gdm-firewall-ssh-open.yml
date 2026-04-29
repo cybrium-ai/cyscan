@@ -1,0 +1,12 @@
+id:        CBR-GDM-FIREWALL-SSH-OPEN
+title:     "Firewall rule opens SSH to the world"
+severity:  critical
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP firewall rule exposes SSH (port 22) to 0.0.0.0/0.
+  
+  Remediation: Restrict source ranges or use IAP for SSH access.
+pattern: |
+  (?:ports.*22|port.*22)[^}]*sourceRanges.*0\.0\.0\.0/0

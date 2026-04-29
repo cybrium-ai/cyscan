@@ -1,0 +1,12 @@
+id:        CBR-ARM-STORAGE-TLS-VERSION
+title:     "Storage account with weak TLS version"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-326']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template storage account allows TLS 1.0 or 1.1.
+  
+  Remediation: Set minimumTlsVersion to TLS1_2.
+pattern: |
+  minimumTlsVersion.*TLS1_[01]

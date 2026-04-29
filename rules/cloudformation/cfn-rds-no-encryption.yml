@@ -1,0 +1,12 @@
+id:        CBR-CFN-RDS-NO-ENCRYPTION
+title:     "RDS instance without storage encryption"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-311']
+source:    trivy-cloud-native/auto
+message: |
+  CloudFormation RDS instance does not enable storage encryption.
+  
+  Remediation: Set StorageEncrypted to true.
+pattern: |
+  StorageEncrypted.*false

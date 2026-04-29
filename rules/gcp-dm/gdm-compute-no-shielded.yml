@@ -1,0 +1,12 @@
+id:        CBR-GDM-COMPUTE-NO-SHIELDED
+title:     "Compute instance without shielded VM"
+severity:  low
+languages: ['yaml']
+cwe:       ['CWE-693']
+source:    trivy-cloud-native/auto
+message: |
+  GCP compute instance does not enable Shielded VM features.
+  
+  Remediation: Enable enableSecureBoot, enableVtpm, and enableIntegrityMonitoring.
+pattern: |
+  compute\.v1\.instance[^}]*(?!shieldedInstanceConfig)

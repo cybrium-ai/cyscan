@@ -1,0 +1,12 @@
+id:        CBR-GDM-GKE-LEGACY-ABAC
+title:     "GKE cluster with legacy ABAC enabled"
+severity:  high
+languages: ['yaml']
+cwe:       ['CWE-284']
+source:    trivy-cloud-native/auto
+message: |
+  GCP GKE cluster has legacy Attribute-Based Access Control enabled.
+  
+  Remediation: Disable legacyAbac and use RBAC.
+pattern: |
+  legacyAbac.*enabled.*true

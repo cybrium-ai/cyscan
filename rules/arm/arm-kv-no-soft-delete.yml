@@ -1,0 +1,12 @@
+id:        CBR-ARM-KV-NO-SOFT-DELETE
+title:     "Key Vault without soft delete"
+severity:  medium
+languages: ['json']
+cwe:       ['CWE-693']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template Key Vault does not enable soft delete.
+  
+  Remediation: Set enableSoftDelete to true (default in new vaults).
+pattern: |
+  enableSoftDelete.*false

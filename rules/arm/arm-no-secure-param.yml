@@ -1,0 +1,12 @@
+id:        CBR-ARM-NO-SECURE-PARAM
+title:     "Password parameter without secureString type"
+severity:  high
+languages: ['json']
+cwe:       ['CWE-798']
+source:    trivy-cloud-native/auto
+message: |
+  ARM template parameter for password/secret uses string type instead of secureString.
+  
+  Remediation: Change parameter type to secureString.
+pattern: |
+  (?:password|secret|key).*type.*string(?!.*secure)
