@@ -2,6 +2,13 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.9.1] — 2026-04-30
+
+### Fixed
+- **Entropy secret scanning UTF-8 panic** — high-entropy snippet truncation now respects Unicode character boundaries, preventing crashes on multibyte characters such as `→` during secrets scanning.
+- **GitHub Actions advisory loading** — CI and release workflows now fetch Git LFS advisory snapshots so `cyscan supply` tests and release packaging see real advisory data instead of LFS pointer files.
+- **GitHub Actions runtime deprecation** — upgraded `actions/checkout` from `v4` to `v5` to align with GitHub's Node 24 transition.
+
 ## [0.9.0] — 2026-04-29
 
 ### Added
