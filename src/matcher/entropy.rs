@@ -79,6 +79,17 @@ fn min_length(class: CharClass) -> usize {
     }
 }
 
+fn truncate_for_display(s: &str, prefix_chars: usize, suffix_chars: usize) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    if chars.len() <= prefix_chars + suffix_chars {
+        return s.to_string();
+    }
+
+    let prefix: String = chars[..prefix_chars].iter().collect();
+    let suffix: String = chars[chars.len() - suffix_chars..].iter().collect();
+    format!("{prefix}...{suffix}")
+}
+
 /// Patterns that look like secrets but aren't — false positive suppression.
 fn is_false_positive(s: &str, key: &str) -> bool {
     let lower = s.to_lowercase();
@@ -304,7 +315,7 @@ pub fn scan_file(path: &Path, source: &str) -> Vec<Finding> {
 
             let key_display = if key.is_empty() { "unknown" } else { &key };
             let truncated = if value.len() > 20 {
-                format!("{}...{}", &value[..8], &value[value.len()-4..])
+                truncate_for_display(&value, 8, 4)
             } else {
                 value.clone()
             };
@@ -382,5 +393,18 @@ mod tests {
     #[test]
     fn actual_secret_not_false_positive() {
         assert!(!is_false_positive("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "aws_secret"));
+    }
+
+    #[test]
+    fn truncation_handles_unicode_without_panicking() {
+        let value = "M3: NL → SemanticQuery AST via BYO-LLM.";
+        assert_eq!(truncate_for_display(value, 8, 4), "M3: NL →...LLM.");
+    }
+
+    #[test]
+    fn scan_file_handles_unicode_entropy_candidates() {
+        let source = r#"secret = "M3: NL → SemanticQuery AST via BYO-LLM.""#;
+        let findings = scan_file(Path::new("demo.txt"), source);
+        assert!(findings.iter().all(|f| !f.snippet.is_empty()));
     }
 }
