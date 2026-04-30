@@ -43,7 +43,7 @@ jobs:
           - { target: x86_64-pc-windows-msvc,    os: windows-latest }
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Resolve version
         id: ver
@@ -111,7 +111,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Resolve version
         id: ver
@@ -196,7 +196,7 @@ jobs:
             artifacts/*.pem
 
       - name: Checkout Homebrew tap
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: cybrium-ai/homebrew-cli
           token:      ${{ secrets.HOMEBREW_TAP_TOKEN }}
