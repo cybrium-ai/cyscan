@@ -182,8 +182,52 @@ fn semantic_guard(
             }
             true
         }
+        "CBR-CSHA-SQL_INJECTION" => {
+            let Some(object) = captures.get("obj") else { return false };
+            csharp_receiver_is_db_command(object, semantics)
+        }
         _ => true,
     }
+}
+
+fn csharp_receiver_is_db_command(object: &str, semantics: &FileSemantics) -> bool {
+    let object = object.trim();
+    if object.is_empty() {
+        return false;
+    }
+
+    if let Some(ty) = semantics.variable_types.get(object) {
+        return csharp_is_db_command_type(ty);
+    }
+
+    let compact: String = object.chars().filter(|c| !c.is_whitespace()).collect();
+    if compact.contains("newSqlCommand(")
+        || compact.contains("newMicrosoft.Data.SqlClient.SqlCommand(")
+        || compact.contains("newSystem.Data.SqlClient.SqlCommand(")
+        || compact.contains("newNpgsqlCommand(")
+        || compact.contains("newMySqlCommand(")
+        || compact.contains("newOracleCommand(")
+        || compact.contains("newSqliteCommand(")
+        || compact.contains("newSQLiteCommand(")
+        || compact.contains(".CreateCommand(")
+    {
+        return true;
+    }
+
+    false
+}
+
+fn csharp_is_db_command_type(ty: &str) -> bool {
+    matches!(
+        ty.rsplit('.').next().unwrap_or(ty).trim(),
+        "SqlCommand"
+            | "DbCommand"
+            | "SqliteCommand"
+            | "SQLiteCommand"
+            | "NpgsqlCommand"
+            | "MySqlCommand"
+            | "OracleCommand"
+    )
 }
 
 fn analyze_path_sensitivity(
@@ -579,6 +623,9 @@ fn taint_reason(
     }
 
     for candidate in candidate_texts {
+        if let Some(kind) = direct_source_kind(lang, candidate) {
+            return Some((kind.to_string(), pick_framework(semantics, &kind)));
+        }
         for token in candidate.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '$')) {
             if let Some(kind) = semantics.tainted_identifiers.get(token) {
                 return Some((kind.clone(), pick_framework(semantics, kind)));
@@ -656,6 +703,9 @@ fn pick_framework(semantics: &FileSemantics, source_kind: &str) -> Option<String
     }
     if source_kind.starts_with("express.") {
         return Some("express".into());
+    }
+    if source_kind.starts_with("aspnet.") {
+        return Some("aspnet".into());
     }
     semantics.frameworks.iter().next().cloned()
 }

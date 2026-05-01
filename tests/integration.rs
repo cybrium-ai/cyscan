@@ -731,6 +731,75 @@ message: test
         .stdout(predicate::str::contains("\"confidence\": \"low\""));
 }
 
+#[test]
+fn csharp_sql_command_is_detected_but_local_execute_reader_collision_is_not() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("csharp-sql.yml"),
+        r#"
+id:        CBR-CSHA-SQL_INJECTION
+title:     "SQL Injection via String Concatenation"
+severity:  critical
+languages: ['csharp']
+cwe:       ['CWE-89']
+message: |
+  Detected raw SQL execution with string concatenation.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      expression: (_) @obj
+      name: (identifier) @m (#match? @m "^Execute(Reader|Scalar|NonQuery|XmlReader|Sql)?$"))
+    arguments: (argument_list
+      (argument
+        (binary_expression
+          left: (_)
+          operator: "+"
+          right: (_))) @concat))
+"#,
+    ).unwrap();
+
+    let vulnerable = tmp.path().join("RealController.cs");
+    fs::write(
+        &vulnerable,
+        r#"
+using Microsoft.Data.SqlClient;
+class RealController {
+    void Run(SqlConnection connection) {
+        SqlCommand cmd = new SqlCommand();
+        cmd.ExecuteReader("select * from users where id = " + Request.Query["id"]);
+    }
+}
+"#,
+    ).unwrap();
+
+    let safe_collision = tmp.path().join("FakeController.cs");
+    fs::write(
+        &safe_collision,
+        r#"
+class FakeExecutor {
+    public void ExecuteReader(string query) {}
+}
+class FakeController {
+    void Run() {
+        FakeExecutor exec = new FakeExecutor();
+        exec.ExecuteReader("select * from users where id = " + Request.Query["id"]);
+    }
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-CSHA-SQL_INJECTION\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"aspnet.request_query\""))
+        .stdout(predicate::str::contains("\"sink_kind\": \"dotnet.sql.execute\""))
+        .stdout(predicate::str::contains("FakeController.cs").not());
+}
+
 fn copy_tree(src: &std::path::Path, dst: &std::path::Path) {
     for entry in std::fs::read_dir(src).unwrap() {
         let entry = entry.unwrap();

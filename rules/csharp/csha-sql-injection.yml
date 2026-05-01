@@ -9,6 +9,7 @@ message: |
 query: |
   (invocation_expression
     function: (member_access_expression
+      expression: (_) @obj
       name: (identifier) @m (#match? @m "^Execute(Reader|Scalar|NonQuery|XmlReader|Sql)?$"))
     arguments: (argument_list
       (argument

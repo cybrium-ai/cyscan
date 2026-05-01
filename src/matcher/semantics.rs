@@ -436,6 +436,10 @@ fn extract_csharp(source: &str) -> FileSemantics {
 
     let using_re = Regex::new(r"^\s*using\s+([A-Za-z_][A-Za-z0-9_\.]*)\s*;").unwrap();
     let assign_re = Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap();
+    let explicit_decl_re = Regex::new(
+        r#"^\s*([A-Za-z_][A-Za-z0-9_<>\.\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#
+    ).unwrap();
+    let new_type_re = Regex::new(r#"new\s+([A-Za-z_][A-Za-z0-9_<>\.]*)\s*\("#).unwrap();
 
     for raw_line in source.lines() {
         let line = raw_line.split("//").next().unwrap_or("").trim();
@@ -450,6 +454,33 @@ fn extract_csharp(source: &str) -> FileSemantics {
                 semantics.frameworks.insert("aspnet".into());
             }
             continue;
+        }
+
+        if let Some(caps) = explicit_decl_re.captures(line) {
+            let declared_type = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim();
+            let ident = caps.get(2).map(|m| m.as_str()).unwrap_or("").to_string();
+            let rhs = caps.get(3).map(|m| m.as_str()).unwrap_or("").trim();
+            if !ident.is_empty() {
+                if let Some(command_type) = csharp_db_command_type_from_decl(declared_type, rhs) {
+                    semantics.variable_types.insert(ident.clone(), command_type);
+                } else if let Some(command_type) = csharp_db_command_type_from_rhs(rhs) {
+                    semantics.variable_types.insert(ident.clone(), command_type);
+                }
+            }
+        } else if let Some(caps) = assign_re.captures(line) {
+            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+            if !ident.is_empty() {
+                if let Some(command_type) = csharp_db_command_type_from_rhs(rhs) {
+                    semantics.variable_types.insert(ident.clone(), command_type);
+                } else if let Some(new_type) = new_type_re.captures(rhs)
+                    .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+                {
+                    if csharp_is_db_command_type(&new_type) {
+                        semantics.variable_types.insert(ident.clone(), new_type);
+                    }
+                }
+            }
         }
 
         if let Some(caps) = assign_re.captures(line) {
@@ -476,6 +507,49 @@ fn extract_csharp(source: &str) -> FileSemantics {
     }
 
     semantics
+}
+
+fn csharp_db_command_type_from_decl(declared_type: &str, rhs: &str) -> Option<String> {
+    if csharp_is_db_command_type(declared_type) {
+        return Some(declared_type.to_string());
+    }
+    csharp_db_command_type_from_rhs(rhs)
+}
+
+fn csharp_db_command_type_from_rhs(rhs: &str) -> Option<String> {
+    let compact: String = rhs.chars().filter(|c| !c.is_whitespace()).collect();
+    for marker in [
+        "newSqlCommand(",
+        "newMicrosoft.Data.SqlClient.SqlCommand(",
+        "newSystem.Data.SqlClient.SqlCommand(",
+        "newNpgsqlCommand(",
+        "newMySqlCommand(",
+        "newOracleCommand(",
+        "newSQLiteCommand(",
+        "newSqliteCommand(",
+    ] {
+        if compact.contains(marker) {
+            return Some(marker.trim_start_matches("new").trim_end_matches('(').to_string());
+        }
+    }
+    if compact.contains(".CreateCommand(") {
+        return Some("DbCommand".into());
+    }
+    None
+}
+
+fn csharp_is_db_command_type(ty: &str) -> bool {
+    let normalized = ty.rsplit('.').next().unwrap_or(ty).trim();
+    matches!(
+        normalized,
+        "SqlCommand"
+            | "DbCommand"
+            | "SqliteCommand"
+            | "SQLiteCommand"
+            | "NpgsqlCommand"
+            | "MySqlCommand"
+            | "OracleCommand"
+    )
 }
 
 fn csharp_source_kind(rhs: &str) -> Option<&'static str> {
@@ -540,6 +614,25 @@ mod tests {
         assert_eq!(semantics.tainted_identifiers.get("name").map(String::as_str), Some("rails.params"));
         assert_eq!(semantics.tainted_identifiers.get("html").map(String::as_str), Some("rails.params"));
         assert!(semantics.frameworks.contains("rails"));
+    }
+
+    #[test]
+    fn csharp_db_command_types_are_extracted() {
+        let source = r#"
+            using Microsoft.AspNetCore.Mvc;
+            using Microsoft.Data.SqlClient;
+            class C {
+                void Run() {
+                    SqlCommand cmd = new SqlCommand();
+                    var cmd2 = new SqlCommand();
+                    var cmd3 = connection.CreateCommand();
+                }
+            }
+        "#;
+        let semantics = extract(Lang::Csharp, source);
+        assert_eq!(semantics.variable_types.get("cmd").map(String::as_str), Some("SqlCommand"));
+        assert_eq!(semantics.variable_types.get("cmd2").map(String::as_str), Some("SqlCommand"));
+        assert_eq!(semantics.variable_types.get("cmd3").map(String::as_str), Some("DbCommand"));
     }
 
 }
