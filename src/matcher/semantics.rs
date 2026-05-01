@@ -40,6 +40,7 @@ pub fn extract_with_context(
         Lang::Ruby => extract_ruby(source),
         Lang::Java => extract_java(source),
         Lang::Csharp => extract_csharp(source),
+        Lang::Go => extract_go(source),
         _ => FileSemantics::default(),
     }
 }
@@ -361,6 +362,7 @@ fn extract_javascript(source: &str) -> FileSemantics {
 
 fn extract_ruby(source: &str) -> FileSemantics {
     let mut semantics = FileSemantics::default();
+    let require_re = Regex::new(r#"^\s*require(?:_relative)?\s+['"]([^'"]+)['"]"#).unwrap();
     let assign_re = Regex::new(
         r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$"#
     ).unwrap();
@@ -379,6 +381,13 @@ fn extract_ruby(source: &str) -> FileSemantics {
         let line = raw_line.split('#').next().unwrap_or("").trim();
         if line.is_empty() {
             continue;
+        }
+
+        if let Some(caps) = require_re.captures(line) {
+            let module = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !module.is_empty() {
+                semantics.imported_modules.insert(module);
+            }
         }
 
         if let Some(caps) = assign_re.captures(line) {
@@ -405,6 +414,7 @@ fn extract_ruby(source: &str) -> FileSemantics {
 
 fn extract_java(source: &str) -> FileSemantics {
     let mut semantics = FileSemantics::default();
+    let import_re = Regex::new(r#"^\s*import\s+([\w\.]+);"#).unwrap();
     let assign_re = Regex::new(
         r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
@@ -440,6 +450,16 @@ fn extract_java(source: &str) -> FileSemantics {
         let line = raw_line.split("//").next().unwrap_or("").trim();
         if line.is_empty() {
             continue;
+        }
+
+        if let Some(caps) = import_re.captures(line) {
+            let module = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !module.is_empty() {
+                semantics.imported_modules.insert(module.clone());
+                if let Some(symbol) = module.rsplit('.').next() {
+                    semantics.imported_symbols.insert(symbol.to_string(), module);
+                }
+            }
         }
 
         if let Some(caps) = assign_re.captures(line) {
@@ -536,6 +556,7 @@ fn extract_csharp(source: &str) -> FileSemantics {
     let mut semantics = FileSemantics::default();
 
     let using_re = Regex::new(r"^\s*using\s+([A-Za-z_][A-Za-z0-9_\.]*)\s*;").unwrap();
+    let using_alias_re = Regex::new(r#"^\s*using\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([A-Za-z_][A-Za-z0-9_\.]*)\s*;"#).unwrap();
     let assign_re = Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap();
     let explicit_decl_re = Regex::new(
         r#"^\s*([A-Za-z_][A-Za-z0-9_<>\.\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#
@@ -545,6 +566,16 @@ fn extract_csharp(source: &str) -> FileSemantics {
     for raw_line in source.lines() {
         let line = raw_line.split("//").next().unwrap_or("").trim();
         if line.is_empty() {
+            continue;
+        }
+
+        if let Some(caps) = using_alias_re.captures(line) {
+            let alias = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let target = caps.get(2).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !alias.is_empty() && !target.is_empty() {
+                semantics.alias_to_module.insert(alias.clone(), target.clone());
+                semantics.imported_symbols.insert(alias, target);
+            }
             continue;
         }
 
@@ -610,6 +641,83 @@ fn extract_csharp(source: &str) -> FileSemantics {
     semantics
 }
 
+fn extract_go(source: &str) -> FileSemantics {
+    let mut semantics = FileSemantics::default();
+    let single_import_re = Regex::new(r#"^\s*import\s+(?:(\w+)\s+)?"([^"]+)""#).unwrap();
+    let block_import_re = Regex::new(r#"^\s*(?:(\w+)\s+)?"([^"]+)""#).unwrap();
+    let assign_re = Regex::new(
+        r#"^\s*(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+?)\s*$"#
+    ).unwrap();
+    let mut in_import_block = false;
+
+    for raw_line in source.lines() {
+        let line = raw_line.split("//").next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        if line == "import (" {
+            in_import_block = true;
+            continue;
+        }
+        if in_import_block && line == ")" {
+            in_import_block = false;
+            continue;
+        }
+
+        let import_caps = if in_import_block {
+            block_import_re.captures(line)
+        } else {
+            single_import_re.captures(line)
+        };
+        if let Some(caps) = import_caps {
+            let alias = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let module = caps.get(2).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !module.is_empty() {
+                let default_alias = module.rsplit('/').next().unwrap_or(&module).to_string();
+                semantics.imported_modules.insert(module.clone());
+                semantics.alias_to_module.insert(
+                    if alias.is_empty() { default_alias } else { alias },
+                    module.clone(),
+                );
+                if module.contains("gin-gonic/gin") {
+                    semantics.frameworks.insert("gin".into());
+                }
+                if module.contains("labstack/echo") {
+                    semantics.frameworks.insert("echo".into());
+                }
+                if module.contains("gofiber/fiber") {
+                    semantics.frameworks.insert("fiber".into());
+                }
+                if module.contains("gorm.io/gorm") {
+                    semantics.frameworks.insert("gorm".into());
+                }
+            }
+            continue;
+        }
+
+        if let Some(caps) = assign_re.captures(line) {
+            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+            if ident.is_empty() || rhs.is_empty() {
+                continue;
+            }
+            if let Some(source_kind) = go_source_kind(rhs) {
+                semantics.tainted_identifiers.insert(ident, source_kind.to_string());
+            } else {
+                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
+                    if let Some(source_kind) = semantics.tainted_identifiers.get(token) {
+                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    semantics
+}
+
 fn csharp_db_command_type_from_decl(declared_type: &str, rhs: &str) -> Option<String> {
     if csharp_is_db_command_type(declared_type) {
         return Some(declared_type.to_string());
@@ -666,6 +774,23 @@ fn csharp_source_kind(rhs: &str) -> Option<&'static str> {
     }
     if compact.contains("Request.Cookies[") {
         return Some("aspnet.request_cookies");
+    }
+    None
+}
+
+fn go_source_kind(rhs: &str) -> Option<&'static str> {
+    let compact: String = rhs.chars().filter(|c| !c.is_whitespace()).collect();
+    if compact.contains("c.Query(") || compact.contains("ctx.Query(") {
+        return Some("go.http.query");
+    }
+    if compact.contains("c.Param(") || compact.contains("ctx.Param(") {
+        return Some("go.http.param");
+    }
+    if compact.contains("c.FormValue(") || compact.contains("ctx.FormValue(") || compact.contains("r.FormValue(") {
+        return Some("go.http.form");
+    }
+    if compact.contains("r.URL.Query().Get(") {
+        return Some("go.http.query");
     }
     None
 }
@@ -734,6 +859,66 @@ mod tests {
         assert_eq!(semantics.variable_types.get("cmd").map(String::as_str), Some("SqlCommand"));
         assert_eq!(semantics.variable_types.get("cmd2").map(String::as_str), Some("SqlCommand"));
         assert_eq!(semantics.variable_types.get("cmd3").map(String::as_str), Some("DbCommand"));
+    }
+
+    #[test]
+    fn java_imports_are_extracted() {
+        let source = "import org.springframework.web.bind.annotation.RequestParam;\nimport java.sql.PreparedStatement;\n";
+        let semantics = extract(Lang::Java, source);
+        assert!(semantics.imported_modules.contains("org.springframework.web.bind.annotation.RequestParam"));
+        assert_eq!(
+            semantics.imported_symbols.get("PreparedStatement").map(String::as_str),
+            Some("java.sql.PreparedStatement")
+        );
+    }
+
+    #[test]
+    fn ruby_requires_are_extracted() {
+        let source = "require 'rails'\nname = params[:name]\n";
+        let semantics = extract(Lang::Ruby, source);
+        assert!(semantics.imported_modules.contains("rails"));
+        assert!(semantics.frameworks.contains("rails"));
+    }
+
+    #[test]
+    fn csharp_using_aliases_are_extracted() {
+        let source = "using Sql = Microsoft.Data.SqlClient.SqlCommand;\n";
+        let semantics = extract(Lang::Csharp, source);
+        assert_eq!(
+            semantics.alias_to_module.get("Sql").map(String::as_str),
+            Some("Microsoft.Data.SqlClient.SqlCommand")
+        );
+        assert_eq!(
+            semantics.imported_symbols.get("Sql").map(String::as_str),
+            Some("Microsoft.Data.SqlClient.SqlCommand")
+        );
+    }
+
+    #[test]
+    fn go_imports_frameworks_and_sources_are_extracted() {
+        let source = r#"
+            import (
+                "github.com/gin-gonic/gin"
+                db "gorm.io/gorm"
+            )
+            func handler(c *gin.Context) {
+                user := c.Query("user")
+                _ = user
+                _ = db
+            }
+        "#;
+        let semantics = extract(Lang::Go, source);
+        assert!(semantics.imported_modules.contains("github.com/gin-gonic/gin"));
+        assert_eq!(
+            semantics.alias_to_module.get("db").map(String::as_str),
+            Some("gorm.io/gorm")
+        );
+        assert!(semantics.frameworks.contains("gin"));
+        assert!(semantics.frameworks.contains("gorm"));
+        assert_eq!(
+            semantics.tainted_identifiers.get("user").map(String::as_str),
+            Some("go.http.query")
+        );
     }
 
 }
