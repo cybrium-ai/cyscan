@@ -1,0 +1,16 @@
+id:        CBR-GO-SQL_INJECTION
+title:     "SQL Injection in Database Query"
+severity:  critical
+languages: ['go']
+cwe:       ['CWE-89']
+message: |
+  Detected raw SQL query construction using `fmt.Sprintf` or string concatenation. This can lead to SQL injection. Use placeholders (`?`, `$1`, etc.) and provide arguments to `Query`, `QueryRow`, or `Exec` instead.
+query: |
+  (call_expression
+    function: (selector_expression
+      field: (field_identifier) @method (#match? @method "^(Query|QueryRow|Exec|Select|Get)$"))
+    arguments: (argument_list
+      (call_expression
+        function: (selector_expression
+          expression: (identifier) @pkg (#eq? @pkg "fmt")
+          field: (field_identifier) @fmt (#eq? @fmt "Sprintf")))))

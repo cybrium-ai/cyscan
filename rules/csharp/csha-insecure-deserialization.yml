@@ -1,0 +1,13 @@
+id:        CBR-CSHA-INSECURE_DESERIALIZATION
+title:     "Insecure Deserialization via TypeNameHandling"
+severity:  critical
+languages: ['csharp']
+cwe:       ['CWE-502']
+message: |
+  Detected Newtonsoft.Json `TypeNameHandling` set to a value other than `None`. This can allow an attacker to instantiate arbitrary types during deserialization, leading to Remote Code Execution (RCE). Use a safe SerializationBinder or avoid `TypeNameHandling` entirely.
+query: |
+  (assignment_expression
+    left: (member_access_expression
+      name: (identifier) @prop (#eq? @prop "TypeNameHandling"))
+    right: (member_access_expression
+      name: (identifier) @val (#not-eq? @val "None")))

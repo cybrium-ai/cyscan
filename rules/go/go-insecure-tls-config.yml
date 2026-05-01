@@ -1,0 +1,12 @@
+id:        CBR-GO-INSECURE_TLS_CONFIG
+title:     "Insecure TLS Configuration"
+severity:  high
+languages: ['go']
+cwe:       ['CWE-327', 'CWE-295']
+message: |
+  Detected insecure TLS configuration. Setting `InsecureSkipVerify: true` disables certificate validation, making the connection vulnerable to Man-in-the-Middle (MitM) attacks. Also, ensure `MinVersion` is set to at least `tls.VersionTLS12`.
+query: |
+  (literal_value
+    (keyed_element
+      (identifier) @prop (#match? @prop "^(InsecureSkipVerify|MinVersion)$")
+      (identifier) @val (#match? @val "^(true|VersionTLS10|VersionTLS11|VersionSSL30)$")))

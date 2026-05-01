@@ -268,9 +268,13 @@ dependencies = [
  "thiserror 1.0.69",
  "toml",
  "tree-sitter",
+ "tree-sitter-c-sharp",
  "tree-sitter-go",
+ "tree-sitter-java",
  "tree-sitter-javascript",
  "tree-sitter-python",
+ "tree-sitter-ruby",
+ "tree-sitter-rust",
  "urlencoding",
  "walkdir",
 ]
@@ -1698,10 +1702,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "tree-sitter-c-sharp"
+version = "0.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8997ad04502208449025114e434c9024a33a74e700513c702a9d2cac6522a771"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
 name = "tree-sitter-go"
 version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8d702a98d3c7e70e466456e58ff2b1ac550bf1e29b97e5770676d2fdabec00d"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-java"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33bc21adf831a773c075d9d00107ab43965e6a6ea7607b47fd9ec6f3db4b481b"
 dependencies = [
  "cc",
  "tree-sitter",
@@ -1722,6 +1746,26 @@ name = "tree-sitter-python"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4066c6cf678f962f8c2c4561f205945c84834cce73d981e71392624fdc390a9"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-ruby"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0031f687c0772f2dad7b77104c43428611099a1804c81244ada21560f41f0b1"
+dependencies = [
+ "cc",
+ "tree-sitter",
+]
+
+[[package]]
+name = "tree-sitter-rust"
+version = "0.21.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "277690f420bf90741dea984f3da038ace46c4fe6047cba57a66822226cde1c93"
 dependencies = [
  "cc",
  "tree-sitter",

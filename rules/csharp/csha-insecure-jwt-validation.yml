@@ -1,0 +1,13 @@
+id:        CBR-CSHA-INSECURE_JWT_VALIDATION
+title:     "Insecure JWT Validation (None Algorithm)"
+severity:  critical
+languages: ['csharp']
+cwe:       ['CWE-345']
+message: |
+  Detected JWT validation logic that may allow the 'none' algorithm. This allows an attacker to bypass authentication by providing an unsigned token. Ensure that `ValidateIssuerSigningKey` is set to `true` and specifically disallow the 'none' algorithm in your `TokenValidationParameters`.
+pattern: |
+  new TokenValidationParameters {
+      ...
+      ValidateIssuerSigningKey = false,
+      ...
+  }

@@ -1,0 +1,15 @@
+id:        CBR-GO-COMMAND_INJECTION
+title:     "Potential Command Injection via os/exec"
+severity:  critical
+languages: ['go']
+cwe:       ['CWE-78']
+message: |
+  Detected `exec.Command` or `exec.CommandContext` with potentially untrusted input. An attacker could inject malicious commands. Ensure the command and its arguments are not constructed from unsanitized user input.
+query: |
+  (call_expression
+    function: (selector_expression
+      expression: (identifier) @pkg (#eq? @pkg "exec")
+      field: (field_identifier) @method (#match? @method "^Command(Context)?$"))
+    arguments: (argument_list
+      (_) @cmd
+      (_)* @args))

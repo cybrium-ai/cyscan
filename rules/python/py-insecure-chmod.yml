@@ -1,0 +1,15 @@
+id:        CBR-PY-INSECURE_CHMOD
+title:     "Insecure File Permissions (chmod)"
+severity:  medium
+languages: ['python']
+cwe:       ['CWE-732']
+message: |
+  Detected `os.chmod` with broad permissions (e.g., world-writable). This can allow unauthorized users to modify sensitive files. Use more restrictive permissions (e.g., `0o600` for private files, `0o644` for public ones).
+query: |
+  (call
+    function: (attribute
+      value: (identifier) @mod (#eq? @mod "os")
+      attribute: (identifier) @attr (#eq? @attr "chmod"))
+    arguments: (argument_list
+      (_)
+      (integer) @mode (#match? @mode "^0o[0-7][0-7][2367]$")))

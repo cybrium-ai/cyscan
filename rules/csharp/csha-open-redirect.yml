@@ -1,0 +1,13 @@
+id:        CBR-CSHA-OPEN_REDIRECT
+title:     "Unvalidated Local Redirect"
+severity:  medium
+languages: ['csharp']
+cwe:       ['CWE-601']
+frameworks: ['aspnet']
+message: |
+  Detected `Redirect()` or `LocalRedirect()` with potential untrusted input. This can lead to Open Redirect vulnerabilities, where an attacker tricks users into visiting malicious sites. Use `Url.IsLocalUrl()` to validate the destination before redirecting.
+query: |
+  (invocation_expression
+    function: (identifier) @method (#match? @method "^(Redirect|LocalRedirect)$")
+    arguments: (argument_list
+      (argument) @arg))

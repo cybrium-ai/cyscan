@@ -1,0 +1,14 @@
+id:        CBR-CSHA-PATH_TRAVERSAL
+title:     "Potential Path Traversal"
+severity:  high
+languages: ['csharp']
+cwe:       ['CWE-22']
+message: |
+  Detected file system operations with potentially untrusted input. An attacker could use `../` sequences to access files outside the intended directory. Use `Path.GetFileName()` to extract only the filename or validate the path against a root directory.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      expression: (identifier) @obj (#match? @obj "^(File|Directory|Path)$")
+      name: (identifier) @method (#match? @method "^(Open|Read|Write|Delete|Create|Combine)$"))
+    arguments: (argument_list
+      (argument) @arg))

@@ -12,5 +12,5 @@ message: |
 query: |
   (call
     function: (attribute
-      object: (identifier) @m (#eq? @m "pickle")
+      object: (identifier) @obj
       attribute: (identifier) @fn (#match? @fn "^(loads?)$"))) @call

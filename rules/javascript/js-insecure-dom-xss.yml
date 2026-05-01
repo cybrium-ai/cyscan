@@ -1,0 +1,12 @@
+id:        CBR-JS-INSECURE_DOM_XSS
+title:     "Insecure DOM Manipulation (XSS)"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-79']
+message: |
+  Detected insecure assignment to `innerHTML`, `outerHTML`, or `document.write`. This can lead to DOM-based XSS if the input is untrusted. Use `textContent` or `innerText` instead, or sanitize the input with a library like DOMPurify.
+query: |
+  (assignment_expression
+    left: (member_expression
+      property: (property_identifier) @prop (#match? @prop "^(innerHTML|outerHTML)$"))
+    right: (_) @val)

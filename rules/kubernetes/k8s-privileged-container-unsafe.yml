@@ -1,0 +1,11 @@
+id:        CBR-K8S-PRIVILEGED-CONTAINER-UNSAFE
+title:     "Privileged Container Detected"
+severity:  high
+languages: ['yaml', 'kubernetes']
+cwe:       ['CWE-250']
+message: |
+  Detected a privileged container. Privileged containers have nearly all the same access as processes running on the host. This can be exploited to escape the container and compromise the host. Disable privileged mode unless absolutely necessary.
+query: |
+  (block_mapping_pair
+    key: (flow_node (plain_scalar (limited_plain_scalar) @key)) (#eq? @key "privileged")
+    value: (block_node (plain_scalar (limited_plain_scalar) @val)) (#eq? @val "true"))

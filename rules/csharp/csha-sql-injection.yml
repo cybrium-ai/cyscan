@@ -1,0 +1,18 @@
+id:        CBR-CSHA-SQL_INJECTION
+title:     "SQL Injection via String Concatenation"
+severity:  critical
+languages: ['csharp']
+cwe:       ['CWE-89']
+frameworks: ['aspnet']
+message: |
+  Detected raw SQL execution with string concatenation. This is a primary vector for SQL injection. Use parameterized queries (SqlParameter) or an ORM like Entity Framework with LINQ to safely handle user input.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      name: (identifier) @m (#match? @m "^Execute(Reader|Scalar|NonQuery|XmlReader|Sql)?$"))
+    arguments: (argument_list
+      (argument
+        (binary_expression
+          left: (_)
+          operator: "+"
+          right: (_))) @concat))

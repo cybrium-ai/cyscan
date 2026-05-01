@@ -1,0 +1,16 @@
+id:        CBR-PY-SUBPROCESS_SHELL_TRUE
+title:     "Subprocess with shell=True"
+severity:  high
+languages: ['python']
+cwe:       ['CWE-78']
+message: |
+  Detected `subprocess.run` or `subprocess.Popen` with `shell=True`. If the command string is constructed from untrusted input, it leads to command injection. Avoid `shell=True` whenever possible and pass the command as a list of arguments.
+query: |
+  (call
+    function: (attribute
+      value: (identifier) @mod (#eq? @mod "subprocess")
+      attribute: (identifier) @attr (#match? @attr "^(run|Popen|call|check_call|check_output)$"))
+    arguments: (argument_list
+      (keyword_argument
+        name: (identifier) @name (#eq? @name "shell")
+        value: (true) @val)))

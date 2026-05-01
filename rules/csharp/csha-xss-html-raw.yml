@@ -1,0 +1,15 @@
+id:        CBR-CSHA-XSS_HTML_RAW
+title:     "Cross-Site Scripting (XSS) via Html.Raw"
+severity:  high
+languages: ['csharp']
+cwe:       ['CWE-79']
+frameworks: ['aspnet']
+message: |
+  Use of `Html.Raw()` detected with potential untrusted input. `Html.Raw` bypasses automatic HTML encoding in Razor views, leading to XSS vulnerabilities. Ensure the input is properly sanitized using a library like DOMPurify or AntiXSS, or avoid `Html.Raw` entirely.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      expression: (identifier) @obj (#eq? @obj "Html")
+      name: (identifier) @method (#eq? @method "Raw"))
+    arguments: (argument_list
+      (argument) @arg))

@@ -1,0 +1,11 @@
+id:        CBR-K8S-ROOT-USER-DETECTED
+title:     "Container Running as Root"
+severity:  medium
+languages: ['yaml', 'kubernetes']
+cwe:       ['CWE-250']
+message: |
+  Detected a container configured to run as root or without a non-root user specified. Running as root increases the impact of a container breakout. Use `runAsUser` and `runAsGroup` in the `securityContext` to specify a non-privileged user.
+query: |
+  (block_mapping_pair
+    key: (flow_node (plain_scalar (limited_plain_scalar) @key)) (#eq? @key "runAsNonRoot")
+    value: (block_node (plain_scalar (limited_plain_scalar) @val)) (#eq? @val "false"))

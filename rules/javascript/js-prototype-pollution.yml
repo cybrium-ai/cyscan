@@ -1,0 +1,13 @@
+id:        CBR-JS-PROTOTYPE_POLLUTION
+title:     "Potential Prototype Pollution"
+severity:  high
+languages: ['javascript', 'typescript']
+cwe:       ['CWE-1321']
+message: |
+  Detected potential prototype pollution via unsafe property assignment. An attacker could inject properties into `Object.prototype`, leading to denial of service or remote code execution. Use `Map` instead of plain objects for dynamic keys, or validate keys against an allowlist and specifically block `__proto__`, `constructor`, and `prototype`.
+query: |
+  (assignment_expression
+    left: (member_expression
+      property: (subscript_expression
+        index: (_) @key))
+    right: (_) @val)

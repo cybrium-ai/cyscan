@@ -1,0 +1,15 @@
+id:        CBR-CSHA-INSECURE_COOKIE_CONFIG
+title:     "Insecure Cookie Configuration"
+severity:  medium
+languages: ['csharp']
+cwe:       ['CWE-614']
+frameworks: ['aspnet']
+message: |
+  Detected cookie configuration with `HttpOnly` or `Secure` flags set to `false`. `HttpOnly` prevents client-side scripts from accessing the cookie (mitigating XSS), and `Secure` ensures the cookie is only sent over HTTPS. Set both to `true` for sensitive cookies.
+query: |
+  (object_creation_expression
+    type: (identifier) @type (#eq? @type "CookieOptions")
+    arguments: (initializer_expression
+      (assignment_expression
+        left: (identifier) @prop (#match? @prop "^(HttpOnly|Secure)$")
+        right: (boolean_literal) @val (#eq? @val "false"))))

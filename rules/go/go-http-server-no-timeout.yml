@@ -1,0 +1,15 @@
+id:        CBR-GO-HTTP_SERVER_NO_TIMEOUT
+title:     "HTTP Server Missing Timeouts"
+severity:  medium
+languages: ['go']
+cwe:       ['CWE-400']
+message: |
+  Detected `http.Server` without explicit timeouts (`ReadTimeout`, `WriteTimeout`, `IdleTimeout`). This can make the server vulnerable to Slowloris DoS attacks. Always set reasonable timeouts for production servers.
+query: |
+  (composite_literal
+    type: (selector_expression
+      expression: (identifier) @pkg (#eq? @pkg "http")
+      field: (field_identifier) @type (#eq? @type "Server"))
+    body: (literal_value
+      (keyed_element
+        (identifier) @prop (#not-match? @prop "^(ReadTimeout|WriteTimeout|IdleTimeout)$"))*))

@@ -1,0 +1,14 @@
+id:        CBR-CSHA-COMMAND_INJECTION
+title:     "Potential Command Injection"
+severity:  critical
+languages: ['csharp']
+cwe:       ['CWE-78']
+message: |
+  Detected `Process.Start` or `ProcessStartInfo` with potentially untrusted arguments. An attacker could inject malicious commands. Use an API that accepts an argument list rather than a single command string, or strictly validate input against an allowlist.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      expression: (identifier) @obj (#eq? @obj "Process")
+      name: (identifier) @method (#eq? @method "Start"))
+    arguments: (argument_list
+      (argument) @arg))

@@ -3,6 +3,7 @@
 //! reshaping.
 
 use std::{cmp::Ordering, collections::HashMap, fmt, path::PathBuf, str::FromStr};
+use std::hash::{Hash, Hasher};
 
 use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
@@ -81,6 +82,9 @@ pub struct Finding {
     pub column:     usize,
     pub end_line:   usize,
     pub end_column: usize,
+    /// Stable identifier that survives line movement and minor refactors.
+    /// Computed from rule_id + normalized snippet + relative file path.
+    pub fingerprint: String,
     /// Byte offsets into the scanned file — used by `cyscan fix` to splice
     /// replacement text precisely. Not serialised (internal use only).
     #[serde(skip)]
@@ -110,5 +114,50 @@ impl Finding {
     /// Create a Finding with only the required fields, defaulting evidence + reachability.
     pub fn defaults() -> (HashMap<String, serde_json::Value>, Option<String>) {
         (HashMap::new(), None)
+    }
+
+    /// Compute a stable fingerprint for this finding.
+    ///
+    /// The fingerprint is designed to stay the same even if the finding moves
+    /// to a different line, provided the logic (snippet) and rule stay the same.
+    pub fn compute_fingerprint(
+        rule_id: &str,
+        file: &std::path::Path,
+        snippet: &str,
+        base_path: Option<&std::path::Path>,
+    ) -> String {
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+
+        // 1. Rule ID is core
+        rule_id.hash(&mut hasher);
+
+        // 2. Relative file path (so fingerprints are stable across different machines)
+        let rel_path = if let Some(base) = base_path {
+            file.strip_prefix(base).unwrap_or(file)
+        } else {
+            file
+        };
+        rel_path.to_string_lossy().hash(&mut hasher);
+
+        // 3. Normalized snippet (ignore whitespace/formatting shifts)
+        Self::normalize_snippet(snippet).hash(&mut hasher);
+
+        format!("{:016x}", hasher.finish())
+    }
+
+    /// Strip whitespace and common comment markers so formatting shifts
+    /// don't break the fingerprint.
+    fn normalize_snippet(s: &str) -> String {
+        s.lines()
+            .map(|l| {
+                l.split("//").next().unwrap_or("") // strip // comments
+                 .split('#').next().unwrap_or("")  // strip # comments
+                 .chars()
+                 .filter(|c| !c.is_whitespace())
+                 .collect::<String>()
+            })
+            .filter(|l| !l.is_empty())
+            .collect::<Vec<_>>()
+            .join("")
     }
 }

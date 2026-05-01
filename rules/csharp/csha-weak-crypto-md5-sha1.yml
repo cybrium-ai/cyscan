@@ -1,0 +1,13 @@
+id:        CBR-CSHA-WEAK_CRYPTO_MD5_SHA1
+title:     "Use of Weak Hashing Algorithm (MD5/SHA1)"
+severity:  medium
+languages: ['csharp']
+cwe:       ['CWE-327']
+message: |
+  Detected use of MD5 or SHA1 hashing algorithms. These algorithms are cryptographically broken and vulnerable to collision attacks. Use a stronger algorithm like SHA256 or SHA512.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      expression: (identifier) @obj (#match? @obj "^(MD5|SHA1)$")
+      name: (identifier) @method (#eq? @method "Create"))
+    )

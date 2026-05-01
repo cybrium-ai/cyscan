@@ -14,7 +14,7 @@ message: |
 query: |
   (call
     function: (attribute
-                object: (_) @obj
+                object: (identifier) @obj
                 attribute: (identifier) @method (#eq? @method "execute"))
     arguments: (argument_list
                  (binary_operator) @concat)) @call

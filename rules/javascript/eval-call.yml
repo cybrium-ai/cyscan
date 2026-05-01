@@ -9,10 +9,18 @@ message: |
   turns it into executable JS. Any attacker influence = script
   injection. Use explicit parsers, JSON.parse, or precompiled handlers.
 query: |
-  (call_expression
-    function: [
-      (identifier) @fn
-      (new_expression constructor: (identifier) @ctor)
-    ]
-    (#match? @fn "^(eval|setTimeout|setInterval)$")
-    (#match? @ctor "^Function$")) @call
+  [
+    (call_expression
+      function: (identifier) @fn
+      (#eq? @fn "eval")) @call
+    (new_expression
+      constructor: (identifier) @ctor
+      (#eq? @ctor "Function")) @call
+    (call_expression
+      function: (identifier) @fn
+      arguments: (arguments [
+        (string)
+        (template_string)
+      ] @arg)
+      (#match? @fn "^(setTimeout|setInterval)$")) @call
+  ]

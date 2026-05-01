@@ -320,6 +320,9 @@ pub fn scan_file(path: &Path, source: &str) -> Vec<Finding> {
                 value.clone()
             };
 
+            let snippet = format!("{} = \"{}\"", key_display, truncated);
+            let fingerprint = Finding::compute_fingerprint("CBR-SEC-ENTROPY", path, &snippet, None);
+
             findings.push(Finding {
                 rule_id:    "CBR-SEC-ENTROPY".to_string(),
                 title:      format!("High-entropy string in '{}' (entropy: {:.1} bits/char)", key_display, entropy),
@@ -338,14 +341,16 @@ pub fn scan_file(path: &Path, source: &str) -> Vec<Finding> {
                 column:     0,
                 end_line:   line_no + 1,
                 end_column: 0,
+                fingerprint,
                 start_byte: 0,
                 end_byte:   0,
-                snippet:    format!("{} = \"{}\"", key_display, truncated),
+                snippet,
                 fix_recipe: None,
                 fix:        None,
                 cwe:        vec!["CWE-798".to_string()],
                 evidence:   {
                     let mut m = std::collections::HashMap::new();
+                    m.insert("matcher_kind".into(), serde_json::json!("entropy"));
                     m.insert("entropy".into(), serde_json::json!(entropy));
                     m.insert("charset".into(), serde_json::json!(format!("{:?}", class)));
                     m.insert("length".into(), serde_json::json!(value.len()));
