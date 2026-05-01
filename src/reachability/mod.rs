@@ -134,6 +134,45 @@ pub fn analyze(
     results
 }
 
+pub fn enrich_findings(target: &Path, findings: &mut [Finding]) {
+    let results = analyze(target, findings);
+    let result_map: std::collections::HashMap<(String, String), ReachabilityResult> = results
+        .into_iter()
+        .map(|result| {
+            (
+                (result.finding_rule_id.clone(), result.package.clone()),
+                result,
+            )
+        })
+        .collect();
+
+    for finding in findings {
+        let package = extract_package_name(finding);
+        if package.is_empty() {
+            continue;
+        }
+        let key = (finding.rule_id.clone(), package.clone());
+        let Some(result) = result_map.get(&key) else { continue };
+        finding.evidence.insert("reachable_package".into(), serde_json::json!(result.package));
+        finding.evidence.insert(
+            "reachable_callsite_count".into(),
+            serde_json::json!(result.call_chain.len()),
+        );
+        if let Some(symbol) = result.vulnerable_symbols.iter().find(|sym| {
+            result.call_chain.iter().any(|(_, snippet)| snippet.contains(last_symbol_segment(sym)))
+        }) {
+            finding.evidence.insert("reachable_symbol".into(), serde_json::json!(symbol));
+        } else if let Some(symbol) = result.vulnerable_symbols.first() {
+            finding.evidence.insert("reachable_symbol".into(), serde_json::json!(symbol));
+        }
+        finding.evidence.insert(
+            "reachability_confidence".into(),
+            serde_json::json!(result.confidence),
+        );
+        finding.reachability = Some(result.verdict.to_string());
+    }
+}
+
 /// Extract package name from a finding's evidence or title.
 fn extract_package_name(finding: &Finding) -> String {
     // Check evidence dict for package info
@@ -169,4 +208,68 @@ fn extract_vulnerable_symbols(finding: &Finding) -> Vec<String> {
         }
     }
     Vec::new()
+}
+
+fn last_symbol_segment(symbol: &str) -> &str {
+    symbol
+        .rsplit(['.', ':', '/'])
+        .next()
+        .unwrap_or(symbol)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::finding::{Finding, Severity};
+    use std::collections::HashMap;
+    use std::path::PathBuf;
+
+    fn sca_finding(package: &str, symbols: &[&str]) -> Finding {
+        let mut evidence = HashMap::new();
+        evidence.insert("package".into(), serde_json::json!(package));
+        evidence.insert("vulnerable_symbols".into(), serde_json::json!(symbols));
+        Finding {
+            rule_id: "CBR-SUPPLY-GHSA-TEST".into(),
+            title: "Test advisory".into(),
+            severity: Severity::High,
+            message: "test".into(),
+            file: PathBuf::from("package-lock.json"),
+            line: 0,
+            column: 0,
+            end_line: 0,
+            end_column: 0,
+            fingerprint: String::new(),
+            start_byte: 0,
+            end_byte: 0,
+            snippet: format!("{package}@1.0.0"),
+            fix_recipe: None,
+            fix: None,
+            cwe: Vec::new(),
+            evidence,
+            reachability: None,
+        }
+    }
+
+    #[test]
+    fn python_direct_import_symbol_is_marked_reachable() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("app.py"), "from yaml import load\nload(data)\n").unwrap();
+        let findings = vec![sca_finding("yaml", &["yaml.load"])];
+        let results = analyze(tmp.path(), &findings);
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].verdict, Verdict::Reachable);
+        assert!(!results[0].call_chain.is_empty());
+    }
+
+    #[test]
+    fn reachability_enrichment_adds_symbol_evidence() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("app.py"), "from yaml import load\nload(data)\n").unwrap();
+        let mut findings = vec![sca_finding("yaml", &["yaml.load"])];
+        enrich_findings(tmp.path(), &mut findings);
+        assert_eq!(findings[0].reachability.as_deref(), Some("reachable"));
+        assert_eq!(findings[0].evidence.get("reachable_package").and_then(|v| v.as_str()), Some("yaml"));
+        assert_eq!(findings[0].evidence.get("reachable_symbol").and_then(|v| v.as_str()), Some("yaml.load"));
+        assert_eq!(findings[0].evidence.get("reachable_callsite_count").and_then(|v| v.as_u64()), Some(1));
+    }
 }

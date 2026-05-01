@@ -196,6 +196,13 @@ fn make_finding(adv: &Advisory, dep: &Dependency) -> Finding {
         "{} {} {}@{} — see https://osv.dev/vulnerability/{}",
         adv.id, dep.ecosystem.as_str(), dep.name, dep.version, adv.id,
     );
+    let mut evidence = HashMap::new();
+    evidence.insert("package".into(), serde_json::json!(dep.name));
+    evidence.insert("dependency".into(), serde_json::json!(format!("{}@{}", dep.name, dep.version)));
+    evidence.insert("ecosystem".into(), serde_json::json!(dep.ecosystem.as_str()));
+    if !adv.vulnerable_symbols.is_empty() {
+        evidence.insert("vulnerable_symbols".into(), serde_json::json!(adv.vulnerable_symbols));
+    }
     Finding {
         rule_id:    format!("CBR-SUPPLY-{}", adv.id),
         title,
@@ -209,7 +216,7 @@ fn make_finding(adv: &Advisory, dep: &Dependency) -> Finding {
         fix_recipe: None,
         fix:        None,
         cwe:        Vec::new(),
-        evidence:   HashMap::new(),
+        evidence,
         reachability: None,
     }
 }

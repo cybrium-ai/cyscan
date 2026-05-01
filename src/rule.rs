@@ -70,6 +70,18 @@ pub struct Rule {
     /// Alias so imported rules with `pattern:` field work without conversion.
     #[serde(default)]
     pub pattern:   Option<String>,
+    /// Boolean all-of Semgrep-style patterns. All entries must match for
+    /// the rule to fire.
+    #[serde(default)]
+    pub patterns:  Vec<String>,
+    /// Negative pattern filter. If this matches the candidate context, the
+    /// rule is suppressed.
+    #[serde(default)]
+    pub pattern_not: Option<String>,
+    /// Required enclosing context pattern. The match must occur inside a
+    /// larger snippet that satisfies this pattern.
+    #[serde(default)]
+    pub pattern_inside: Option<String>,
     pub message:   String,
     #[serde(default)]
     pub fix_recipe: Option<String>,
@@ -121,8 +133,12 @@ impl Rule {
         if self.languages.is_empty() {
             bail!("rule {}: no languages declared", self.id);
         }
-        if self.query.is_none() && self.regex.is_none() && self.pattern.is_none() {
-            bail!("rule {}: neither query, regex, nor pattern set", self.id);
+        if self.query.is_none()
+            && self.regex.is_none()
+            && self.pattern.is_none()
+            && self.patterns.is_empty()
+        {
+            bail!("rule {}: neither query, regex, pattern, nor patterns set", self.id);
         }
         Ok(())
     }

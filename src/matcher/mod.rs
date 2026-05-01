@@ -65,7 +65,7 @@ pub fn run_rules_with_semantics<'a>(
             }
             let (tree, _) = parsed.as_ref().unwrap();
             findings.extend(treesitter::match_rule(rule, lang, path, source, tree, semantics));
-        } else if rule.regex.is_some() || rule.pattern.is_some() {
+        } else if rule.regex.is_some() || rule.pattern.is_some() || !rule.patterns.is_empty() {
             findings.extend(regex::match_rule(rule, lang, path, source, semantics));
         }
     }

@@ -19,7 +19,7 @@ use std::path::Path;
 
 use anyhow::Result;
 
-use crate::{finding::Finding, rule::RulePack};
+use crate::{finding::Finding, reachability, rule::RulePack};
 
 /// Walk `target`, find every supported lockfile, and emit findings from
 /// the advisory matcher, the typosquat heuristic, and any policy rules
@@ -33,6 +33,7 @@ pub fn run(target: &Path, pack: &RulePack, advisories: &advisory::Snapshot) -> R
     findings.extend(typosquat::scan(&deps));
     findings.extend(policy::scan(&deps, pack.rules()));
     findings.extend(license::scan(&deps));
+    reachability::enrich_findings(target, &mut findings);
 
     findings.sort_by(|a, b| {
         b.severity.cmp(&a.severity)

@@ -16,7 +16,7 @@ use super::semantics::FileSemantics;
 /// Semgrep uses `$VAR` for metavariables and `...` for wildcards.
 /// We convert these to regex equivalents so imported rules work
 /// without a full semgrep engine.
-fn semgrep_to_regex(pattern: &str) -> String {
+pub(super) fn semgrep_to_regex(pattern: &str) -> String {
     // If pattern already looks like valid regex (no $VAR or ...), return as-is
     if !pattern.contains('$') && !pattern.contains("...") {
         return pattern.to_string();
@@ -48,6 +48,7 @@ fn semgrep_to_regex(pattern: &str) -> String {
                 result.push_str(".*");
                 i += 3;
             }
+            '.' => { result.push_str(r"\."); i += 1; }
             // Escape regex metacharacters that might appear in code patterns
             '(' => { result.push_str(r"\("); i += 1; }
             ')' => { result.push_str(r"\)"); i += 1; }
@@ -83,49 +84,43 @@ pub fn match_rule(
     source: &str,
     semantics: &FileSemantics,
 ) -> Vec<Finding> {
-    // YAML block literal `|` keeps a trailing newline, which the regex
-    // crate treats as a literal \n requirement. Trim any surrounding
-    // whitespace so rule authors don't have to remember `|-` every time.
-    let raw = rule.regex.as_deref().or(rule.pattern.as_deref());
-    let Some(pat) = raw.map(str::trim) else { return Vec::new() };
-    if pat.is_empty() { return Vec::new() }
-
-    // Convert semgrep AST patterns to regex:
-    //   $VAR, $NAME, $FUNC  →  \w+  (any identifier)
-    //   ...                  →  .*   (any code)
-    //   [...]                →  \[.*\]
-    //   $FUNC(...)           →  \w+\(.*\)
-    let converted = semgrep_to_regex(pat);
-
-    // Skip patterns that are too short/broad after conversion (would match everything)
-    let meaningful = converted.replace(r"\w+", "").replace(".*", "").replace(r"\s+", "");
-    if meaningful.trim().len() < 3 {
+    let positive_patterns = rule_positive_patterns(rule);
+    if positive_patterns.is_empty() {
         return Vec::new();
     }
 
-    let re = match Regex::new(&converted) {
-        Ok(r)  => r,
-        Err(e) => {
-            log::debug!("rule {}: pattern compile failed: {e}", rule.id);
-            return Vec::new();
-        }
-    };
+    let compiled_patterns: Vec<Regex> = positive_patterns.iter()
+        .filter_map(|pat| compile_semgrep_like_regex(rule.id.as_str(), pat, false))
+        .collect();
+    if compiled_patterns.is_empty() {
+        return Vec::new();
+    }
+    let multiline = positive_patterns.iter().any(|pat| needs_multiline_matching(pat))
+        || rule.pattern_inside.as_deref().is_some_and(needs_multiline_matching);
+    let inside_ranges = rule.pattern_inside.as_deref()
+        .and_then(|pat| compile_semgrep_like_regex(rule.id.as_str(), pat, true))
+        .map(|re| context_ranges(source, &re))
+        .unwrap_or_default();
+    let pattern_not = rule.pattern_not.as_deref()
+        .and_then(|pat| compile_semgrep_like_regex(rule.id.as_str(), pat, multiline));
 
     let mut out = Vec::new();
-    if needs_multiline_matching(pat) {
-        let re = match RegexBuilder::new(&converted)
-            .dot_matches_new_line(true)
-            .multi_line(true)
-            .build()
-        {
-            Ok(r) => r,
-            Err(e) => {
-                log::debug!("rule {}: multiline pattern compile failed: {e}", rule.id);
-                return Vec::new();
+    if multiline {
+        let primary = &compiled_patterns[0];
+        for m in primary.find_iter(source) {
+            if !all_patterns_match_range(&compiled_patterns[1..], source, m.start(), m.end()) {
+                continue;
             }
-        };
-
-        for m in re.find_iter(source) {
+                if pattern_not_matches(
+                    rule.pattern_not.as_deref(),
+                    pattern_not.as_ref(),
+                    &source[m.start()..m.end()],
+                ) {
+                    continue;
+                }
+            if !inside_ranges.is_empty() && !inside_ranges.iter().any(|(start, end)| m.start() >= *start && m.end() <= *end) {
+                continue;
+            }
             let (line, column) = byte_to_line_col(source, m.start());
             let (end_line, end_column) = byte_to_line_col(source, m.end());
             let snippet = source[m.start()..m.end()]
@@ -156,16 +151,28 @@ pub fn match_rule(
                 cwe:        rule.cwe.clone(),
                 evidence,
                 reachability,
-            });
+                });
         }
     } else {
+        let primary = &compiled_patterns[0];
         // Track byte offset of each line start so we can report absolute byte
         // ranges for the fixer. `source.lines()` strips newlines, so we walk
         // the source manually to keep offsets honest on \r\n and \n alike.
         let mut line_start = 0usize;
         for (line_ix, line) in source.split_inclusive('\n').enumerate() {
             let trimmed = line.trim_end_matches(['\r', '\n']);
-            for m in re.find_iter(trimmed) {
+            for m in primary.find_iter(trimmed) {
+                if !compiled_patterns[1..].iter().all(|re| re.is_match(trimmed)) {
+                    continue;
+                }
+                if pattern_not_matches(rule.pattern_not.as_deref(), pattern_not.as_ref(), trimmed) {
+                    continue;
+                }
+                let abs_start = line_start + m.start();
+                let abs_end = line_start + m.end();
+                if !inside_ranges.is_empty() && !inside_ranges.iter().any(|(start, end)| abs_start >= *start && abs_end <= *end) {
+                    continue;
+                }
                 let (evidence, reachability) = annotate_regex_finding(rule, lang, source, trimmed, semantics);
                 out.push(Finding {
                     rule_id:    rule.id.clone(),
@@ -178,8 +185,8 @@ pub fn match_rule(
                     end_line:   line_ix + 1,
                     end_column: m.end() + 1,
                     fingerprint: String::new(),
-                    start_byte: line_start + m.start(),
-                    end_byte:   line_start + m.end(),
+                    start_byte: abs_start,
+                    end_byte:   abs_end,
                     snippet:    trimmed.trim().to_string(),
                     fix_recipe: rule.fix_recipe.clone(),
                     fix:        rule.fix.clone(),
@@ -200,6 +207,62 @@ pub fn match_rule(
 
 fn needs_multiline_matching(pattern: &str) -> bool {
     pattern.contains('\n')
+}
+
+fn rule_positive_patterns(rule: &Rule) -> Vec<&str> {
+    if !rule.patterns.is_empty() {
+        return rule.patterns.iter().map(String::as_str).collect();
+    }
+    rule.regex.as_deref().or(rule.pattern.as_deref())
+        .map(|pat| vec![pat.trim()])
+        .unwrap_or_default()
+}
+
+fn compile_semgrep_like_regex(rule_id: &str, pattern: &str, multiline: bool) -> Option<Regex> {
+    let pat = pattern.trim();
+    if pat.is_empty() {
+        return None;
+    }
+    let converted = semgrep_to_regex(pat);
+    let meaningful = converted.replace(r"\w+", "").replace(".*", "").replace(r"\s+", "");
+    if meaningful.trim().len() < 3 {
+        return None;
+    }
+    let builder = RegexBuilder::new(&converted)
+        .dot_matches_new_line(multiline)
+        .multi_line(multiline)
+        .build();
+    match builder {
+        Ok(re) => Some(re),
+        Err(e) => {
+            log::debug!("rule {}: pattern compile failed: {e}", rule_id);
+            None
+        }
+    }
+}
+
+fn all_patterns_match_range(patterns: &[Regex], source: &str, start: usize, end: usize) -> bool {
+    let snippet = &source[start..end];
+    patterns.iter().all(|re| re.is_match(snippet))
+}
+
+fn context_ranges(source: &str, re: &Regex) -> Vec<(usize, usize)> {
+    re.find_iter(source)
+        .map(|m| {
+            let tail = &source[m.end()..];
+            let block_end = tail.find("\n\n").map(|idx| m.end() + idx).unwrap_or(source.len());
+            (m.start(), block_end)
+        })
+        .collect()
+}
+
+fn pattern_not_matches(raw: Option<&str>, compiled: Option<&Regex>, text: &str) -> bool {
+    compiled.is_some_and(|re| re.is_match(text))
+        || raw.is_some_and(|pat| compact_code(text).contains(&compact_code(pat)))
+}
+
+fn compact_code(text: &str) -> String {
+    text.chars().filter(|c| !c.is_whitespace()).collect()
 }
 
 fn byte_to_line_col(source: &str, byte_idx: usize) -> (usize, usize) {
@@ -568,6 +631,9 @@ mod tests {
             cwe: vec!["CWE-94".into()],
             frameworks: vec![],
             source: None,
+            patterns: vec![],
+            pattern_not: None,
+            pattern_inside: None,
             cia: None,
         };
         let source = "import org.springframework.web.bind.annotation.RequestParam;\nclass Controller { String go(@RequestParam String expr) { parser.parseExpression(expr); return expr; } }\n";
@@ -603,6 +669,9 @@ mod tests {
             cwe: vec!["CWE-95".into()],
             frameworks: vec![],
             source: None,
+            patterns: vec![],
+            pattern_not: None,
+            pattern_inside: None,
             cia: None,
         };
         let source = "import flask\npayload = flask.request.args.get('code')\n";
@@ -646,6 +715,9 @@ mod tests {
             cwe: vec!["CWE-601".into()],
             frameworks: vec![],
             source: None,
+            patterns: vec![],
+            pattern_not: None,
+            pattern_inside: None,
             cia: None,
         };
         let source = "import org.springframework.web.bind.annotation.RequestParam;\nclass Controller { String go(@RequestParam String next) { return \"redirect:\" + next; } }\n";
@@ -672,6 +744,9 @@ mod tests {
             cwe: vec!["CWE-94".into()],
             frameworks: vec![],
             source: None,
+            patterns: vec![],
+            pattern_not: None,
+            pattern_inside: None,
             cia: None,
         };
         let source = "import org.springframework.web.bind.annotation.RequestParam;\nclass Controller { String go(@RequestParam String expr) { engine.eval(expr); return expr; } }\n";
@@ -699,6 +774,9 @@ mod tests {
             cwe: vec!["CWE-89".into()],
             frameworks: vec![],
             source: None,
+            patterns: vec![],
+            pattern_not: None,
+            pattern_inside: None,
             cia: None,
         };
         let source = "import org.springframework.web.bind.annotation.RequestParam;\nclass Controller {\n  void run(@RequestParam String user, Connection conn) throws Exception {\n    String query = \"select * from t where user='\" + user + \"'\";\n    PreparedStatement ps = conn.prepareStatement(query);\n  }\n}\n";
@@ -723,5 +801,62 @@ mod tests {
             regex_sanitizer_kind("CBR-PYTH-MAKE_RESPONSE_WITH_UNKNOWN_CON", r#"flask.make_response(format_html("{}", value))"#),
             Some("django.format_html")
         );
+    }
+
+    #[test]
+    fn patterns_all_of_and_pattern_not_filter_matches() {
+        let rule = Rule {
+            id: "CBR-TEST-REGEX-PATTERNS".into(),
+            title: "Regex DSL".into(),
+            severity: crate::finding::Severity::Medium,
+            languages: vec![Lang::Python],
+            query: None,
+            regex: None,
+            pattern: None,
+            patterns: vec!["eval(".into(), "user".into()],
+            pattern_not: Some("ast.literal_eval(".into()),
+            pattern_inside: None,
+            message: "msg".into(),
+            fix_recipe: None,
+            fix: None,
+            dependency: None,
+            cwe: vec![],
+            frameworks: vec![],
+            source: None,
+            cia: None,
+        };
+        let semantics = semantics::extract(Lang::Python, "user = input()\n");
+        let findings = match_rule(&rule, Lang::Python, Path::new("x.py"), "eval(user)\nast.literal_eval(user)\n", &semantics);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].snippet, "eval(user)");
+    }
+
+    #[test]
+    fn pattern_inside_requires_enclosing_context() {
+        let rule = Rule {
+            id: "CBR-TEST-REGEX-INSIDE".into(),
+            title: "Regex inside".into(),
+            severity: crate::finding::Severity::Medium,
+            languages: vec![Lang::Python],
+            query: None,
+            regex: Some(r"eval\(user\)".into()),
+            pattern: None,
+            patterns: vec![],
+            pattern_not: None,
+            pattern_inside: Some("def dangerous".into()),
+            message: "msg".into(),
+            fix_recipe: None,
+            fix: None,
+            dependency: None,
+            cwe: vec![],
+            frameworks: vec![],
+            source: None,
+            cia: None,
+        };
+        let semantics = semantics::extract(Lang::Python, "");
+        let source = "def dangerous():\n    eval(user)\n\ndef safe():\n    eval(user)\n";
+        let findings = match_rule(&rule, Lang::Python, Path::new("x.py"), source, &semantics);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].line, 2);
     }
 }

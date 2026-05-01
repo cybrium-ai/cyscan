@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 
 use regex::Regex;
 
@@ -6,6 +7,7 @@ use crate::lang::Lang;
 
 #[derive(Debug, Default, Clone)]
 pub struct FileSemantics {
+    pub module_identity: Option<String>,
     pub imported_modules: HashSet<String>,
     pub alias_to_module: HashMap<String, String>,
     pub imported_symbols: HashMap<String, String>,
@@ -23,8 +25,17 @@ pub struct FileSemantics {
 }
 
 pub fn extract(lang: Lang, source: &str) -> FileSemantics {
+    extract_with_context(lang, source, None, None)
+}
+
+pub fn extract_with_context(
+    lang: Lang,
+    source: &str,
+    path: Option<&Path>,
+    base_path: Option<&Path>,
+) -> FileSemantics {
     match lang {
-        Lang::Python => extract_python(source),
+        Lang::Python => extract_python(source, path, base_path),
         Lang::Javascript | Lang::Typescript => extract_javascript(source),
         Lang::Ruby => extract_ruby(source),
         Lang::Java => extract_java(source),
@@ -33,8 +44,12 @@ pub fn extract(lang: Lang, source: &str) -> FileSemantics {
     }
 }
 
-fn extract_python(source: &str) -> FileSemantics {
+fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {
     let mut semantics = FileSemantics::default();
+    semantics.module_identity = python_module_identity(path, base_path);
+    let module_identity = semantics.module_identity
+        .clone()
+        .unwrap_or_else(|| "local".to_string());
 
     let import_re = Regex::new(
         r"^\s*import\s+([A-Za-z_][A-Za-z0-9_\.]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*$"
@@ -46,9 +61,11 @@ fn extract_python(source: &str) -> FileSemantics {
         r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$"
     ).unwrap();
     let def_re = Regex::new(r#"^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\):"#).unwrap();
-    let call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let member_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let lines: Vec<&str> = source.lines().collect();
 
-    for raw_line in source.lines() {
+    for raw_line in &lines {
         let line = raw_line.split('#').next().unwrap_or("").trim();
         if line.is_empty() {
             continue;
@@ -61,18 +78,10 @@ fn extract_python(source: &str) -> FileSemantics {
                 .map(|s| s.trim().split('=').next().unwrap_or("").trim().to_string())
                 .filter(|s| !s.is_empty() && s != "self" && s != "cls")
                 .collect();
-            semantics.function_definitions.insert(func_name, params);
-        }
-
-        for caps in call_re.captures_iter(line) {
-            let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
-            let args_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
-            for (idx, arg) in args_raw.split(',').enumerate() {
-                let arg = arg.trim();
-                if let Some(source_kind) = semantics.tainted_identifiers.get(arg) {
-                    semantics.tainted_calls.push((func_name.clone(), idx, source_kind.clone()));
-                }
-            }
+            semantics.function_definitions.insert(
+                format!("{module_identity}::{func_name}"),
+                params,
+            );
         }
 
         if let Some(caps) = import_re.captures(line) {
@@ -149,7 +158,99 @@ fn extract_python(source: &str) -> FileSemantics {
         }
     }
 
+    for raw_line in &lines {
+        let line = raw_line.split('#').next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        for caps in member_call_re.captures_iter(line) {
+            let object = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            let method = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+            let args_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+            let Some(target) = resolve_python_call_target(&semantics, &module_identity, object, Some(method)) else {
+                continue;
+            };
+            record_python_tainted_call(&mut semantics, &target, args_raw);
+        }
+
+        for caps in direct_call_re.captures_iter(line) {
+            let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            let args_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+            let Some(target) = resolve_python_call_target(&semantics, &module_identity, func_name, None) else {
+                continue;
+            };
+            record_python_tainted_call(&mut semantics, &target, args_raw);
+        }
+    }
+
     semantics
+}
+
+fn python_module_identity(path: Option<&Path>, base_path: Option<&Path>) -> Option<String> {
+    let path = path?;
+    let relative = base_path
+        .and_then(|base| path.strip_prefix(base).ok())
+        .unwrap_or(path);
+    let mut parts: Vec<String> = relative
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().to_string())
+        .collect();
+    let last = parts.last_mut()?;
+    if let Some(stripped) = last.strip_suffix(".py") {
+        *last = stripped.to_string();
+    }
+    if parts.last().map(String::as_str) == Some("__init__") {
+        parts.pop();
+    }
+    if parts.is_empty() {
+        return None;
+    }
+    Some(parts.join("."))
+}
+
+fn resolve_python_call_target(
+    semantics: &FileSemantics,
+    module_identity: &str,
+    head: &str,
+    member: Option<&str>,
+) -> Option<String> {
+    match member {
+        Some(method) => {
+            let module = semantics.alias_to_module.get(head)?;
+            Some(format!("{module}::{method}"))
+        }
+        None => {
+            if let Some(imported) = semantics.imported_symbols.get(head) {
+                return Some(qualified_symbol_identity(imported));
+            }
+            let local_target = format!("{module_identity}::{head}");
+            if semantics.function_definitions.contains_key(&local_target) {
+                return Some(local_target);
+            }
+            None
+        }
+    }
+}
+
+fn record_python_tainted_call(
+    semantics: &mut FileSemantics,
+    target: &str,
+    args_raw: &str,
+) {
+    for (idx, arg) in args_raw.split(',').enumerate() {
+        let arg = arg.trim();
+        if let Some(source_kind) = semantics.tainted_identifiers.get(arg) {
+            semantics.tainted_calls.push((target.to_string(), idx, source_kind.clone()));
+        }
+    }
+}
+
+fn qualified_symbol_identity(symbol: &str) -> String {
+    if let Some((module, function)) = symbol.rsplit_once('.') {
+        return format!("{module}::{function}");
+    }
+    symbol.to_string()
 }
 
 fn extract_javascript(source: &str) -> FileSemantics {

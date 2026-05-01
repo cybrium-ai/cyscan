@@ -81,6 +81,9 @@ pub fn match_rule(
         if !semantic_guard(rule, semantics, &captures) {
             continue;
         }
+        if !dsl_pattern_filters_match(rule, source, node, &captures) {
+            continue;
+        }
 
         let path_sensitivity = analyze_path_sensitivity(rule, lang, source, node, &captures, semantics);
         evidence.extend(path_sensitivity.evidence);
@@ -188,6 +191,48 @@ fn semantic_guard(
         }
         _ => true,
     }
+}
+
+fn dsl_pattern_filters_match(
+    rule: &Rule,
+    source: &str,
+    node: tree_sitter::Node<'_>,
+    captures: &HashMap<String, String>,
+) -> bool {
+    if let Some(pattern_not) = rule.pattern_not.as_deref() {
+        if let Some(re) = compile_tree_filter_regex(pattern_not) {
+            if re.is_match(node.utf8_text(source.as_bytes()).ok().unwrap_or_default()) {
+                return false;
+            }
+            if captures.values().any(|value| re.is_match(value)) {
+                return false;
+            }
+        }
+    }
+
+    if let Some(pattern_inside) = rule.pattern_inside.as_deref() {
+        let Some(re) = compile_tree_filter_regex(pattern_inside) else { return false };
+        let mut current = node.parent();
+        while let Some(parent) = current {
+            if let Ok(text) = parent.utf8_text(source.as_bytes()) {
+                if re.is_match(text) {
+                    return true;
+                }
+            }
+            current = parent.parent();
+        }
+        return false;
+    }
+
+    true
+}
+
+fn compile_tree_filter_regex(pattern: &str) -> Option<Regex> {
+    let converted = super::regex::semgrep_to_regex(pattern.trim());
+    if converted.trim().is_empty() {
+        return None;
+    }
+    Regex::new(&converted).ok()
 }
 
 fn csharp_receiver_is_db_command(object: &str, semantics: &FileSemantics) -> bool {
@@ -367,7 +412,7 @@ fn python_intra_function_taint(
 
     let scope_prefix = python_scope_prefix(source, node)?;
     let assign_re = Regex::new(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$").unwrap();
-    let mut tainted = HashMap::<String, String>::new();
+    let mut tainted = semantics.tainted_identifiers.clone();
     let mut sanitized = HashMap::<String, String>::new();
 
     for raw_line in scope_prefix.lines() {

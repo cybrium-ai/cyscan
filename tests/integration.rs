@@ -800,6 +800,121 @@ class FakeController {
         .stdout(predicate::str::contains("FakeController.cs").not());
 }
 
+#[test]
+fn python_interprocedural_taint_uses_resolved_import_targets() {
+    use std::fs;
+    use serde_json::Value;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("python-eval.yml"),
+        r#"
+id:        CBR-PY-CODE-EVAL
+title:     "Unsafe eval() usage"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-94']
+message: |
+  Detected eval() on dynamic input.
+query: |
+  (call
+    function: (identifier) @fn (#eq? @fn "eval")
+    arguments: (argument_list (_) @arg))
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("entry.py"),
+        r#"
+from flask import request
+from helper import run
+
+def handle():
+    user = request.args.get("cmd")
+    run(user)
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("helper.py"),
+        r#"
+def run(data):
+    eval(data)
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("other.py"),
+        r#"
+def run(data):
+    eval(data)
+"#,
+    ).unwrap();
+
+    let output = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "scan failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let findings: Vec<Value> = serde_json::from_slice(&output.stdout).unwrap();
+    let helper = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("helper.py"))).unwrap();
+    assert_eq!(helper["evidence"]["source_kind"], "flask.request.args");
+    assert_eq!(helper["evidence"]["path_sensitivity"], "tainted");
+    assert_eq!(helper["reachability"], "reachable");
+
+    let other = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("other.py"))).unwrap();
+    assert!(other["evidence"].get("source_kind").is_none());
+    assert_eq!(other["reachability"], "unknown");
+}
+
+#[test]
+fn treesitter_pattern_inside_limits_matches_to_enclosing_context() {
+    use std::fs;
+    use serde_json::Value;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("python-eval-inside.yml"),
+        r#"
+id:        CBR-PY-CODE-EVAL
+title:     "Unsafe eval() usage"
+severity:  critical
+languages: ['python']
+cwe:       ['CWE-94']
+message: |
+  Detected eval() on dynamic input.
+pattern_inside: "def dangerous"
+query: |
+  (call
+    function: (identifier) @fn (#eq? @fn "eval")
+    arguments: (argument_list (_) @arg))
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("inside.py"),
+        r#"
+def dangerous():
+    eval(user)
+
+def safe():
+    eval(user)
+"#,
+    ).unwrap();
+
+    let output = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "scan failed: {}", String::from_utf8_lossy(&output.stderr));
+    let findings: Vec<Value> = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0]["line"], 3);
+}
+
 fn copy_tree(src: &std::path::Path, dst: &std::path::Path) {
     for entry in std::fs::read_dir(src).unwrap() {
         let entry = entry.unwrap();

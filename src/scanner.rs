@@ -29,11 +29,15 @@ pub struct GlobalTaintMap {
 impl GlobalTaintMap {
     pub fn build(file_semantics: &HashMap<std::path::PathBuf, crate::matcher::semantics::FileSemantics>) -> Self {
         let mut gtm = Self::default();
+        let global_definitions: HashMap<String, Vec<String>> = file_semantics
+            .values()
+            .flat_map(|semantics| semantics.function_definitions.iter())
+            .map(|(func_name, params)| (func_name.clone(), params.clone()))
+            .collect();
         
         for semantics in file_semantics.values() {
             for (func_name, arg_idx, source_kind) in &semantics.tainted_calls {
-                // If we have a definition for this function, find which parameter is tainted.
-                if let Some(params) = semantics.function_definitions.get(func_name) {
+                if let Some(params) = global_definitions.get(func_name) {
                     if let Some(param_name) = params.get(*arg_idx) {
                         gtm.tainted_params.entry(func_name.clone())
                             .or_default()
@@ -79,7 +83,15 @@ pub fn run_with_context(target: &Path, pack: &RulePack, cloud: Option<CloudConte
         .map(|path| {
             let lang = Lang::from_path(path).expect("filtered above");
             let source = fs::read_to_string(path).unwrap_or_default();
-            (path.clone(), crate::matcher::semantics::extract(lang, &source))
+            (
+                path.clone(),
+                crate::matcher::semantics::extract_with_context(
+                    lang,
+                    &source,
+                    Some(path.as_path()),
+                    Some(target),
+                ),
+            )
         })
         .collect();
 
