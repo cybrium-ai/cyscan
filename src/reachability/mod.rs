@@ -46,7 +46,10 @@ impl std::fmt::Display for Verdict {
 pub struct ReachabilityResult {
     pub finding_rule_id: String,
     pub package: String,
+    pub import_candidates: Vec<String>,
     pub vulnerable_symbols: Vec<String>,
+    pub matched_symbol: Option<String>,
+    pub matched_import: Option<String>,
     pub verdict: Verdict,
     /// Confidence 0.0–1.0. Higher = more certain.
     pub confidence: f64,
@@ -80,11 +83,12 @@ pub fn analyze(
         }
 
         let vulnerable_symbols = extract_vulnerable_symbols(finding);
+        let import_candidates = extract_import_candidates(finding, &package, &vulnerable_symbols);
 
         let (verdict, confidence, call_chain) = if vulnerable_symbols.is_empty() {
             // No specific symbols — check if package is imported at all
-            if import_index.is_package_imported(&package) {
-                (Verdict::Reachable, 0.5, import_index.get_import_sites(&package))
+            if import_index.is_any_package_imported(&import_candidates) {
+                (Verdict::Reachable, 0.5, import_index.get_import_sites_any(&import_candidates))
             } else {
                 (Verdict::Unreachable, 0.9, Vec::new())
             }
@@ -92,20 +96,40 @@ pub fn analyze(
             // Check if any vulnerable symbol is called
             let mut found_chain = Vec::new();
             let mut any_reachable = false;
+            let mut matched_symbol = None;
+            let mut matched_import = None;
 
             for symbol in &vulnerable_symbols {
-                if let Some(chain) = import_index.find_call_chain(&package, symbol) {
-                    found_chain = chain;
-                    any_reachable = true;
+                for import_name in &import_candidates {
+                    if let Some(chain) = import_index.find_call_chain(import_name, symbol) {
+                        found_chain = chain;
+                        any_reachable = true;
+                        matched_symbol = Some(symbol.clone());
+                        matched_import = Some(import_name.clone());
+                        break;
+                    }
+                }
+                if any_reachable {
+                    results.push(ReachabilityResult {
+                        finding_rule_id: finding.rule_id.clone(),
+                        package: package.clone(),
+                        import_candidates: import_candidates.clone(),
+                        vulnerable_symbols: vulnerable_symbols.clone(),
+                        matched_symbol,
+                        matched_import,
+                        verdict: Verdict::Reachable,
+                        confidence: 0.9,
+                        call_chain: found_chain,
+                    });
                     break;
                 }
             }
 
             if any_reachable {
-                (Verdict::Reachable, 0.9, found_chain)
-            } else if import_index.is_package_imported(&package) {
+                continue;
+            } else if import_index.is_any_package_imported(&import_candidates) {
                 // Package is imported but vulnerable function not called
-                (Verdict::Unreachable, 0.8, import_index.get_import_sites(&package))
+                (Verdict::Unreachable, 0.8, import_index.get_import_sites_any(&import_candidates))
             } else {
                 // Package not even imported
                 (Verdict::Unreachable, 0.95, Vec::new())
@@ -115,7 +139,10 @@ pub fn analyze(
         results.push(ReachabilityResult {
             finding_rule_id: finding.rule_id.clone(),
             package: package.clone(),
+            import_candidates: import_candidates.clone(),
             vulnerable_symbols: vulnerable_symbols.clone(),
+            matched_symbol: None,
+            matched_import: None,
             verdict,
             confidence,
             call_chain,
@@ -154,11 +181,16 @@ pub fn enrich_findings(target: &Path, findings: &mut [Finding]) {
         let key = (finding.rule_id.clone(), package.clone());
         let Some(result) = result_map.get(&key) else { continue };
         finding.evidence.insert("reachable_package".into(), serde_json::json!(result.package));
+        if let Some(import_name) = &result.matched_import {
+            finding.evidence.insert("reachable_import_name".into(), serde_json::json!(import_name));
+        }
         finding.evidence.insert(
             "reachable_callsite_count".into(),
             serde_json::json!(result.call_chain.len()),
         );
-        if let Some(symbol) = result.vulnerable_symbols.iter().find(|sym| {
+        if let Some(symbol) = result.matched_symbol.as_ref() {
+            finding.evidence.insert("reachable_symbol".into(), serde_json::json!(symbol));
+        } else if let Some(symbol) = result.vulnerable_symbols.iter().find(|sym| {
             result.call_chain.iter().any(|(_, snippet)| snippet.contains(last_symbol_segment(sym)))
         }) {
             finding.evidence.insert("reachable_symbol".into(), serde_json::json!(symbol));
@@ -208,6 +240,40 @@ fn extract_vulnerable_symbols(finding: &Finding) -> Vec<String> {
         }
     }
     Vec::new()
+}
+
+fn extract_import_candidates(
+    finding: &Finding,
+    package: &str,
+    vulnerable_symbols: &[String],
+) -> Vec<String> {
+    let mut candidates = Vec::new();
+    if let Some(imports) = finding.evidence.get("normalized_import_names").and_then(|v| v.as_array()) {
+        for value in imports {
+            if let Some(name) = value.as_str() {
+                candidates.push(name.to_string());
+            }
+        }
+    }
+    if candidates.is_empty() {
+        candidates.push(package.to_string());
+        candidates.push(package.to_ascii_lowercase());
+        candidates.push(package.replace('-', "_").to_ascii_lowercase());
+        candidates.push(package.replace('_', "-").to_ascii_lowercase());
+    }
+    for symbol in vulnerable_symbols {
+        let normalized = symbol.replace("::", ".");
+        if let Some((module, _)) = normalized.rsplit_once('.') {
+            candidates.push(module.to_string());
+            if let Some(tail) = module.rsplit(['.', '/']).next() {
+                candidates.push(tail.to_string());
+            }
+        }
+    }
+    candidates.retain(|c| !c.is_empty());
+    candidates.sort();
+    candidates.dedup();
+    candidates
 }
 
 fn last_symbol_segment(symbol: &str) -> &str {
@@ -271,5 +337,57 @@ mod tests {
         assert_eq!(findings[0].evidence.get("reachable_package").and_then(|v| v.as_str()), Some("yaml"));
         assert_eq!(findings[0].evidence.get("reachable_symbol").and_then(|v| v.as_str()), Some("yaml.load"));
         assert_eq!(findings[0].evidence.get("reachable_callsite_count").and_then(|v| v.as_u64()), Some(1));
+    }
+
+    #[test]
+    fn javascript_direct_import_symbol_is_marked_reachable() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("app.js"), "import { template } from 'lodash'\ntemplate(input)\n").unwrap();
+        let mut findings = vec![sca_finding("lodash", &["lodash.template"])];
+        findings[0].evidence.insert(
+            "normalized_import_names".into(),
+            serde_json::json!(["lodash"]),
+        );
+        enrich_findings(tmp.path(), &mut findings);
+        assert_eq!(findings[0].reachability.as_deref(), Some("reachable"));
+        assert_eq!(findings[0].evidence.get("reachable_import_name").and_then(|v| v.as_str()), Some("lodash"));
+        assert_eq!(findings[0].evidence.get("reachable_symbol").and_then(|v| v.as_str()), Some("lodash.template"));
+    }
+
+    #[test]
+    fn go_import_symbol_is_marked_reachable_from_module_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join("main.go"),
+            "import helper \"github.com/acme/helper\"\nfunc run(){ helper.Run(x) }\n",
+        ).unwrap();
+        let mut findings = vec![sca_finding("github.com/acme/helper", &["github.com/acme/helper.Run"])];
+        findings[0].evidence.insert(
+            "normalized_import_names".into(),
+            serde_json::json!(["github.com/acme/helper", "helper"]),
+        );
+        enrich_findings(tmp.path(), &mut findings);
+        assert_eq!(findings[0].reachability.as_deref(), Some("reachable"));
+        assert_eq!(
+            findings[0].evidence.get("reachable_import_name").and_then(|v| v.as_str()),
+            Some("github.com/acme/helper"),
+        );
+    }
+
+    #[test]
+    fn java_static_import_symbol_is_marked_reachable() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(
+            tmp.path().join("App.java"),
+            "import static app.helper.Runner.run;\nclass X { void x(){ run(data); } }\n",
+        ).unwrap();
+        let mut findings = vec![sca_finding("app.helper.Runner", &["app.helper.Runner.run"])];
+        findings[0].evidence.insert(
+            "normalized_import_names".into(),
+            serde_json::json!(["app.helper.Runner", "Runner"]),
+        );
+        enrich_findings(tmp.path(), &mut findings);
+        assert_eq!(findings[0].reachability.as_deref(), Some("reachable"));
+        assert_eq!(findings[0].evidence.get("reachable_symbol").and_then(|v| v.as_str()), Some("app.helper.Runner.run"));
     }
 }

@@ -200,6 +200,10 @@ fn make_finding(adv: &Advisory, dep: &Dependency) -> Finding {
     evidence.insert("package".into(), serde_json::json!(dep.name));
     evidence.insert("dependency".into(), serde_json::json!(format!("{}@{}", dep.name, dep.version)));
     evidence.insert("ecosystem".into(), serde_json::json!(dep.ecosystem.as_str()));
+    evidence.insert(
+        "normalized_import_names".into(),
+        serde_json::json!(normalized_import_names(dep, &adv.vulnerable_symbols)),
+    );
     if !adv.vulnerable_symbols.is_empty() {
         evidence.insert("vulnerable_symbols".into(), serde_json::json!(adv.vulnerable_symbols));
     }
@@ -219,6 +223,58 @@ fn make_finding(adv: &Advisory, dep: &Dependency) -> Finding {
         evidence,
         reachability: None,
     }
+}
+
+fn normalized_import_names(dep: &Dependency, vulnerable_symbols: &[String]) -> Vec<String> {
+    let mut names = Vec::new();
+    match dep.ecosystem {
+        Ecosystem::Npm => {
+            names.push(dep.name.clone());
+            if let Some(unscoped) = dep.name.strip_prefix('@').and_then(|s| s.split('/').nth(1)) {
+                names.push(unscoped.to_string());
+            }
+            names.push(dep.name.replace('-', "_"));
+        }
+        Ecosystem::Pypi => {
+            names.push(dep.name.clone());
+            names.push(dep.name.to_ascii_lowercase());
+            names.push(dep.name.replace('-', "_").to_ascii_lowercase());
+            names.push(dep.name.replace('_', "-").to_ascii_lowercase());
+        }
+        Ecosystem::Go => {
+            if dep.name == "stdlib" {
+                for symbol in vulnerable_symbols {
+                    if let Some((module, _)) = symbol.replace("::", ".").rsplit_once('.') {
+                        names.push(module.to_string());
+                    }
+                }
+            } else {
+                names.push(dep.name.clone());
+                if let Some(tail) = dep.name.rsplit('/').next() {
+                    names.push(tail.to_string());
+                }
+            }
+        }
+        Ecosystem::Crates => {
+            names.push(dep.name.clone());
+            names.push(dep.name.replace('-', "_"));
+            names.push(dep.name.replace('_', "-"));
+        }
+    }
+
+    for symbol in vulnerable_symbols {
+        if let Some((module, _)) = symbol.replace("::", ".").rsplit_once('.') {
+            names.push(module.to_string());
+            if let Some(tail) = module.rsplit(['.', '/']).next() {
+                names.push(tail.to_string());
+            }
+        }
+    }
+
+    names.retain(|name| !name.is_empty());
+    names.sort();
+    names.dedup();
+    names
 }
 
 fn advisory_affects(adv: &Advisory, dep: &Dependency) -> bool {
