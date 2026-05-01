@@ -1227,6 +1227,387 @@ def run(data):
 }
 
 #[test]
+fn javascript_interprocedural_taint_uses_resolved_import_targets() {
+    use std::fs;
+    use serde_json::Value;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("js-eval.yml"),
+        r#"
+id:         CBR-JS-CODE-EVAL
+title:      "eval() usage"
+severity:   critical
+languages:  [javascript]
+message: |
+  Passing dynamic input to eval is unsafe.
+query: |
+  (call_expression
+    function: (identifier) @fn
+    (#eq? @fn "eval")) @call
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("entry.js"),
+        r#"
+import { run } from './helper'
+const user = req.query.cmd;
+run(user);
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("helper.js"),
+        r#"
+export function run(data) {
+  eval(data);
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("other.js"),
+        r#"
+export function run(data) {
+  eval(data);
+}
+"#,
+    ).unwrap();
+
+    let output = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "scan failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let findings: Vec<Value> = serde_json::from_slice(&output.stdout).unwrap();
+    let helper = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("helper.js"))).unwrap();
+    assert_eq!(helper["evidence"]["source_kind"], "express.req.query");
+    assert_eq!(helper["evidence"]["path_sensitivity"], "tainted");
+    assert_eq!(helper["reachability"], "reachable");
+
+    let other = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("other.js"))).unwrap();
+    assert!(other["evidence"].get("source_kind").is_none());
+    assert_eq!(other["reachability"], "unknown");
+}
+
+#[test]
+fn java_interprocedural_taint_uses_resolved_import_targets() {
+    use std::fs;
+    use serde_json::Value;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("app/helper")).unwrap();
+    fs::create_dir_all(tmp.path().join("app/other")).unwrap();
+    fs::write(
+        rules_dir.join("java-danger.yml"),
+        r#"
+id:         CBR-JAVA-SCRIPT_ENGINE_INJECTION
+title:      "danger() usage"
+severity:   critical
+languages:  [java]
+message: |
+  Passing dynamic input to danger is unsafe.
+query: |
+  (method_invocation
+    name: (identifier) @fn
+    arguments: (argument_list (_) @arg)
+    (#eq? @fn "danger")) @call
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("app/Entry.java"),
+        r#"
+package app;
+import app.helper.Runner;
+class Entry {
+    void handle(HttpServletRequest request) {
+        String user = request.getParameter("cmd");
+        Runner.run(user);
+    }
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("app/helper/Runner.java"),
+        r#"
+package app.helper;
+class Runner {
+    static void run(String data) {
+        danger(data);
+    }
+    static void danger(String data) {
+    }
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("app/other/Runner.java"),
+        r#"
+package app.other;
+class Runner {
+    static void run(String data) {
+        danger(data);
+    }
+    static void danger(String data) {
+    }
+}
+"#,
+    ).unwrap();
+
+    let output = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "scan failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let findings: Vec<Value> = serde_json::from_slice(&output.stdout).unwrap();
+    let helper = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("app/helper/Runner.java"))).unwrap();
+    assert_eq!(helper["evidence"]["source_kind"], "spring.http_request_parameter");
+    assert_eq!(helper["evidence"]["path_sensitivity"], "tainted");
+    assert_eq!(helper["reachability"], "reachable");
+
+    let other = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("app/other/Runner.java"))).unwrap();
+    assert!(other["evidence"].get("source_kind").is_none());
+    assert_eq!(other["reachability"], "unknown");
+}
+
+#[test]
+fn go_interprocedural_taint_uses_resolved_import_targets() {
+    use std::fs;
+    use serde_json::Value;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("helper")).unwrap();
+    fs::create_dir_all(tmp.path().join("other")).unwrap();
+    fs::write(
+        rules_dir.join("go-danger.yml"),
+        r#"
+id:         CBR-GO-COMMAND_INJECTION
+title:      "danger() usage"
+severity:   critical
+languages:  [go]
+message: |
+  Passing dynamic input to danger is unsafe.
+query: |
+  (call_expression
+    function: (identifier) @fn
+    arguments: (argument_list (_) @arg)
+    (#eq? @fn "danger")) @call
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("entry.go"),
+        r#"
+package main
+import helper "helper"
+func handle(c *Context) {
+    user := c.Query("cmd")
+    helper.Run(user)
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("helper/helper.go"),
+        r#"
+package helper
+func Run(data string) {
+    danger(data)
+}
+func danger(data string) {
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("other/other.go"),
+        r#"
+package other
+func Run(data string) {
+    danger(data)
+}
+func danger(data string) {
+}
+"#,
+    ).unwrap();
+
+    let output = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "scan failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let findings: Vec<Value> = serde_json::from_slice(&output.stdout).unwrap();
+    let helper = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("helper/helper.go"))).unwrap();
+    assert_eq!(helper["evidence"]["source_kind"], "go.http.query");
+    assert_eq!(helper["evidence"]["path_sensitivity"], "tainted");
+    assert_eq!(helper["reachability"], "reachable");
+
+    let other = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("other/other.go"))).unwrap();
+    assert!(other["evidence"].get("source_kind").is_none());
+    assert_eq!(other["reachability"], "unknown");
+}
+
+#[test]
+fn ruby_interprocedural_taint_uses_resolved_import_targets() {
+    use std::fs;
+    use serde_json::Value;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("ruby-raw.yml"),
+        r#"
+id:         CBR-RUBY-AVOID_RAW
+title:      "raw() usage"
+severity:   high
+languages:  [ruby]
+message: |
+  Passing dynamic input to raw is unsafe.
+regex:      '\braw\s*\([^)]+\)'
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("entry.rb"),
+        r#"
+require_relative './helper'
+value = params[:name]
+Helper.run(value)
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("helper.rb"),
+        r#"
+module Helper
+  def self.run(data)
+    raw(data)
+  end
+end
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("other.rb"),
+        r#"
+module Other
+  def self.run(data)
+    raw(data)
+  end
+end
+"#,
+    ).unwrap();
+
+    let output = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "scan failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let findings: Vec<Value> = serde_json::from_slice(&output.stdout).unwrap();
+    let helper = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("helper.rb"))).unwrap();
+    assert_eq!(helper["evidence"]["source_kind"], "rails.params");
+    assert_eq!(helper["evidence"]["path_sensitivity"], "tainted");
+    assert_eq!(helper["reachability"], "reachable");
+
+    let other = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("other.rb"))).unwrap();
+    assert!(other["evidence"].get("source_kind").is_none());
+    assert_eq!(other["reachability"], "unknown");
+}
+
+#[test]
+fn csharp_interprocedural_taint_uses_resolved_import_targets() {
+    use std::fs;
+    use serde_json::Value;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("Demo/Web")).unwrap();
+    fs::create_dir_all(tmp.path().join("Demo/Other")).unwrap();
+    fs::write(
+        rules_dir.join("csharp-raw.yml"),
+        r#"
+id:        CBR-CSHA-XSS_HTML_RAW
+title:     "Cross-Site Scripting (XSS) via Html.Raw"
+severity:  high
+languages: ['csharp']
+message: |
+  Html.Raw on user input is unsafe.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      expression: (identifier) @obj (#eq? @obj "Html")
+      name: (identifier) @method (#eq? @method "Raw"))
+    arguments: (argument_list
+      (argument) @arg))
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("Demo/Entry.cs"),
+        r#"
+using Helper = Demo.Web.Helper;
+class Entry {
+    void Handle() {
+        var value = Request.Query["id"];
+        Helper.Run(value);
+    }
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("Demo/Web/Helper.cs"),
+        r#"
+namespace Demo.Web;
+class Helper {
+    public static void Run(string data) {
+        Html.Raw(data);
+    }
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("Demo/Other/Helper.cs"),
+        r#"
+namespace Demo.Other;
+class Helper {
+    public static void Run(string data) {
+        Html.Raw(data);
+    }
+}
+"#,
+    ).unwrap();
+
+    let output = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "scan failed: {}", String::from_utf8_lossy(&output.stderr));
+
+    let findings: Vec<Value> = serde_json::from_slice(&output.stdout).unwrap();
+    let helper = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("Demo/Web/Helper.cs"))).unwrap();
+    assert_eq!(helper["evidence"]["source_kind"], "aspnet.request_query");
+    assert_eq!(helper["evidence"]["path_sensitivity"], "tainted");
+    assert_eq!(helper["reachability"], "reachable");
+
+    let other = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("Demo/Other/Helper.cs"))).unwrap();
+    assert!(other["evidence"].get("source_kind").is_none());
+    assert_eq!(other["reachability"], "unknown");
+}
+
+#[test]
 fn treesitter_pattern_inside_limits_matches_to_enclosing_context() {
     use std::fs;
     use serde_json::Value;
