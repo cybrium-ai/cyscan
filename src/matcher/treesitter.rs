@@ -18,10 +18,10 @@ struct PathSensitivity {
     evidence: HashMap<String, serde_json::Value>,
 }
 
-enum PythonTaintOutcome {
-    Tainted(String, Option<String>),
-    Guarded(String),
-    NoSource,
+enum IntraFileTaintOutcome {
+    Tainted(String, Option<String>, String),
+    Guarded(String, String),
+    NoSource(String),
 }
 
 pub fn parse(lang: Lang, source: &str) -> Result<Tree> {
@@ -303,12 +303,12 @@ fn analyze_path_sensitivity(
         };
     }
 
-    if let Some(outcome) = python_intra_function_taint(rule, lang, source, node, captures, semantics) {
+    if let Some(outcome) = intra_file_taint(rule, lang, source, node, captures, semantics) {
         let mut evidence = HashMap::new();
         match outcome {
-            PythonTaintOutcome::Tainted(source_kind, framework) => {
+            IntraFileTaintOutcome::Tainted(source_kind, framework, reason) => {
                 evidence.insert("path_sensitivity".into(), serde_json::json!("tainted"));
-                evidence.insert("path_sensitivity_reason".into(), serde_json::json!("python_intra_function_taint"));
+                evidence.insert("path_sensitivity_reason".into(), serde_json::json!(reason));
                 evidence.insert("source_kind".into(), serde_json::json!(source_kind));
                 if let Some(framework) = framework {
                     evidence.insert("framework".into(), serde_json::json!(framework));
@@ -318,17 +318,18 @@ fn analyze_path_sensitivity(
                     evidence,
                 };
             }
-            PythonTaintOutcome::Guarded(reason) => {
+            IntraFileTaintOutcome::Guarded(reason, detail) => {
                 evidence.insert("path_sensitivity".into(), serde_json::json!("guarded"));
                 evidence.insert("path_sensitivity_reason".into(), serde_json::json!(reason));
+                evidence.insert("sanitizer_kind".into(), serde_json::json!(detail));
                 return PathSensitivity {
                     reachability: Some("unknown".into()),
                     evidence,
                 };
             }
-            PythonTaintOutcome::NoSource => {
+            IntraFileTaintOutcome::NoSource(reason) => {
                 evidence.insert("path_sensitivity".into(), serde_json::json!("no_source_detected"));
-                evidence.insert("path_sensitivity_reason".into(), serde_json::json!("python_intra_function_no_source"));
+                evidence.insert("path_sensitivity_reason".into(), serde_json::json!(reason));
                 return PathSensitivity {
                     reachability: Some("unknown".into()),
                     evidence,
@@ -398,25 +399,25 @@ fn dead_code_reason(source: &str, node: tree_sitter::Node<'_>) -> Option<String>
     None
 }
 
-fn python_intra_function_taint(
+fn intra_file_taint(
     rule: &Rule,
     lang: Lang,
     source: &str,
     node: tree_sitter::Node<'_>,
     captures: &HashMap<String, String>,
     semantics: &FileSemantics,
-) -> Option<PythonTaintOutcome> {
-    if lang != Lang::Python || !requires_attacker_control(rule.id.as_str()) {
+) -> Option<IntraFileTaintOutcome> {
+    if !requires_attacker_control(rule.id.as_str()) {
         return None;
     }
 
-    let scope_prefix = python_scope_prefix(source, node)?;
-    let assign_re = Regex::new(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$").unwrap();
+    let scope_prefix = scope_prefix(lang, source, node)?;
+    let assign_re = assignment_regex(lang)?;
     let mut tainted = semantics.tainted_identifiers.clone();
     let mut sanitized = HashMap::<String, String>::new();
 
     for raw_line in scope_prefix.lines() {
-        let line = raw_line.split('#').next().unwrap_or("").trim();
+        let line = strip_comments(lang, raw_line).trim();
         if line.is_empty() {
             continue;
         }
@@ -427,13 +428,13 @@ fn python_intra_function_taint(
             continue;
         }
 
-        if let Some(source_kind) = python_direct_source_kind(rhs) {
+        if let Some(source_kind) = direct_source_kind(lang, rhs) {
             tainted.insert(ident.clone(), source_kind.to_string());
             sanitized.remove(&ident);
             continue;
         }
 
-        if let Some(reason) = python_sanitizer_reason(rhs, &tainted) {
+        if let Some(reason) = sanitizer_kind(lang, rhs, &tainted) {
             tainted.remove(&ident);
             sanitized.insert(ident, reason);
             continue;
@@ -451,26 +452,40 @@ fn python_intra_function_taint(
 
     let node_text = node.utf8_text(source.as_bytes()).ok()?.trim();
     let mut candidate_texts: Vec<&str> = vec![node_text];
-    for key in ["concat", "call", "write", "arg"] {
-        if let Some(value) = captures.get(key) {
+    for value in captures.values() {
+        if !candidate_texts.iter().any(|seen| *seen == value.as_str()) {
             candidate_texts.push(value.as_str());
         }
     }
 
     for candidate in &candidate_texts {
-        if let Some(reason) = python_sanitizer_reason(candidate, &tainted) {
-            return Some(PythonTaintOutcome::Guarded(reason));
+        if let Some(reason) = sanitizer_kind(lang, candidate, &tainted) {
+            return Some(IntraFileTaintOutcome::Guarded(
+                guarded_reason_label(lang),
+                reason,
+            ));
         }
         if let Some(reason) = identifier_reason(candidate, &sanitized) {
-            return Some(PythonTaintOutcome::Guarded(reason));
+            return Some(IntraFileTaintOutcome::Guarded(
+                guarded_reason_label(lang),
+                reason,
+            ));
         }
     }
 
     for candidate in &candidate_texts {
+        if let Some(source_kind) = direct_source_kind(lang, candidate) {
+            return Some(IntraFileTaintOutcome::Tainted(
+                source_kind.to_string(),
+                pick_framework(semantics, source_kind),
+                intra_file_reason(lang),
+            ));
+        }
         if let Some(source_kind) = taint_from_tokens(candidate, &tainted) {
-            return Some(PythonTaintOutcome::Tainted(
+            return Some(IntraFileTaintOutcome::Tainted(
                 source_kind.clone(),
                 pick_framework(semantics, &source_kind),
+                intra_file_reason(lang),
             ));
         }
     }
@@ -478,12 +493,19 @@ fn python_intra_function_taint(
     if candidate_texts.iter().any(|candidate| {
         contains_identifier(candidate, &tainted)
             || contains_identifier(candidate, &sanitized)
-            || contains_nonliteral_python_identifier(candidate)
+            || contains_nonliteral_identifier(lang, candidate)
     }) {
-        return Some(PythonTaintOutcome::NoSource);
+        return Some(IntraFileTaintOutcome::NoSource(no_source_reason(lang)));
     }
 
     None
+}
+
+fn scope_prefix(lang: Lang, source: &str, node: tree_sitter::Node<'_>) -> Option<String> {
+    if lang == Lang::Python {
+        return python_scope_prefix(source, node);
+    }
+    block_scope_prefix(source, node)
 }
 
 fn python_scope_prefix(source: &str, node: tree_sitter::Node<'_>) -> Option<String> {
@@ -510,44 +532,93 @@ fn python_scope_prefix(source: &str, node: tree_sitter::Node<'_>) -> Option<Stri
     Some(lines[start_line..sink_index].join("\n"))
 }
 
+fn block_scope_prefix(source: &str, node: tree_sitter::Node<'_>) -> Option<String> {
+    let mut current = Some(node);
+    while let Some(cursor) = current {
+        let kind = cursor.kind();
+        if matches!(kind, "statement_block" | "block" | "body_statement" | "do_block") {
+            let start = cursor.start_byte().min(node.start_byte());
+            let end = node.start_byte().min(source.len());
+            return source.get(start..end).map(str::to_string);
+        }
+        current = cursor.parent();
+    }
+    Some(String::new())
+}
+
 fn leading_indent(line: &str) -> usize {
     line.chars().take_while(|c| c.is_whitespace()).count()
 }
 
-fn python_direct_source_kind(text: &str) -> Option<&'static str> {
-    let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
-    if compact.contains("request.args.get(") || compact.contains("flask.request.args.get(") {
-        return Some("flask.request.args");
-    }
-    if compact.contains("request.form.get(") || compact.contains("flask.request.form.get(") {
-        return Some("flask.request.form");
-    }
-    if compact.contains("request.GET.get(") || compact.contains("request.GET[") {
-        return Some("django.request.GET");
-    }
-    if compact.contains("request.POST.get(") || compact.contains("request.POST[") {
-        return Some("django.request.POST");
-    }
-    if compact.contains("input(") {
-        return Some("python.input");
-    }
-    None
-}
-
-fn python_sanitizer_reason(text: &str, tainted: &HashMap<String, String>) -> Option<String> {
+fn sanitizer_kind(lang: Lang, text: &str, tainted: &HashMap<String, String>) -> Option<String> {
     let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
     let has_tainted_input = contains_identifier(&compact, tainted);
     if !has_tainted_input {
         return None;
     }
-    if compact.contains("html.escape(") || compact.contains("django.utils.html.escape(") {
-        return Some("escaped_input".into());
-    }
-    if compact.contains("markupsafe.escape(") || compact.contains("flask.escape(") {
-        return Some("html_escaped".into());
-    }
-    if compact.contains("ast.literal_eval(") {
-        return Some("literal_eval_guard".into());
+    match lang {
+        Lang::Python => {
+            if compact.contains("html.escape(") || compact.contains("django.utils.html.escape(") {
+                return Some("escaped_input".into());
+            }
+            if compact.contains("markupsafe.escape(") || compact.contains("flask.escape(") {
+                return Some("html_escaped".into());
+            }
+            if compact.contains("ast.literal_eval(") {
+                return Some("literal_eval_guard".into());
+            }
+        }
+        Lang::Javascript | Lang::Typescript => {
+            if compact.contains("DOMPurify.sanitize(") {
+                return Some("dompurify_sanitized".into());
+            }
+            if compact.contains("escapeHtml(") || compact.contains("he.encode(") {
+                return Some("html_escaped".into());
+            }
+        }
+        Lang::Csharp => {
+            if compact.contains("HttpUtility.HtmlEncode(")
+                || compact.contains("WebUtility.HtmlEncode(")
+                || compact.contains("HtmlEncoder.Default.Encode(")
+                || compact.contains("AntiXssEncoder.HtmlEncode(")
+            {
+                return Some("aspnet.html_encoded".into());
+            }
+            if compact.contains("Uri.EscapeDataString(")
+                || compact.contains("HttpUtility.UrlEncode(")
+                || compact.contains("WebUtility.UrlEncode(")
+            {
+                return Some("aspnet.url_encoded".into());
+            }
+        }
+        Lang::Java => {
+            if compact.contains("HtmlUtils.htmlEscape(") || compact.contains("ESAPI.encoder().encodeForHTML(") {
+                return Some("java_html_encoded".into());
+            }
+            if compact.contains("UriUtils.encode(") || compact.contains("URLEncoder.encode(") {
+                return Some("java_url_encoded".into());
+            }
+        }
+        Lang::Ruby => {
+            if compact.contains("sanitize(") {
+                return Some("rails.sanitize".into());
+            }
+            if compact.contains("strip_tags(") {
+                return Some("rails.strip_tags".into());
+            }
+            if compact.contains("ERB::Util.html_escape(") || compact.contains("html_escape(") {
+                return Some("rails.html_escape".into());
+            }
+        }
+        Lang::Go => {
+            if compact.contains("template.HTMLEscapeString(") {
+                return Some("go.html_escape".into());
+            }
+            if compact.contains("url.QueryEscape(") || compact.contains("template.URLQueryEscaper(") {
+                return Some("go.url_escape".into());
+            }
+        }
+        _ => {}
     }
     None
 }
@@ -571,13 +642,82 @@ fn identifier_reason(text: &str, values: &HashMap<String, String>) -> Option<Str
         .find_map(|token| values.get(token).cloned())
 }
 
-fn contains_nonliteral_python_identifier(text: &str) -> bool {
+fn contains_nonliteral_identifier(lang: Lang, text: &str) -> bool {
     text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.'))
         .any(|token| {
             !token.is_empty()
                 && token.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-                && !matches!(token, "eval" | "exec" | "request" | "args" | "form" | "GET" | "POST" | "input" | "html" | "django" | "utils" | "escape" | "literal_eval")
+                && !is_ignored_identifier(lang, token)
         })
+}
+
+fn is_ignored_identifier(lang: Lang, token: &str) -> bool {
+    match lang {
+        Lang::Python => matches!(token, "eval" | "exec" | "request" | "args" | "form" | "GET" | "POST" | "input" | "html" | "django" | "utils" | "escape" | "literal_eval"),
+        Lang::Javascript | Lang::Typescript => matches!(token, "eval" | "req" | "request" | "query" | "params" | "body" | "setTimeout" | "setInterval" | "DOMPurify" | "sanitize" | "escapeHtml" | "he" | "encode" | "innerHTML" | "outerHTML" | "document" | "write"),
+        Lang::Csharp => matches!(token, "Request" | "Query" | "Form" | "Headers" | "Cookies" | "Html" | "Raw" | "Process" | "Start" | "HttpUtility" | "WebUtility" | "HtmlEncode" | "UrlEncode" | "HtmlEncoder" | "AntiXssEncoder" | "Uri" | "EscapeDataString"),
+        Lang::Java => matches!(token, "request" | "getParameter" | "getQueryString" | "HtmlUtils" | "htmlEscape" | "ESAPI" | "encodeForHTML" | "UriUtils" | "encode" | "URLEncoder"),
+        Lang::Ruby => matches!(token, "params" | "raw" | "sanitize" | "strip_tags" | "html_escape" | "ERB" | "Util"),
+        Lang::Go => matches!(token, "Query" | "Param" | "FormValue" | "HTMLEscapeString" | "QueryEscape" | "template" | "url"),
+        _ => false,
+    }
+}
+
+fn assignment_regex(lang: Lang) -> Option<Regex> {
+    match lang {
+        Lang::Python => Some(Regex::new(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$").unwrap()),
+        Lang::Javascript | Lang::Typescript => Some(Regex::new(r#"^\s*(?:const|let|var)?\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Csharp | Lang::Java => Some(Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]\.?]*\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Ruby => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$"#).unwrap()),
+        Lang::Go => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+?)\s*$"#).unwrap()),
+        _ => None,
+    }
+}
+
+fn strip_comments(lang: Lang, raw_line: &str) -> &str {
+    match lang {
+        Lang::Python | Lang::Ruby => raw_line.split('#').next().unwrap_or(""),
+        _ => raw_line.split("//").next().unwrap_or(""),
+    }
+}
+
+fn intra_file_reason(lang: Lang) -> String {
+    match lang {
+        Lang::Python => "python_intra_function_taint",
+        Lang::Javascript | Lang::Typescript => "javascript_intra_function_taint",
+        Lang::Csharp => "csharp_intra_function_taint",
+        Lang::Java => "java_intra_function_taint",
+        Lang::Ruby => "ruby_intra_function_taint",
+        Lang::Go => "go_intra_function_taint",
+        _ => "intra_file_taint",
+    }
+    .into()
+}
+
+fn no_source_reason(lang: Lang) -> String {
+    match lang {
+        Lang::Python => "python_intra_function_no_source",
+        Lang::Javascript | Lang::Typescript => "javascript_intra_function_no_source",
+        Lang::Csharp => "csharp_intra_function_no_source",
+        Lang::Java => "java_intra_function_no_source",
+        Lang::Ruby => "ruby_intra_function_no_source",
+        Lang::Go => "go_intra_function_no_source",
+        _ => "intra_file_no_source",
+    }
+    .into()
+}
+
+fn guarded_reason_label(lang: Lang) -> String {
+    match lang {
+        Lang::Python => "escaped_input",
+        Lang::Javascript | Lang::Typescript => "javascript_sanitized_input",
+        Lang::Csharp => "csharp_sanitized_input",
+        Lang::Java => "java_sanitized_input",
+        Lang::Ruby => "ruby_sanitized_input",
+        Lang::Go => "go_sanitized_input",
+        _ => "sanitized_input",
+    }
+    .into()
 }
 
 fn guarded_reason(
@@ -732,6 +872,17 @@ fn direct_source_kind(lang: Lang, text: &str) -> Option<&'static str> {
         Lang::Ruby => {
             if text.contains("params[") || text.contains("params.") {
                 return Some("rails.params");
+            }
+        }
+        Lang::Go => {
+            if text.contains(".Query(") || text.contains(".URL.Query().Get(") {
+                return Some("go.http.query");
+            }
+            if text.contains(".Param(") {
+                return Some("go.http.param");
+            }
+            if text.contains(".FormValue(") {
+                return Some("go.http.form");
             }
         }
         _ => {}

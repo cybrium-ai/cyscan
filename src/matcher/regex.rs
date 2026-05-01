@@ -130,7 +130,7 @@ pub fn match_rule(
                 .trim()
                 .to_string();
             let (evidence, reachability) =
-                annotate_regex_finding(rule, lang, source, &source[m.start()..m.end()], semantics);
+                annotate_regex_finding(rule, lang, source, m.start(), &source[m.start()..m.end()], semantics);
 
             out.push(Finding {
                 rule_id:    rule.id.clone(),
@@ -173,7 +173,7 @@ pub fn match_rule(
                 if !inside_ranges.is_empty() && !inside_ranges.iter().any(|(start, end)| abs_start >= *start && abs_end <= *end) {
                     continue;
                 }
-                let (evidence, reachability) = annotate_regex_finding(rule, lang, source, trimmed, semantics);
+                let (evidence, reachability) = annotate_regex_finding(rule, lang, source, abs_start, trimmed, semantics);
                 out.push(Finding {
                     rule_id:    rule.id.clone(),
                     title:      rule.title.clone(),
@@ -315,7 +315,7 @@ fn special_case_source_regex(
         let (line, column) = byte_to_line_col(source, m.start());
         let (end_line, end_column) = byte_to_line_col(source, m.end());
         let snippet = m.as_str().lines().next().unwrap_or("").trim().to_string();
-        let (mut evidence, reachability) = annotate_regex_finding(rule, lang, source, m.as_str(), semantics);
+        let (mut evidence, reachability) = annotate_regex_finding(rule, lang, source, m.start(), m.as_str(), semantics);
 
         if let Some(arg) = caps.get(1).map(|m| m.as_str()) {
             if evidence.get("source_kind").is_none() {
@@ -352,7 +352,8 @@ fn special_case_source_regex(
 fn annotate_regex_finding(
     rule: &Rule,
     lang: Lang,
-    _source: &str,
+    source: &str,
+    match_start: usize,
     snippet: &str,
     semantics: &FileSemantics,
 ) -> (HashMap<String, serde_json::Value>, Option<String>) {
@@ -413,6 +414,24 @@ fn annotate_regex_finding(
                 evidence.insert("sanitizer_kind".into(), serde_json::json!(sanitizer_kind));
                 return (evidence, Some("unknown".into()));
             }
+            if let Some((source_kind, guarded_kind, reason)) =
+                regex_intra_file_flow(rule.id.as_str(), lang, source, match_start, snippet, semantics)
+            {
+                evidence.insert("path_sensitivity".into(), serde_json::json!(reason));
+                match (source_kind, guarded_kind) {
+                    (Some(source_kind), None) => {
+                        evidence.insert("source_kind".into(), serde_json::json!(source_kind));
+                        return (evidence, Some("reachable".into()));
+                    }
+                    (None, Some(sanitizer_kind)) => {
+                        evidence.insert("sanitizer_kind".into(), serde_json::json!(sanitizer_kind));
+                        return (evidence, Some("unknown".into()));
+                    }
+                    _ => {
+                        return (evidence, Some("unknown".into()));
+                    }
+                }
+            }
             if let Some(source_kind) = regex_source_kind(lang, snippet, semantics) {
                 evidence.insert("path_sensitivity".into(), serde_json::json!("tainted"));
                 evidence.insert("source_kind".into(), serde_json::json!(source_kind));
@@ -430,6 +449,24 @@ fn annotate_regex_finding(
                 evidence.insert("path_sensitivity".into(), serde_json::json!("guarded"));
                 evidence.insert("sanitizer_kind".into(), serde_json::json!(sanitizer_kind));
                 return (evidence, Some("unknown".into()));
+            }
+            if let Some((source_kind, guarded_kind, reason)) =
+                regex_intra_file_flow(rule.id.as_str(), lang, source, match_start, snippet, semantics)
+            {
+                evidence.insert("path_sensitivity".into(), serde_json::json!(reason));
+                match (source_kind, guarded_kind) {
+                    (Some(source_kind), None) => {
+                        evidence.insert("source_kind".into(), serde_json::json!(source_kind));
+                        return (evidence, Some("reachable".into()));
+                    }
+                    (None, Some(sanitizer_kind)) => {
+                        evidence.insert("sanitizer_kind".into(), serde_json::json!(sanitizer_kind));
+                        return (evidence, Some("unknown".into()));
+                    }
+                    _ => {
+                        return (evidence, Some("unknown".into()));
+                    }
+                }
             }
             if let Some(source_kind) = regex_source_kind(lang, snippet, semantics) {
                 evidence.insert("path_sensitivity".into(), serde_json::json!("tainted"));
@@ -472,6 +509,74 @@ fn annotate_regex_finding(
     }
 
     (evidence, None)
+}
+
+fn regex_intra_file_flow(
+    rule_id: &str,
+    lang: Lang,
+    source: &str,
+    match_start: usize,
+    snippet: &str,
+    semantics: &FileSemantics,
+) -> Option<(Option<String>, Option<String>, &'static str)> {
+    let assign_re = regex_assignment_regex(lang)?;
+    let mut tainted = semantics.tainted_identifiers.clone();
+    let mut sanitized = HashMap::<String, String>::new();
+    let prefix = &source[..match_start.min(source.len())];
+
+    for raw_line in prefix.lines() {
+        let line = regex_strip_comments(lang, raw_line).trim();
+        if line.is_empty() {
+            continue;
+        }
+        let Some(caps) = assign_re.captures(line) else { continue };
+        let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+        let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+        if ident.is_empty() || rhs.is_empty() {
+            continue;
+        }
+
+        if let Some(source_kind) = direct_regex_source_kind(lang, rhs) {
+            tainted.insert(ident.clone(), source_kind.to_string());
+            sanitized.remove(&ident);
+            continue;
+        }
+
+        if let Some(sanitizer_kind) = regex_local_sanitizer_kind(rule_id, lang, rhs, &tainted) {
+            tainted.remove(&ident);
+            sanitized.insert(ident, sanitizer_kind);
+            continue;
+        }
+
+        if let Some(source_kind) = regex_taint_from_tokens(rhs, &tainted) {
+            tainted.insert(ident.clone(), source_kind);
+            sanitized.remove(&ident);
+            continue;
+        }
+
+        tainted.remove(&ident);
+        sanitized.remove(&ident);
+    }
+
+    if let Some(source_kind) = direct_regex_source_kind(lang, snippet) {
+        return Some((Some(source_kind.into()), None, "tainted"));
+    }
+    if let Some(sanitizer_kind) = regex_local_sanitizer_kind(rule_id, lang, snippet, &tainted) {
+        return Some((None, Some(sanitizer_kind), "guarded"));
+    }
+    if let Some(sanitizer_kind) = regex_identifier_reason(snippet, &sanitized) {
+        return Some((None, Some(sanitizer_kind), "guarded"));
+    }
+    if let Some(source_kind) = regex_taint_from_tokens(snippet, &tainted) {
+        return Some((Some(source_kind), None, "tainted"));
+    }
+    if regex_contains_identifier(snippet, &tainted)
+        || regex_contains_identifier(snippet, &sanitized)
+        || regex_contains_nonliteral_identifier(lang, snippet)
+    {
+        return Some((None, None, "no_source_detected"));
+    }
+    None
 }
 
 fn regex_sanitizer_kind(rule_id: &str, snippet: &str) -> Option<&'static str> {
@@ -586,6 +691,18 @@ fn direct_regex_source_kind(lang: Lang, snippet: &str) -> Option<&'static str> {
                 return Some("spring.http_request_parameter");
             }
         }
+        Lang::Go => {
+            let compact: String = snippet.chars().filter(|c| !c.is_whitespace()).collect();
+            if compact.contains(".Query(") || compact.contains(".URL.Query().Get(") {
+                return Some("go.http.query");
+            }
+            if compact.contains(".Param(") {
+                return Some("go.http.param");
+            }
+            if compact.contains(".FormValue(") {
+                return Some("go.http.form");
+            }
+        }
         Lang::Python => {
             let compact: String = snippet.chars().filter(|c| !c.is_whitespace()).collect();
             if compact.contains("request.args.get(") || compact.contains("flask.request.args.get(") {
@@ -607,6 +724,96 @@ fn direct_regex_source_kind(lang: Lang, snippet: &str) -> Option<&'static str> {
         _ => {}
     }
     None
+}
+
+fn regex_assignment_regex(lang: Lang) -> Option<Regex> {
+    match lang {
+        Lang::Ruby => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$"#).unwrap()),
+        Lang::Java => Some(Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]\.?]*\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Go => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+?)\s*$"#).unwrap()),
+        _ => None,
+    }
+}
+
+fn regex_strip_comments(lang: Lang, raw_line: &str) -> &str {
+    match lang {
+        Lang::Ruby => raw_line.split('#').next().unwrap_or(""),
+        _ => raw_line.split("//").next().unwrap_or(""),
+    }
+}
+
+fn regex_local_sanitizer_kind(
+    rule_id: &str,
+    lang: Lang,
+    text: &str,
+    tainted: &HashMap<String, String>,
+) -> Option<String> {
+    if !regex_contains_identifier(text, tainted) {
+        return None;
+    }
+    if let Some(kind) = regex_sanitizer_kind(rule_id, text) {
+        return Some(kind.into());
+    }
+    let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+    match lang {
+        Lang::Java => {
+            if compact.contains("HtmlUtils.htmlEscape(") || compact.contains("ESAPI.encoder().encodeForHTML(") {
+                return Some("java_html_encoded".into());
+            }
+        }
+        Lang::Ruby => {
+            if compact.contains("ERB::Util.html_escape(") || compact.contains("html_escape(") || compact.contains("h(") {
+                return Some("rails.html_escape".into());
+            }
+        }
+        Lang::Go => {
+            if compact.contains("template.HTMLEscapeString(") {
+                return Some("go.html_escape".into());
+            }
+            if compact.contains("url.QueryEscape(") || compact.contains("template.URLQueryEscaper(") {
+                return Some("go.url_escape".into());
+            }
+        }
+        _ => {}
+    }
+    None
+}
+
+fn regex_taint_from_tokens(text: &str, tainted: &HashMap<String, String>) -> Option<String> {
+    for token in text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$')) {
+        if let Some(kind) = tainted.get(token) {
+            return Some(kind.clone());
+        }
+    }
+    None
+}
+
+fn regex_contains_identifier(text: &str, values: &HashMap<String, String>) -> bool {
+    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$'))
+        .any(|token| values.contains_key(token))
+}
+
+fn regex_identifier_reason(text: &str, values: &HashMap<String, String>) -> Option<String> {
+    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$'))
+        .find_map(|token| values.get(token).cloned())
+}
+
+fn regex_contains_nonliteral_identifier(lang: Lang, text: &str) -> bool {
+    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$'))
+        .any(|token| {
+            !token.is_empty()
+                && token.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+                && !regex_ignored_identifier(lang, token)
+        })
+}
+
+fn regex_ignored_identifier(lang: Lang, token: &str) -> bool {
+    match lang {
+        Lang::Java => matches!(token, "return" | "redirect" | "request" | "getParameter" | "HtmlUtils" | "htmlEscape" | "ESAPI" | "encodeForHTML" | "URLEncoder" | "encode" | "UriUtils" | "prepareStatement" | "eval"),
+        Lang::Ruby => matches!(token, "raw" | "params" | "content_tag" | "render" | "inline" | "text" | "sanitize" | "strip_tags" | "html_escape" | "ERB" | "Util" | "html_safe"),
+        Lang::Go => matches!(token, "exec" | "Command" | "CommandContext" | "Query" | "QueryRow" | "Exec" | "fmt" | "Sprintf" | "template" | "url"),
+        _ => false,
+    }
 }
 
 #[cfg(test)]
@@ -642,6 +849,7 @@ mod tests {
             &rule,
             Lang::Java,
             source,
+            source.find("parser.parseExpression(expr);").unwrap_or(0),
             "parser.parseExpression(expr);",
             &semantics,
         );
@@ -680,6 +888,7 @@ mod tests {
             &rule,
             Lang::Python,
             source,
+            0,
             "eval(payload)",
             &semantics,
         );

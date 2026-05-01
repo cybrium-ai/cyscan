@@ -301,6 +301,62 @@ fn js_express_query_innerhtml_is_marked_tainted_reachable() {
 }
 
 #[test]
+fn js_eval_later_assignment_does_not_backpropagate_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("js-eval.yml"),
+        r#"
+id:         CBR-JS-CODE-EVAL
+title:      "eval() usage"
+severity:   critical
+languages:  [javascript]
+message: |
+  Passing dynamic input to eval is unsafe.
+query: |
+  (call_expression
+    function: (identifier) @fn
+    (#eq? @fn "eval")) @call
+"#,
+    ).unwrap();
+    let src = tmp.path().join("ordered_eval.js");
+    fs::write(
+        &src,
+        "const express = require('express');\nfunction run() {\n  let code = 'safe';\n  eval(code);\n  code = req.query.code;\n}\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-JS-CODE-EVAL\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
+        .stdout(predicate::str::contains("\"path_sensitivity_reason\": \"javascript_intra_function_no_source\""));
+}
+
+#[test]
+fn js_sanitized_assignment_is_marked_guarded() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules  = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("sanitized_innerhtml.js");
+    fs::write(
+        &src,
+        "const express = require('express');\nfunction render() {\n  const html = req.query.html;\n  const safeHtml = DOMPurify.sanitize(html);\n  el.innerHTML = safeHtml;\n}\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-JS-XSS-INNER-HTML\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
+        .stdout(predicate::str::contains("\"path_sensitivity\": \"guarded\""))
+        .stdout(predicate::str::contains("\"sanitizer_kind\": \"dompurify_sanitized\""));
+}
+
+#[test]
 fn js_react_dangerous_html_is_framework_labeled() {
     use std::fs;
     let manifest = env!("CARGO_MANIFEST_DIR");
@@ -520,6 +576,71 @@ fn java_spring_prepare_statement_query_is_sink_labeled() {
 }
 
 #[test]
+fn java_redirect_later_assignment_does_not_backpropagate_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("java-redirect.yml"),
+        r#"
+id:        CBR-JAVA-SPRING_UNVALIDATED_REDIRECT
+title:     "Spring redirect"
+severity:  high
+languages: ['java']
+message: |
+  redirect with user input
+regex: 'return\s+"redirect:"\s*\+\s*[A-Za-z_][A-Za-z0-9_]*'
+"#,
+    ).unwrap();
+    let src = tmp.path().join("Controller.java");
+    fs::write(
+        &src,
+        "class Controller {\n  String go(javax.servlet.http.HttpServletRequest request) {\n    String next = \"home\";\n    return \"redirect:\" + next;\n    next = request.getParameter(\"next\");\n  }\n}\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-JAVA-SPRING_UNVALIDATED_REDIRECT\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
+        .stdout(predicate::str::contains("\"path_sensitivity\": \"no_source_detected\""));
+}
+
+#[test]
+fn java_redirect_sanitized_assignment_is_marked_guarded() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("java-redirect.yml"),
+        r#"
+id:        CBR-JAVA-SPRING_UNVALIDATED_REDIRECT
+title:     "Spring redirect"
+severity:  high
+languages: ['java']
+message: |
+  redirect with user input
+regex: 'return\s+"redirect:"\s*\+\s*[A-Za-z_][A-Za-z0-9_]*'
+"#,
+    ).unwrap();
+    let src = tmp.path().join("Controller.java");
+    fs::write(
+        &src,
+        "import java.net.URLEncoder;\nclass Controller {\n  String go(javax.servlet.http.HttpServletRequest request) throws Exception {\n    String next = request.getParameter(\"next\");\n    String safe = URLEncoder.encode(next, \"UTF-8\");\n    return \"redirect:\" + safe;\n  }\n}\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-JAVA-SPRING_UNVALIDATED_REDIRECT\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
+        .stdout(predicate::str::contains("\"path_sensitivity\": \"guarded\""))
+        .stdout(predicate::str::contains("\"sanitizer_kind\": \"spring.url_encode\""));
+}
+
+#[test]
 fn ruby_render_inline_params_is_sink_labeled() {
     use std::fs;
     let manifest = env!("CARGO_MANIFEST_DIR");
@@ -561,6 +682,71 @@ fn ruby_content_tag_params_is_sink_labeled() {
         .stdout(predicate::str::contains("\"sink_kind\": \"rails.content_tag\""))
         .stdout(predicate::str::contains("\"source_kind\": \"rails.params\""))
         .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn ruby_raw_later_assignment_does_not_backpropagate_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("ruby-raw.yml"),
+        r#"
+id:        CBR-RUBY-AVOID_RAW
+title:     "Avoid Raw"
+severity:  high
+languages: ['ruby']
+message: |
+  raw on user input is unsafe
+regex: 'raw\(.+\)'
+"#,
+    ).unwrap();
+    let src = tmp.path().join("view.rb");
+    fs::write(
+        &src,
+        "html = '<b>safe</b>'\nraw(html)\nhtml = params[:html]\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-RUBY-AVOID_RAW\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
+        .stdout(predicate::str::contains("\"path_sensitivity\": \"no_source_detected\""));
+}
+
+#[test]
+fn ruby_raw_sanitized_assignment_is_marked_guarded() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("ruby-raw.yml"),
+        r#"
+id:        CBR-RUBY-AVOID_RAW
+title:     "Avoid Raw"
+severity:  high
+languages: ['ruby']
+message: |
+  raw on user input is unsafe
+regex: 'raw\(.+\)'
+"#,
+    ).unwrap();
+    let src = tmp.path().join("view.rb");
+    fs::write(
+        &src,
+        "html = params[:html]\nsafe = sanitize(html)\nraw(safe)\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-RUBY-AVOID_RAW\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
+        .stdout(predicate::str::contains("\"path_sensitivity\": \"guarded\""))
+        .stdout(predicate::str::contains("\"sanitizer_kind\": \"rails.sanitize\""));
 }
 
 #[test]
@@ -624,6 +810,83 @@ fn ruby_content_tag_with_strip_tags_is_marked_guarded() {
         .stdout(predicate::str::contains("\"sanitizer_kind\": \"rails.strip_tags\""))
         .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
         .stdout(predicate::str::contains("\"confidence\": \"low\""));
+}
+
+#[test]
+fn go_command_later_assignment_does_not_backpropagate_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("go-command.yml"),
+        r#"
+id:        CBR-GO-COMMAND_INJECTION
+title:     "Go command injection"
+severity:  critical
+languages: ['go']
+message: |
+  exec.Command on user input is unsafe
+query: |
+  (call_expression
+    function: (selector_expression
+      (_) @pkg
+      (field_identifier) @method (#match? @method "^Command(Context)?$"))
+    arguments: (argument_list
+      (_) @arg))
+"#,
+    ).unwrap();
+    let src = tmp.path().join("handler.go");
+    fs::write(
+        &src,
+        "package main\n\nimport (\n  \"os/exec\"\n)\n\nfunc run(c Context) {\n  cmd := \"date\"\n  exec.Command(cmd)\n  cmd = c.Query(\"cmd\")\n}\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-GO-COMMAND_INJECTION\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
+        .stdout(predicate::str::contains("\"path_sensitivity_reason\": \"go_intra_function_no_source\""));
+}
+
+#[test]
+fn go_command_sanitized_assignment_is_marked_guarded() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("go-command.yml"),
+        r#"
+id:        CBR-GO-COMMAND_INJECTION
+title:     "Go command injection"
+severity:  critical
+languages: ['go']
+message: |
+  exec.Command on user input is unsafe
+query: |
+  (call_expression
+    function: (selector_expression
+      (_) @pkg
+      (field_identifier) @method (#match? @method "^Command(Context)?$"))
+    arguments: (argument_list
+      (_) @arg))
+"#,
+    ).unwrap();
+    let src = tmp.path().join("handler.go");
+    fs::write(
+        &src,
+        "package main\n\nimport (\n  \"net/url\"\n  \"os/exec\"\n)\n\nfunc run(c Context) {\n  cmd := c.Query(\"cmd\")\n  safe := url.QueryEscape(cmd)\n  exec.Command(safe)\n}\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-GO-COMMAND_INJECTION\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
+        .stdout(predicate::str::contains("\"path_sensitivity\": \"guarded\""))
+        .stdout(predicate::str::contains("\"sanitizer_kind\": \"go.url_escape\""));
 }
 
 #[test]
@@ -798,6 +1061,100 @@ class FakeController {
         .stdout(predicate::str::contains("\"source_kind\": \"aspnet.request_query\""))
         .stdout(predicate::str::contains("\"sink_kind\": \"dotnet.sql.execute\""))
         .stdout(predicate::str::contains("FakeController.cs").not());
+}
+
+#[test]
+fn csharp_html_raw_later_assignment_does_not_backpropagate_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("csharp-raw.yml"),
+        r#"
+id:        CBR-CSHA-XSS_HTML_RAW
+title:     "Cross-Site Scripting (XSS) via Html.Raw"
+severity:  high
+languages: ['csharp']
+message: |
+  Html.Raw on user input is unsafe.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      expression: (identifier) @obj (#eq? @obj "Html")
+      name: (identifier) @method (#eq? @method "Raw"))
+    arguments: (argument_list
+      (argument) @arg))
+"#,
+    ).unwrap();
+    let src = tmp.path().join("ordered_raw.cs");
+    fs::write(
+        &src,
+        r#"
+class Demo {
+    void Run() {
+        var html = "<b>safe</b>";
+        Html.Raw(html);
+        html = Request.Query["html"];
+    }
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-CSHA-XSS_HTML_RAW\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
+        .stdout(predicate::str::contains("\"path_sensitivity_reason\": \"csharp_intra_function_no_source\""));
+}
+
+#[test]
+fn csharp_html_raw_sanitized_assignment_is_marked_guarded() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("csharp-raw.yml"),
+        r#"
+id:        CBR-CSHA-XSS_HTML_RAW
+title:     "Cross-Site Scripting (XSS) via Html.Raw"
+severity:  high
+languages: ['csharp']
+message: |
+  Html.Raw on user input is unsafe.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      expression: (identifier) @obj (#eq? @obj "Html")
+      name: (identifier) @method (#eq? @method "Raw"))
+    arguments: (argument_list
+      (argument) @arg))
+"#,
+    ).unwrap();
+    let src = tmp.path().join("sanitized_raw.cs");
+    fs::write(
+        &src,
+        r#"
+using System.Web;
+class Demo {
+    void Run() {
+        var html = Request.Query["html"];
+        var safe = HttpUtility.HtmlEncode(html);
+        Html.Raw(safe);
+    }
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-CSHA-XSS_HTML_RAW\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
+        .stdout(predicate::str::contains("\"path_sensitivity\": \"guarded\""))
+        .stdout(predicate::str::contains("\"sanitizer_kind\": \"aspnet.html_encoded\""));
 }
 
 #[test]
