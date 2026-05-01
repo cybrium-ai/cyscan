@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 
 use anyhow::{Context, Result};
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 use tree_sitter::{Parser, Query, QueryCursor, Tree};
 
 use crate::{finding::Finding, lang::Lang, rule::Rule};
@@ -199,9 +199,30 @@ fn dsl_pattern_filters_match(
     node: tree_sitter::Node<'_>,
     captures: &HashMap<String, String>,
 ) -> bool {
+    let node_text = node.utf8_text(source.as_bytes()).ok().unwrap_or_default();
+    let mut candidate_texts: Vec<&str> = vec![node_text];
+    for value in captures.values() {
+        if !candidate_texts.iter().any(|seen| *seen == value.as_str()) {
+            candidate_texts.push(value.as_str());
+        }
+    }
+
+    let positive_patterns = tree_positive_patterns(rule);
+    if !positive_patterns.is_empty() {
+        let compiled: Vec<Regex> = positive_patterns.into_iter()
+            .filter_map(compile_tree_filter_regex)
+            .collect();
+        if compiled.is_empty() {
+            return false;
+        }
+        if !compiled.iter().all(|re| candidate_texts.iter().any(|text| re.is_match(text))) {
+            return false;
+        }
+    }
+
     if let Some(pattern_not) = rule.pattern_not.as_deref() {
         if let Some(re) = compile_tree_filter_regex(pattern_not) {
-            if re.is_match(node.utf8_text(source.as_bytes()).ok().unwrap_or_default()) {
+            if re.is_match(node_text) {
                 return false;
             }
             if captures.values().any(|value| re.is_match(value)) {
@@ -227,12 +248,25 @@ fn dsl_pattern_filters_match(
     true
 }
 
+fn tree_positive_patterns(rule: &Rule) -> Vec<&str> {
+    if !rule.patterns.is_empty() {
+        return rule.patterns.iter().map(String::as_str).collect();
+    }
+    rule.pattern.as_deref()
+        .map(|pat| vec![pat.trim()])
+        .unwrap_or_default()
+}
+
 fn compile_tree_filter_regex(pattern: &str) -> Option<Regex> {
     let converted = super::regex::semgrep_to_regex(pattern.trim());
     if converted.trim().is_empty() {
         return None;
     }
-    Regex::new(&converted).ok()
+    RegexBuilder::new(&converted)
+        .dot_matches_new_line(true)
+        .multi_line(true)
+        .build()
+        .ok()
 }
 
 fn csharp_receiver_is_db_command(object: &str, semantics: &FileSemantics) -> bool {

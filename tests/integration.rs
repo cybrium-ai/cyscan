@@ -1653,6 +1653,93 @@ def safe():
     assert_eq!(findings[0]["line"], 3);
 }
 
+#[test]
+fn treesitter_patterns_all_of_limit_query_matches() {
+    use std::fs;
+    use serde_json::Value;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("python-eval-patterns.yml"),
+        r#"
+id:        CBR-PY-CODE-EVAL
+title:     "Unsafe eval() usage"
+severity:  critical
+languages: ['python']
+message: |
+  Detected eval() on dynamic input.
+patterns:
+  - "eval("
+  - "user"
+query: |
+  (call
+    function: (identifier) @fn (#eq? @fn "eval")
+    arguments: (argument_list (_) @arg))
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("patterns.py"),
+        r#"
+eval(user)
+eval(other)
+"#,
+    ).unwrap();
+
+    let output = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "scan failed: {}", String::from_utf8_lossy(&output.stderr));
+    let findings: Vec<Value> = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0]["line"], 2);
+}
+
+#[test]
+fn treesitter_pattern_not_excludes_query_match() {
+    use std::fs;
+    use serde_json::Value;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("js-call-pattern-not.yml"),
+        r#"
+id:        CBR-JS-CALL-FILTER
+title:     "Filtered JavaScript call"
+severity:  medium
+languages: ['javascript']
+message: |
+  Filtered JavaScript call.
+pattern: "eval"
+pattern_not: "safeEval"
+query: |
+  (call_expression
+    function: (identifier) @fn
+    arguments: (arguments (_) @arg)) @call
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("pattern_not.js"),
+        r#"
+eval(user)
+safeEval(user)
+"#,
+    ).unwrap();
+
+    let output = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "scan failed: {}", String::from_utf8_lossy(&output.stderr));
+    let findings: Vec<Value> = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0]["line"], 2);
+}
+
 fn copy_tree(src: &std::path::Path, dst: &std::path::Path) {
     for entry in std::fs::read_dir(src).unwrap() {
         let entry = entry.unwrap();
