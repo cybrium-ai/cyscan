@@ -60,6 +60,7 @@ pub fn scan(deps: &[Dependency]) -> Vec<Finding> {
                     ),
                     file:       dep.lockfile.clone(),
                     line: 0, column: 0, end_line: 0, end_column: 0,
+                    fingerprint: String::new(),
                     start_byte: 0, end_byte: 0,
                     snippet:    format!("{}@{}", dep.name, dep.version),
                     fix_recipe: None,

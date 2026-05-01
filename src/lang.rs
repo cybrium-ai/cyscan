@@ -11,9 +11,9 @@ use tree_sitter::Language;
 #[serde(rename_all = "lowercase")]
 pub enum Lang {
     // Tier 1 — tree-sitter AST support
-    Python, Javascript, Typescript, Go,
+    Python, Javascript, Typescript, Go, Csharp, Rust, Java, Ruby,
     // Tier 2 — regex-only, high usage
-    Java, Ruby, Php, C, Csharp, Rust, Kotlin, Swift, Scala, Bash,
+    Php, C, Kotlin, Swift, Scala, Bash,
     // Tier 3 — regex-only, niche languages
     Perl, Lua, R, Dart, Elixir, Erlang, Haskell, Clojure, Groovy,
     Objective_c, Powershell, Vb, Fsharp, Julia, Zig, Nim, Crystal,
@@ -28,7 +28,7 @@ pub enum Lang {
     Protobuf, Thrift, Graphql, Avro,            // schemas
     Latex, Rst,                                 // docs
     // Generic / config
-    Generic, Json, Yaml, Terraform, Docker,
+    Generic, Json, Yaml, Kubernetes, Terraform, Docker,
 }
 
 impl Lang {
@@ -184,6 +184,10 @@ impl Lang {
             Self::Python => tree_sitter_python::language(),
             Self::Javascript | Self::Typescript => tree_sitter_javascript::language(),
             Self::Go => tree_sitter_go::language(),
+            Self::Csharp => tree_sitter_c_sharp::language(),
+            Self::Rust => tree_sitter_rust::language(),
+            Self::Java => tree_sitter_java::language(),
+            Self::Ruby => tree_sitter_ruby::language(),
             // Languages without tree-sitter grammars compiled in — regex-only
             _ => return None,
         })
@@ -192,7 +196,7 @@ impl Lang {
     /// Whether this language has full AST pattern matching (tree-sitter).
     /// Languages without it use regex-only matching.
     pub fn has_ast_support(self) -> bool {
-        matches!(self, Self::Python | Self::Javascript | Self::Typescript | Self::Go)
+        matches!(self, Self::Python | Self::Javascript | Self::Typescript | Self::Go | Self::Csharp | Self::Rust | Self::Java | Self::Ruby)
     }
 
     pub fn as_str(self) -> &'static str {
@@ -285,6 +289,7 @@ impl Lang {
             Self::Generic    => "generic",
             Self::Json       => "json",
             Self::Yaml       => "yaml",
+            Self::Kubernetes => "kubernetes",
             Self::Terraform  => "terraform",
             Self::Docker     => "docker",
         }

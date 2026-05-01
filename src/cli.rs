@@ -32,6 +32,10 @@ enum Cmd {
         #[arg(long, short = 'r')]
         rules: Option<PathBuf>,
 
+        /// Path to a baseline file. Findings in this file will be suppressed.
+        #[arg(long, short = 'b')]
+        baseline: Option<PathBuf>,
+
         /// Output format.
         #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
         format: Format,
@@ -56,30 +60,47 @@ enum Cmd {
 
     /// Scan dependency lockfiles against advisories + typosquat + policy.
     Supply {
+        /// Target path (file or directory).
         #[arg(default_value = ".")]
         target: PathBuf,
 
-        /// Rule pack directory (for `dependency:` policy rules).
+        /// Rule pack directory.
         #[arg(long, short = 'r')]
         rules: Option<PathBuf>,
 
-        /// Advisory snapshot dir (defaults to bundled rules/advisories).
+        /// Advisory snapshot directory.
         #[arg(long)]
         advisories: Option<PathBuf>,
 
-        /// Skip the OSV advisory match — useful for policy-only scans.
-        #[arg(long)]
+        /// Skip bundled/local advisories and only run typosquat + policy checks.
+        #[arg(long, default_value_t = false)]
         no_advisories: bool,
 
-        /// Suppress snapshot-freshness warnings (for air-gapped runs).
-        #[arg(long)]
+        /// Reserved compatibility flag for disconnected environments.
+        #[arg(long, default_value_t = false)]
         offline: bool,
 
+        /// Output format.
         #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
         format: Format,
 
         #[arg(long)]
         fail_on: Option<Severity>,
+    },
+
+    /// Create a baseline of current findings to ignore them in future scans.
+    Baseline {
+        /// Target path to scan for the baseline.
+        #[arg(default_value = ".")]
+        target: PathBuf,
+
+        /// Rule pack directory.
+        #[arg(long, short = 'r')]
+        rules: Option<PathBuf>,
+
+        /// Path to save the baseline file.
+        #[arg(long, short = 'o', default_value = ".cyscan-baseline.json")]
+        output: PathBuf,
     },
 
     /// Apply autofixes for every finding whose rule has a `fix:` block.
@@ -253,7 +274,7 @@ pub fn run() -> Result<ExitCode> {
         _ => {}
     }
     match cli.cmd {
-        Cmd::Scan { target, rules, format, fail_on, jobs, verify, cia: show_cia } => {
+        Cmd::Scan { target, rules, baseline, format, fail_on, jobs, verify, cia: show_cia } => {
             if let Some(n) = jobs {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(n)
@@ -261,7 +282,29 @@ pub fn run() -> Result<ExitCode> {
                     .ok();
             }
             let pack = load_pack(rules.as_deref())?;
-            let mut findings = scanner::run(&target, &pack)?;
+            
+            // --- Code to Cloud Synergy: Automatic Manifest Context ---
+            let cloud_ctx = if target.is_dir() {
+                Some(collect_cloud_context(&target))
+            } else {
+                None
+            };
+
+            let mut findings = scanner::run_with_context(&target, &pack, cloud_ctx)?;
+
+            if let Some(baseline_path) = baseline {
+                let baseline_content = std::fs::read_to_string(&baseline_path)
+                    .with_context(|| format!("reading baseline file {}", baseline_path.display()))?;
+                let baseline_fingerprints: std::collections::HashSet<String> = serde_json::from_str(&baseline_content)
+                    .with_context(|| "parsing baseline JSON (expected an array of fingerprint strings)")?;
+                
+                let original_count = findings.len();
+                findings.retain(|f| !baseline_fingerprints.contains(&f.fingerprint));
+                let suppressed = original_count - findings.len();
+                if suppressed > 0 {
+                    eprintln!("  Suppressed {} finding(s) present in baseline", suppressed);
+                }
+            }
 
             if verify {
                 eprintln!("Verifying detected secrets...");
@@ -296,6 +339,21 @@ pub fn run() -> Result<ExitCode> {
                 None      => false,
             };
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
+        }
+
+        Cmd::Baseline { target, rules, output } => {
+            let pack = load_pack(rules.as_deref())?;
+            let findings = scanner::run(&target, &pack)?;
+            let fingerprints: std::collections::BTreeSet<String> = findings.into_iter()
+                .map(|f| f.fingerprint)
+                .collect();
+            
+            let json = serde_json::to_string_pretty(&fingerprints)?;
+            std::fs::write(&output, json)
+                .with_context(|| format!("writing baseline to {}", output.display()))?;
+            
+            eprintln!("✓ Baseline created with {} unique finding(s) in {}", fingerprints.len(), output.display());
+            Ok(ExitCode::from(0))
         }
 
         Cmd::Supply { target, rules, advisories, no_advisories, offline: _, format, fail_on } => {
@@ -652,4 +710,46 @@ fn bundled_advisories_path() -> PathBuf {
         if c.exists() { return c; }
     }
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("rules/advisories")
+}
+
+fn collect_cloud_context(target: &std::path::Path) -> scanner::CloudContext {
+    let mut ctx = scanner::CloudContext::default();
+    
+    // Quick heuristic scan of manifests in the same repo
+    let walker = ignore::WalkBuilder::new(target)
+        .standard_filters(true)
+        .build();
+
+    for entry in walker.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.is_file() {
+            let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+            if ext == "yaml" || ext == "yml" || ext == "json" {
+                if let Ok(content) = std::fs::read_to_string(path) {
+                    if content.contains("privileged: true") {
+                        ctx.privileged_pods.insert(path.to_string_lossy().into());
+                    }
+                    if content.contains("hostNetwork: true") {
+                        ctx.host_networks.insert(path.to_string_lossy().into());
+                    }
+                    
+                    // Resource Extraction (Heuristic for S3/Storage)
+                    // Matches strings like bucket: "my-data" or name: "my-bucket" in public contexts
+                    if content.contains("public") || content.contains("allUsers") || content.contains("0.0.0.0") {
+                        for line in content.lines() {
+                            if line.contains("bucket") || line.contains("name") {
+                                if let Some(name) = line.split(':').nth(1) {
+                                    let clean_name = name.trim().trim_matches('"').trim_matches('\'').to_string();
+                                    if clean_name.len() > 3 {
+                                        ctx.public_resources.insert(clean_name, path.to_string_lossy().into());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ctx
 }
