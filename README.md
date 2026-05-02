@@ -13,7 +13,7 @@ $ cyscan scan ./src --format text
 
 [crit]  CBR-SECRETS-AWS-KEY        src/config.py:3:18
         Hardcoded AWS access key
-        │ AWS_ACCESS_KEY = "AKIA1234567890ABCDEF"
+        │ AWS_ACCESS_KEY = "AKIA****************"
         → fix: CWE-798-HARDCODED
 
 2 finding(s)

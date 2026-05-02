@@ -2,6 +2,22 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.10.0] — 2026-05-02
+
+### Added
+- **Local triage workflow** — `cyscan triage` adds local lifecycle management for findings with `new`, `confirmed`, `false_positive`, `accepted_risk`, and `fixed` states, plus audit history (`note`, `author`, timestamp). `scan` and `supply` now support `--triage` and `--hide-triaged`.
+- **Triage-aware CI gating** — `--fail-on` now respects triage states so accepted risk, false positives, and fixed findings do not fail customer pipelines.
+
+### Changed
+- **Semantic engine depth upgrade** — strengthened local semantics, intra-file flow, inter-procedural resolution, multi-language semantic depth, and framework-aware propagation across Python, JavaScript/TypeScript, Java, C#, Go, Ruby, Rust, PHP, Swift, Scala, Bash, and C.
+- **Type and symbol resolution** — improved receiver typing, namespace/class binding, interface/inheritance-aware method resolution, overload disambiguation, and library-aware external symbol binding to cut collision false positives.
+- **Supply reachability evidence** — added package-qualified callsite tracking, dependency-path evidence, and richer reachability payloads for vulnerable package findings.
+- **Rule DSL expressiveness** — expanded rule authoring with `pattern_either`, richer metavariable comparisons, typed metavariable constraints, and deeper structural exclusion support.
+- **Long-tail framework semantics** — improved Laravel, Symfony, WordPress, Play, and WebKit labeling plus service/helper propagation and sanitizer-aware wrapper handling.
+
+### Fixed
+- **Release trust hardening** — masked realistic-looking secret examples in docs and verified the release path only contains detector patterns, synthetic fixtures, and rule content rather than obvious live credentials.
+
 ## [0.9.1] — 2026-04-30
 
 ### Fixed
