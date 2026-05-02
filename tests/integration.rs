@@ -1832,6 +1832,70 @@ class Runner {
 }
 
 #[test]
+fn java_spring_controller_service_method_call_propagates_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("app/service")).unwrap();
+    fs::write(
+        rules_dir.join("java-danger.yml"),
+        r#"
+id:         CBR-JAVA-SCRIPT_ENGINE_INJECTION
+title:      "danger() usage"
+severity:   critical
+languages:  [java]
+message: |
+  Passing dynamic input to danger is unsafe.
+query: |
+  (method_invocation
+    name: (identifier) @fn
+    arguments: (argument_list (_) @arg)
+    (#eq? @fn "danger")) @call
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("app/WebController.java"),
+        r#"
+package app;
+import app.service.RunnerService;
+import org.springframework.web.bind.annotation.RestController;
+@RestController
+class WebController {
+    void handle(HttpServletRequest request) {
+        RunnerService service = new RunnerService();
+        String user = request.getParameter("cmd");
+        service.run(user);
+    }
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("app/service/RunnerService.java"),
+        r#"
+package app.service;
+class RunnerService {
+    void run(String data) {
+        danger(data);
+    }
+    void danger(String data) {
+    }
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("RunnerService.java")))
+        .stdout(predicate::str::contains("\"source_kind\": \"spring.http_request_parameter\""))
+        .stdout(predicate::str::contains("\"framework\": \"spring\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
 fn go_interprocedural_taint_uses_resolved_import_targets() {
     use std::fs;
     use serde_json::Value;
@@ -2210,6 +2274,67 @@ class Helper {
         .assert()
         .stdout(predicate::str::contains("\"rule_id\": \"CBR-CSHA-XSS_HTML_RAW\""))
         .stdout(predicate::str::contains("\"source_kind\": \"aspnet.request_query\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn csharp_aspnet_controller_service_method_call_propagates_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("Demo/Web/Services")).unwrap();
+    fs::write(
+        rules_dir.join("csharp-raw.yml"),
+        r#"
+id:        CBR-CSHA-XSS_HTML_RAW
+title:     "Cross-Site Scripting (XSS) via Html.Raw"
+severity:  high
+languages: ['csharp']
+message: |
+  Html.Raw on user input is unsafe.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      expression: (identifier) @obj (#eq? @obj "Html")
+      name: (identifier) @method (#eq? @method "Raw"))
+    arguments: (argument_list
+      (argument) @arg))
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("Demo/Web/Entry.cs"),
+        r#"
+using RunnerService = Demo.Web.Services.RunnerService;
+class Entry {
+    void Handle() {
+        RunnerService service = new RunnerService();
+        var value = Request.Query["id"];
+        service.Run(value);
+    }
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("Demo/Web/Services/RunnerService.cs"),
+        r#"
+namespace Demo.Web.Services;
+class RunnerService {
+    public void Run(string data) {
+        Html.Raw(data);
+    }
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("RunnerService.cs")))
+        .stdout(predicate::str::contains("\"source_kind\": \"aspnet.request_query\""))
+        .stdout(predicate::str::contains("\"framework\": \"aspnet\""))
         .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
 }
 

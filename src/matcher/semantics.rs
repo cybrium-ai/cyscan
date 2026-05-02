@@ -1245,6 +1245,10 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
     let assign_re = Regex::new(
         r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
+    let explicit_decl_re = Regex::new(
+        r#"^\s*(?:private|public|protected)?\s*(?:static\s+)?(?:final\s+)?([A-Za-z_][A-Za-z0-9_<>\.\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#
+    ).unwrap();
+    let new_type_re = Regex::new(r#"new\s+([A-Za-z_][A-Za-z0-9_<>\.]*)\s*\("#).unwrap();
     let method_re = Regex::new(
         r#"^\s*(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)\s*\{"#
     ).unwrap();
@@ -1389,6 +1393,34 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
                     semantics.imported_symbols.insert(symbol.to_string(), module);
                 }
             }
+            continue;
+        }
+
+        if let Some(caps) = explicit_decl_re.captures(line) {
+            let declared_type = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim();
+            let ident = caps.get(2).map(|m| m.as_str()).unwrap_or("").to_string();
+            let rhs = caps.get(3).map(|m| m.as_str()).unwrap_or("").trim();
+            if !ident.is_empty() {
+                if let Some(resolved) = resolve_java_type_name(&semantics, &module_identity, declared_type) {
+                    semantics.variable_types.insert(ident.clone(), resolved);
+                } else if let Some(new_type) = new_type_re.captures(rhs)
+                    .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+                    .and_then(|ty| resolve_java_type_name(&semantics, &module_identity, &ty))
+                {
+                    semantics.variable_types.insert(ident.clone(), new_type);
+                }
+            }
+        } else if let Some(caps) = assign_re.captures(line) {
+            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+            if !ident.is_empty() {
+                if let Some(new_type) = new_type_re.captures(rhs)
+                    .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+                    .and_then(|ty| resolve_java_type_name(&semantics, &module_identity, &ty))
+                {
+                    semantics.variable_types.insert(ident.clone(), new_type);
+                }
+            }
         }
 
         if let Some(caps) = assign_re.captures(line) {
@@ -1466,6 +1498,14 @@ fn resolve_java_call_target(
 ) -> Option<String> {
     match member {
         Some(method) => {
+            let head = head.trim_start_matches("this.");
+            if let Some(ty) = semantics.variable_types.get(head) {
+                let candidate = format!("{ty}::{method}");
+                if semantics.function_definitions.contains_key(&candidate) {
+                    return Some(candidate);
+                }
+                return Some(candidate);
+            }
             if let Some(imported) = semantics.imported_symbols.get(head) {
                 return Some(format!("{imported}::{method}"));
             }
@@ -1485,6 +1525,31 @@ fn resolve_java_call_target(
             None
         }
     }
+}
+
+fn resolve_java_type_name(
+    semantics: &FileSemantics,
+    module_identity: &str,
+    declared_type: &str,
+) -> Option<String> {
+    let declared_type = declared_type.trim();
+    if declared_type.is_empty() {
+        return None;
+    }
+    let base = declared_type
+        .split('<')
+        .next()
+        .unwrap_or(declared_type)
+        .trim()
+        .trim_end_matches("[]");
+    if base.contains('.') {
+        return Some(base.to_string());
+    }
+    if let Some(imported) = semantics.imported_symbols.get(base) {
+        return Some(imported.clone());
+    }
+    let package = module_identity.rsplit_once('.').map(|(pkg, _)| pkg).unwrap_or(module_identity);
+    Some(format!("{package}.{base}"))
 }
 
 fn tag_python_frameworks(semantics: &mut FileSemantics) {
@@ -1702,6 +1767,8 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
             if !ident.is_empty() {
                 if let Some(command_type) = csharp_db_command_type_from_decl(declared_type, rhs) {
                     semantics.variable_types.insert(ident.clone(), command_type);
+                } else if let Some(resolved) = resolve_csharp_type_name(&semantics, &module_identity, declared_type) {
+                    semantics.variable_types.insert(ident.clone(), resolved);
                 } else if let Some(command_type) = csharp_db_command_type_from_rhs(rhs) {
                     semantics.variable_types.insert(ident.clone(), command_type);
                 }
@@ -1717,6 +1784,8 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                 {
                     if csharp_is_db_command_type(&new_type) {
                         semantics.variable_types.insert(ident.clone(), new_type);
+                    } else if let Some(resolved) = resolve_csharp_type_name(&semantics, &module_identity, &new_type) {
+                        semantics.variable_types.insert(ident.clone(), resolved);
                     }
                 }
             }
@@ -1801,6 +1870,14 @@ fn resolve_csharp_call_target(
 ) -> Option<String> {
     match member {
         Some(method) => {
+            let head = head.trim_start_matches("this.");
+            if let Some(ty) = semantics.variable_types.get(head) {
+                let candidate = format!("{ty}::{method}");
+                if semantics.function_definitions.contains_key(&candidate) {
+                    return Some(candidate);
+                }
+                return Some(candidate);
+            }
             if let Some(module) = semantics.alias_to_module.get(head) {
                 return Some(format!("{module}::{method}"));
             }
@@ -1817,6 +1894,34 @@ fn resolve_csharp_call_target(
             None
         }
     }
+}
+
+fn resolve_csharp_type_name(
+    semantics: &FileSemantics,
+    module_identity: &str,
+    declared_type: &str,
+) -> Option<String> {
+    let declared_type = declared_type.trim();
+    if declared_type.is_empty() {
+        return None;
+    }
+    let base = declared_type
+        .split('<')
+        .next()
+        .unwrap_or(declared_type)
+        .trim()
+        .trim_end_matches("[]");
+    if base.contains('.') {
+        return Some(base.to_string());
+    }
+    if let Some(imported) = semantics.imported_symbols.get(base) {
+        return Some(imported.clone());
+    }
+    if let Some(imported) = semantics.alias_to_module.get(base) {
+        return Some(imported.clone());
+    }
+    let namespace = module_identity.rsplit_once('.').map(|(ns, _)| ns).unwrap_or(module_identity);
+    Some(format!("{namespace}.{base}"))
 }
 
 fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {

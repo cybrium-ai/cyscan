@@ -967,6 +967,12 @@ fn pick_framework(semantics: &FileSemantics, source_kind: &str) -> Option<String
     if source_kind.starts_with("aspnet.") {
         return Some("aspnet".into());
     }
+    if source_kind.starts_with("spring.") {
+        return Some("spring".into());
+    }
+    if source_kind.starts_with("rails.") {
+        return Some("rails".into());
+    }
     semantics.frameworks.iter().next().cloned()
 }
 
