@@ -196,6 +196,20 @@ fn make_finding(adv: &Advisory, dep: &Dependency) -> Finding {
         "{} {} {}@{} — see https://osv.dev/vulnerability/{}",
         adv.id, dep.ecosystem.as_str(), dep.name, dep.version, adv.id,
     );
+    let mut evidence: HashMap<String, serde_json::Value> = HashMap::new();
+    // Capture package + dependency_path on every advisory finding so
+    // `reachability::enrich_findings` can pull them back out and the
+    // SARIF/JSON consumer sees the dep chain inline.
+    evidence.insert("package".into(), serde_json::json!(dep.name));
+    evidence.insert("ecosystem".into(), serde_json::json!(dep.ecosystem.as_str()));
+    evidence.insert("version".into(), serde_json::json!(dep.version));
+    if !dep.path.is_empty() {
+        evidence.insert("dependency_path".into(), serde_json::json!(dep.path));
+        evidence.insert(
+            "dependency_path_string".into(),
+            serde_json::json!(dep.path.join(" > ")),
+        );
+    }
     Finding {
         rule_id:    format!("CBR-SUPPLY-{}", adv.id),
         title,
@@ -208,7 +222,7 @@ fn make_finding(adv: &Advisory, dep: &Dependency) -> Finding {
         fix_recipe: None,
         fix:        None,
         cwe:        Vec::new(),
-        evidence:   HashMap::new(),
+        evidence,
         reachability: None,
         fingerprint: String::new(),
     }

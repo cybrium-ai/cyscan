@@ -17,11 +17,40 @@ impl ImportIndex {
         self.imports.contains_key(package) || self.imports.contains_key(&n)
             || self.imports.keys().any(|k| k.contains(package))
     }
+    /// True if any of the candidate names (alias variants) is imported.
+    /// Used by Gap 4 reachability to test the multiple normalised forms a
+    /// package can have (`pyyaml` vs `yaml`, `lodash-es` vs `lodash`, …).
+    pub fn is_any_package_imported(&self, packages: &[String]) -> bool {
+        packages.iter().any(|p| self.is_package_imported(p))
+    }
     pub fn get_import_sites(&self, package: &str) -> Vec<(String, String)> {
         let n = package.to_lowercase().replace('_', "-");
         self.imports.get(package).or_else(|| self.imports.get(&n))
             .map(|s| s.iter().map(|f| (f.display().to_string(), format!("import {package}"))).collect())
             .unwrap_or_default()
+    }
+    /// Union of import sites across every candidate name. The site label
+    /// keeps the *winning* candidate so reviewers see the actual import.
+    pub fn get_import_sites_any(&self, packages: &[String]) -> Vec<(String, String)> {
+        let mut out = Vec::new();
+        for p in packages {
+            out.extend(self.get_import_sites(p));
+        }
+        // Stable + dedup by (file, label)
+        out.sort();
+        out.dedup();
+        out
+    }
+    /// Find the import name that successfully matched. Used to surface
+    /// the *actual* import statement to the reviewer (e.g. "from yaml
+    /// import safe_load") rather than the normalised package slug.
+    pub fn matched_import_name(&self, packages: &[String]) -> Option<String> {
+        for p in packages {
+            if self.is_package_imported(p) {
+                return Some(p.clone());
+            }
+        }
+        None
     }
     pub fn find_call_chain(&self, package: &str, symbol: &str) -> Option<Vec<(String, String)>> {
         let n = package.to_lowercase().replace('_', "-");

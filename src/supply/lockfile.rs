@@ -44,6 +44,12 @@ pub struct Dependency {
     pub lockfile:  PathBuf,
     /// SPDX license identifier (if available from lockfile/manifest).
     pub license:   Option<String>,
+    /// Top-down dependency path that brought this package in
+    /// (e.g. ["app", "express", "qs"]). Empty when the lockfile parser
+    /// can't resolve the chain — `extract_dependency_path` falls back
+    /// to `[name]` in that case. Populated by the walkers added in
+    /// Gap 4 / C3.
+    pub path:      Vec<String>,
 }
 
 /// Walk `root`, parsing every lockfile into a flat list of deps.
@@ -92,6 +98,7 @@ fn parse_cargo_lock(path: &Path) -> Result<Vec<Dependency>> {
             version:   p.version,
             lockfile:  path.to_path_buf(),
             license:   None, // Cargo.lock doesn't carry license; Cargo.toml would
+            path:      Vec::new(),
         }).collect())
 }
 
@@ -123,6 +130,7 @@ fn parse_npm_lock(path: &Path) -> Result<Vec<Dependency>> {
                 version:   ver.to_string(),
                 lockfile:  path.to_path_buf(),
                 license,
+                path:      Vec::new(),
             });
         }
         return Ok(out);
@@ -130,24 +138,40 @@ fn parse_npm_lock(path: &Path) -> Result<Vec<Dependency>> {
 
     // npm v1 layout: `dependencies` is recursive.
     if let Some(deps) = v.get("dependencies").and_then(|x| x.as_object()) {
-        walk_npm_v1(deps, path, &mut out);
+        // Use the lockfile filename's parent dir as the synthetic root
+        // so paths read as ["my-app", "express", "qs"] not ["express", "qs"].
+        let root = path
+            .parent()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("root")
+            .to_string();
+        walk_npm_v1(deps, path, &[root], &mut out);
     }
     Ok(out)
 }
 
-fn walk_npm_v1(deps: &serde_json::Map<String, serde_json::Value>, path: &Path, out: &mut Vec<Dependency>) {
+fn walk_npm_v1(
+    deps: &serde_json::Map<String, serde_json::Value>,
+    lockfile: &Path,
+    parent_path: &[String],
+    out: &mut Vec<Dependency>,
+) {
     for (name, meta) in deps {
         if let Some(ver) = meta.get("version").and_then(|x| x.as_str()) {
+            let mut full = parent_path.to_vec();
+            full.push(name.clone());
             out.push(Dependency {
                 ecosystem: Ecosystem::Npm,
                 name:      name.clone(),
                 version:   ver.to_string(),
-                lockfile:  path.to_path_buf(),
+                lockfile:  lockfile.to_path_buf(),
                 license:   None,
+                path:      full.clone(),
             });
-        }
-        if let Some(nested) = meta.get("dependencies").and_then(|x| x.as_object()) {
-            walk_npm_v1(nested, path, out);
+            if let Some(nested) = meta.get("dependencies").and_then(|x| x.as_object()) {
+                walk_npm_v1(nested, lockfile, &full, out);
+            }
         }
     }
 }
@@ -191,6 +215,7 @@ fn parse_yarn_lock(path: &Path) -> Result<Vec<Dependency>> {
                     version,
                     lockfile:  path.to_path_buf(),
                     license:   None,
+                    path:      Vec::new(),
                 });
                 current_name = None;
             }
@@ -224,6 +249,7 @@ fn parse_go_sum(path: &Path) -> Result<Vec<Dependency>> {
             version,
             lockfile:  path.to_path_buf(),
             license:   None,
+            path:      Vec::new(),
         });
     }
     Ok(out)
@@ -255,6 +281,7 @@ fn parse_requirements(path: &Path) -> Result<Vec<Dependency>> {
             version,
             lockfile: path.to_path_buf(),
             license:  None,
+            path:      Vec::new(),
         });
     }
     Ok(out)
@@ -276,5 +303,6 @@ fn parse_poetry_lock(path: &Path) -> Result<Vec<Dependency>> {
         version:   p.version,
         lockfile:  path.to_path_buf(),
         license:   None,
+        path:      Vec::new(),
     }).collect())
 }

@@ -110,6 +110,70 @@ fn supply_no_advisories_flag_skips_osv() {
         .stdout(predicate::str::contains("GHSA-").not());
 }
 
+// ─── Reachability evidence tests (Gap 4 / C3) ───────────────────────────────
+
+#[test]
+fn supply_reachability_emits_dependency_path_and_callsite_evidence() {
+    // Run `cyscan supply` against the fixture lockfiles tree and verify
+    // every advisory finding carries the new C3 evidence shape:
+    //   - package
+    //   - reachable_dependency_path (Vec<String>, falls back to [package])
+    //   - reachable_dependency_path_string
+    //   - reachable_callsite_count
+    //   - reachability verdict on the finding itself
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let fixtures = format!("{manifest}/tests/fixtures/lockfiles");
+    let rules    = format!("{manifest}/rules");
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["supply", &fixtures, "--rules", &rules, "--format", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    // Pure advisory findings have rule_id `CBR-SUPPLY-GHSA-…` or
+    // `CBR-SUPPLY-CVE-…` — typosquat (`CBR-SUPPLY-TYPOSQUAT`) and policy
+    // (`CBR-DEP-…`) findings don't carry the dep-path evidence shape so
+    // we filter them out.
+    let advisories: Vec<&serde_json::Value> = json
+        .as_array().unwrap().iter()
+        .filter(|f| {
+            let id = f["rule_id"].as_str().unwrap_or("");
+            id.starts_with("CBR-SUPPLY-GHSA") || id.starts_with("CBR-SUPPLY-CVE")
+        })
+        .collect();
+    assert!(!advisories.is_empty(), "fixture should produce at least one advisory finding");
+
+    for f in &advisories {
+        let ev = &f["evidence"];
+        assert!(
+            ev["package"].is_string(),
+            "advisory finding must carry package evidence; got rule={} evidence={:?}",
+            f["rule_id"], ev,
+        );
+        assert!(
+            ev["reachable_dependency_path"].is_array(),
+            "advisory finding must carry reachable_dependency_path",
+        );
+        assert!(
+            ev["reachable_dependency_path_string"].is_string(),
+            "advisory finding must carry reachable_dependency_path_string",
+        );
+        assert!(
+            ev["reachable_callsite_count"].is_number(),
+            "advisory finding must carry reachable_callsite_count",
+        );
+        // reachability verdict on the finding itself
+        let verdict = f["reachability"].as_str().unwrap_or("");
+        assert!(
+            ["reachable", "unreachable", "unknown"].contains(&verdict),
+            "reachability must be one of the three verdicts, got '{verdict}'",
+        );
+    }
+}
+
 // ─── DSL semantics tests (Gap 3 / B1) ───────────────────────────────────────
 
 #[test]

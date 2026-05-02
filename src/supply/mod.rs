@@ -34,6 +34,13 @@ pub fn run(target: &Path, pack: &RulePack, advisories: &advisory::Snapshot) -> R
     findings.extend(policy::scan(&deps, pack.rules()));
     findings.extend(license::scan(&deps));
 
+    // Reachability enrichment — write dependency-path + matched
+    // import/symbol + call-site evidence onto every finding the advisory
+    // matcher produced. Non-fatal: if the import index is empty or the
+    // target dir doesn't have source code we just leave finding.evidence
+    // alone.
+    crate::reachability::enrich_findings(target, &mut findings);
+
     findings.sort_by(|a, b| {
         b.severity.cmp(&a.severity)
             .then_with(|| a.file.cmp(&b.file))
