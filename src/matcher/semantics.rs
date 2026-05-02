@@ -121,7 +121,10 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                     if !ident.is_empty() && !rhs.is_empty() {
                         if let Some(caps) = ctor_re.captures(rhs) {
                             if let Some(class_name) = caps.get(1).map(|m| m.as_str()) {
-                                semantics.variable_types.insert(ident.clone(), class_name.to_string());
+                                semantics.variable_types.insert(
+                                    ident.clone(),
+                                    resolve_python_receiver_type(&semantics, &module_identity, class_name),
+                                );
                             }
                         } else if let Some(ty) = semantics.variable_types.get(rhs).cloned() {
                             semantics.variable_types.insert(ident.clone(), ty);
@@ -285,7 +288,10 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                 }
             } else if let Some(caps) = ctor_re.captures(rhs) {
                 if let Some(class_name) = caps.get(1).map(|m| m.as_str()) {
-                    semantics.variable_types.insert(ident.clone(), class_name.to_string());
+                    semantics.variable_types.insert(
+                        ident.clone(),
+                        resolve_python_receiver_type(&semantics, &module_identity, class_name),
+                    );
                 }
             }
 
@@ -357,8 +363,12 @@ fn resolve_python_call_target(
     match member {
         Some(method) => {
             if let Some(ty) = semantics.variable_types.get(head) {
-                let candidate = format!("{module_identity}::{ty}::{method}");
-                if semantics.function_definitions.contains_key(&candidate) {
+                let candidate = if ty.contains("::") {
+                    format!("{ty}::{method}")
+                } else {
+                    format!("{module_identity}::{ty}::{method}")
+                };
+                if ty.contains("::") || semantics.function_definitions.contains_key(&candidate) {
                     return Some(candidate);
                 }
             }
@@ -376,6 +386,17 @@ fn resolve_python_call_target(
             None
         }
     }
+}
+
+fn resolve_python_receiver_type(
+    semantics: &FileSemantics,
+    module_identity: &str,
+    class_name: &str,
+) -> String {
+    if let Some(imported) = semantics.imported_symbols.get(class_name) {
+        return qualified_symbol_identity(imported);
+    }
+    format!("{module_identity}::{class_name}")
 }
 
 fn record_python_tainted_call(
@@ -1038,7 +1059,10 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
             }
             if let Some(caps) = ctor_re.captures(rhs) {
                 if let Some(class_name) = caps.get(1).map(|m| m.as_str()) {
-                    semantics.variable_types.insert(ident.clone(), class_name.to_string());
+                    semantics.variable_types.insert(
+                        ident.clone(),
+                        resolve_js_receiver_type(&semantics, &module_identity, class_name),
+                    );
                 }
             } else if let Some(ty) = semantics.variable_types.get(rhs).cloned() {
                 semantics.variable_types.insert(ident.clone(), ty);
@@ -1162,8 +1186,12 @@ fn resolve_js_call_target(
     match member {
         Some(method) => {
             if let Some(ty) = semantics.variable_types.get(head) {
-                let candidate = format!("{module_identity}::{ty}::{method}");
-                if semantics.function_definitions.contains_key(&candidate) {
+                let candidate = if ty.contains("::") {
+                    format!("{ty}::{method}")
+                } else {
+                    format!("{module_identity}::{ty}::{method}")
+                };
+                if ty.contains("::") || semantics.function_definitions.contains_key(&candidate) {
                     return Some(candidate);
                 }
             }
@@ -1185,6 +1213,25 @@ fn resolve_js_call_target(
             None
         }
     }
+}
+
+fn resolve_js_receiver_type(
+    semantics: &FileSemantics,
+    module_identity: &str,
+    class_name: &str,
+) -> String {
+    if let Some(imported) = semantics.imported_symbols.get(class_name) {
+        return qualified_symbol_identity(imported);
+    }
+    if let Some(imported) = semantics.js_named_imports.get(class_name) {
+        return qualified_symbol_identity(imported);
+    }
+    if let Some(module) = semantics.js_namespace_imports.get(class_name)
+        .or_else(|| semantics.alias_to_module.get(class_name))
+    {
+        return format!("{module}::{class_name}");
+    }
+    format!("{module_identity}::{class_name}")
 }
 
 fn record_js_tainted_call(

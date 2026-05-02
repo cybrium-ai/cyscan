@@ -1747,6 +1747,46 @@ def handle():
 }
 
 #[test]
+fn python_flask_imported_service_method_call_propagates_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("py-eval.yml"),
+        r#"
+id:         CBR-PY-CODE-EVAL
+title:      "eval() usage"
+severity:   critical
+languages:  [python]
+message: |
+  Passing dynamic input to eval is unsafe.
+query: |
+  (call
+    function: (identifier) @fn
+    arguments: (argument_list (_) @arg)
+    (#eq? @fn "eval")) @call
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("app.py"),
+        "from flask import request\nfrom service import RunnerService\n\ndef handle():\n    service = RunnerService()\n    user = request.args.get(\"code\")\n    service.run(user)\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("service.py"),
+        "class RunnerService:\n    def run(self, data):\n        eval(data)\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("service.py")))
+        .stdout(predicate::str::contains("\"source_kind\": \"flask.request.args\""))
+        .stdout(predicate::str::contains("\"framework\": \"flask\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
 fn javascript_interprocedural_taint_uses_resolved_import_targets() {
     use std::fs;
     use serde_json::Value;
@@ -1947,6 +1987,46 @@ function handle() {
         .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
         .assert()
         .stdout(predicate::str::contains("\"rule_id\": \"CBR-JS-XSS-INNER-HTML\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"express.req.query\""))
+        .stdout(predicate::str::contains("\"framework\": \"express\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn javascript_express_imported_service_method_call_propagates_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("js-danger.yml"),
+        r#"
+id:         CBR-JS-XSS-INNER-HTML
+title:      "danger() usage"
+severity:   critical
+languages:  [javascript]
+message: |
+  Passing dynamic input to danger is unsafe.
+query: |
+  (assignment_expression
+    left: (member_expression
+      property: (property_identifier) @prop (#eq? @prop "innerHTML"))
+    right: (_) @arg) @assign
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("entry.js"),
+        "const RendererService = require('./service');\nfunction handle() {\n  const service = new RendererService();\n  const html = req.query.code;\n  service.run(html);\n}\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("service.js"),
+        "class RendererService {\n  run(data) {\n    el.innerHTML = data;\n  }\n}\nmodule.exports = RendererService;\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("service.js")))
         .stdout(predicate::str::contains("\"source_kind\": \"express.req.query\""))
         .stdout(predicate::str::contains("\"framework\": \"express\""))
         .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
