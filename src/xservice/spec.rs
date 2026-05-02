@@ -23,6 +23,7 @@ pub struct DiscoveredSpec {
 pub enum SpecKind {
     OpenApi,
     Protobuf,
+    Graphql,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -57,9 +58,17 @@ pub fn find_specs(target: &Path) -> Vec<DiscoveredSpec> {
             if let Some(spec) = parse_protobuf(path) { out.push(spec); }
             continue;
         }
-        // Files named *.openapi.yaml / *.swagger.json also count.
+        if ext == "graphql" || ext == "gql" {
+            if let Some(spec) = parse_graphql(path) { out.push(spec); }
+            continue;
+        }
+        // Files named *.openapi.yaml / *.swagger.json / *.schema.graphql also count.
         if lower.contains("openapi") && (ext == "yaml" || ext == "yml" || ext == "json") {
             if let Some(spec) = parse_openapi(path) { out.push(spec); }
+            continue;
+        }
+        if lower.contains("schema") && (ext == "graphql" || ext == "gql") {
+            if let Some(spec) = parse_graphql(path) { out.push(spec); }
         }
     }
     out
@@ -90,6 +99,64 @@ fn parse_openapi(path: &Path) -> Option<DiscoveredSpec> {
         }
     }
     Some(DiscoveredSpec { file: path.to_path_buf(), kind: SpecKind::OpenApi, operations })
+}
+
+fn parse_graphql(path: &Path) -> Option<DiscoveredSpec> {
+    use ::regex::Regex;
+    use std::sync::OnceLock;
+    let body = std::fs::read_to_string(path).ok()?;
+
+    static QUERY_BLOCK: OnceLock<Regex> = OnceLock::new();
+    static MUTATION_BLOCK: OnceLock<Regex> = OnceLock::new();
+    static SUBSCRIPTION_BLOCK: OnceLock<Regex> = OnceLock::new();
+    static FIELD: OnceLock<Regex> = OnceLock::new();
+    static EXTEND_TYPE: OnceLock<Regex> = OnceLock::new();
+
+    // Match the body of a top-level `type Query { ... }` block. (?s)
+    // makes `.` span newlines so the body can be multi-line.
+    let q_block = QUERY_BLOCK.get_or_init(|| Regex::new(
+        r"(?s)(?:^|\n)\s*type\s+Query\s*\{(?P<body>[^{}]*)\}"
+    ).unwrap());
+    let m_block = MUTATION_BLOCK.get_or_init(|| Regex::new(
+        r"(?s)(?:^|\n)\s*type\s+Mutation\s*\{(?P<body>[^{}]*)\}"
+    ).unwrap());
+    let s_block = SUBSCRIPTION_BLOCK.get_or_init(|| Regex::new(
+        r"(?s)(?:^|\n)\s*type\s+Subscription\s*\{(?P<body>[^{}]*)\}"
+    ).unwrap());
+    let extend_block = EXTEND_TYPE.get_or_init(|| Regex::new(
+        r"(?s)(?:^|\n)\s*extend\s+type\s+(?P<root>Query|Mutation|Subscription)\s*\{(?P<body>[^{}]*)\}"
+    ).unwrap());
+    let field = FIELD.get_or_init(|| Regex::new(
+        // Field name, optionally followed by `(args)` and a return-type
+        // annotation. We only care about the field name.
+        r"(?m)^\s*(?P<name>[a-zA-Z_][a-zA-Z_0-9]*)\s*[:\(]"
+    ).unwrap());
+
+    let mut operations = Vec::new();
+    let collect_block = |body: &str, root: &str, ops: &mut Vec<SpecOperation>| {
+        for cap in field.captures_iter(body) {
+            let name = cap.name("name").unwrap().as_str();
+            // GraphQL ops are POST'd to `/graphql` by convention; the
+            // path we synthesise carries the operation kind + name so
+            // client-side query strings can be matched against it.
+            let path = format!("/graphql#{root}.{name}");
+            ops.push(SpecOperation {
+                method:          Method::Post,
+                path:            path.clone(),
+                normalised_path: path,
+                operation_id:    Some(format!("{root}.{name}")),
+            });
+        }
+    };
+    if let Some(c) = q_block.captures(&body) { collect_block(&c["body"], "Query",        &mut operations); }
+    if let Some(c) = m_block.captures(&body) { collect_block(&c["body"], "Mutation",     &mut operations); }
+    if let Some(c) = s_block.captures(&body) { collect_block(&c["body"], "Subscription", &mut operations); }
+    for cap in extend_block.captures_iter(&body) {
+        let root = &cap["root"];
+        collect_block(&cap["body"], root, &mut operations);
+    }
+    if operations.is_empty() { return None }
+    Some(DiscoveredSpec { file: path.to_path_buf(), kind: SpecKind::Graphql, operations })
 }
 
 fn parse_protobuf(path: &Path) -> Option<DiscoveredSpec> {

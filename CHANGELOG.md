@@ -2,6 +2,20 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.18.0] — 2026-05-02
+
+### Added
+- **GraphQL schema parsing.** `*.graphql` / `*.gql` / `*.schema.graphql` files now feed the cross-service spec layer. `type Query`, `type Mutation`, `type Subscription`, and `extend type X` blocks are extracted into `SpecOperation`s. Embedded GraphQL queries in source code (any tier-1 language — Python / JS/TS / C# / Java / Go / Ruby / Rust / Swift / Elixir) are matched against the schema as `POST /graphql#Mutation.createUser`-style synthetic paths so a JS Apollo `gql\`mutation CreateUser { ... }\`` pairs with the schema's `createUser` field.
+- **Kubernetes / Helm topology resolution.** `xservice/k8s.rs` walks every `*.yaml` / `*.yml` looking for `kind: Service` / `kind: Deployment` / `kind: StatefulSet` / `kind: DaemonSet` definitions and builds a `K8sTopology` with service-name → port-and-selector + label → deployment-name maps. `resolve_url("http://user-svc/api/users", &topology)` returns the Service info plus the Deployment names whose labels match the selector. Handler-side findings get tagged `evidence.cross_service_k8s_resolution` listing the resolved service + deployments.
+- **Cross-service taint propagation (graph-level).** New `xservice/taint.rs` walks the link graph after the `dataflow:` propagator runs and emits `CrossServiceTaint` entries for chains where a tainted source on the caller side reaches a handler whose enclosing function is sink-receiving. Findings on the handler side get `evidence.cross_service_taint` listing the chain. **This is not full IR-level taint** (we don't trace the value across runtimes), but it answers the practical question "is the path source → sink across services reachable in principle?" Confidence is reported (0.5 heuristic, 0.85 explicit).
+- **8 new framework patterns.** Echo + Gin (Go), Actix-web + Axum + Rocket (Rust), Sanic + Tornado (Python), Vapor (Swift), Phoenix (Elixir), HTTPoison (Elixir client). Plus `reqwest` direct + builder for Rust clients, `URLSession` for Swift clients.
+
+### Notes
+- The cross-service taint engine is a meaningful step, not the full IR layer. Customers asking "I want Auth.cs:Login's tainted password to be traced through UserService.java:login into Db.py:execute" get a yes/no answer with caller chain — they don't get value-level provenance. The IR layer remains a future research effort.
+- `CrossServiceMap` now serialises with `k8s` + `taint_links` fields. JSON consumers should treat them as additive.
+- Total spec kinds supported: OpenAPI (2 + 3, YAML + JSON), Protobuf (`.proto`), GraphQL (`.graphql` / `.gql`).
+- Total handler frameworks recognised: 18 (was 10): flask, fastapi, django, sanic, tornado, express, nestjs, fastify (via express patterns), aspnet, aspnet-minimal, spring, net/http, gin, echo, axum, actix-web, rocket, vapor, phoenix, rails.
+
 ## [0.17.0] — 2026-05-02
 
 ### Added

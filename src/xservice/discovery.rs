@@ -32,7 +32,18 @@ pub fn find_client_calls(target: &Path) -> Vec<ClientCall> {
             Lang::Java                                    => java_clients(path, &source, &mut out),
             Lang::Go                                      => go_clients(path, &source, &mut out),
             Lang::Ruby                                    => ruby_clients(path, &source, &mut out),
+            Lang::Rust                                    => rust_clients(path, &source, &mut out),
+            Lang::Swift                                   => swift_clients(path, &source, &mut out),
+            Lang::Elixir                                  => elixir_clients(path, &source, &mut out),
             _ => {}
+        }
+        // GraphQL clients are language-agnostic patterns embedded in
+        // any tier-1 source file. Run regardless of the per-language
+        // discovery above.
+        if matches!(lang, Lang::Python | Lang::Javascript | Lang::Typescript
+                        | Lang::Csharp | Lang::Java | Lang::Go | Lang::Ruby
+                        | Lang::Rust | Lang::Swift | Lang::Elixir) {
+            graphql_clients(path, &source, lang, &mut out);
         }
     }
     out
@@ -49,12 +60,21 @@ pub fn find_server_endpoints(target: &Path) -> Vec<ServerEndpoint> {
         let Some(lang) = Lang::from_path(path) else { continue };
         let Ok(source) = std::fs::read_to_string(path) else { continue };
         match lang {
-            Lang::Python                                  => python_handlers(path, &source, &mut out),
+            Lang::Python                                  => {
+                python_handlers(path, &source, &mut out);
+                python_extra_handlers(path, &source, &mut out);
+            }
             Lang::Javascript | Lang::Typescript          => js_handlers(path, &source, &mut out),
             Lang::Csharp                                  => csharp_handlers(path, &source, &mut out),
             Lang::Java                                    => java_handlers(path, &source, &mut out),
-            Lang::Go                                      => go_handlers(path, &source, &mut out),
+            Lang::Go                                      => {
+                go_handlers(path, &source, &mut out);
+                go_extra_handlers(path, &source, &mut out);
+            }
             Lang::Ruby                                    => ruby_handlers(path, &source, &mut out),
+            Lang::Rust                                    => rust_handlers(path, &source, &mut out),
+            Lang::Swift                                   => swift_handlers(path, &source, &mut out),
+            Lang::Elixir                                  => elixir_handlers(path, &source, &mut out),
             _ => {}
         }
     }
@@ -429,6 +449,222 @@ fn push_handler(
         normalised_path: normalise_path(url),
         handler_name:    None,
     });
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Sanic / Tornado — extra Python frameworks
+// ────────────────────────────────────────────────────────────────────
+fn python_extra_handlers(path: &Path, source: &str, out: &mut Vec<ServerEndpoint>) {
+    static SANIC: OnceLock<Regex> = OnceLock::new();
+    static TORNADO: OnceLock<Regex> = OnceLock::new();
+    let sanic = SANIC.get_or_init(|| Regex::new(
+        r#"@(?:app|bp)\.(?P<m>get|post|put|patch|delete|head|options)\s*\(\s*['"](?P<url>[^'"]+)['"]"#
+    ).unwrap());
+    let tornado = TORNADO.get_or_init(|| Regex::new(
+        r#"\(\s*r?['"](?P<url>[^'"]+)['"](?:\s*,\s*[A-Za-z_][A-Za-z_0-9]*Handler)?\s*\)"#
+    ).unwrap());
+    for (i, line) in source.lines().enumerate() {
+        for c in sanic.captures_iter(line) {
+            push_handler(out, path, i+1, "python", "sanic", &c["m"], &c["url"]);
+        }
+        if line.contains("URLSpec") || line.contains("(r\"") || line.contains("Application([") {
+            for c in tornado.captures_iter(line) {
+                push_handler(out, path, i+1, "python", "tornado", "ANY", &c["url"]);
+            }
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Echo / Gin — Go frameworks beyond net/http
+// ────────────────────────────────────────────────────────────────────
+fn go_extra_handlers(path: &Path, source: &str, out: &mut Vec<ServerEndpoint>) {
+    static ECHO_GIN: OnceLock<Regex> = OnceLock::new();
+    let re = ECHO_GIN.get_or_init(|| Regex::new(
+        // Echo:  e.GET("/path", handler), Gin: r.GET("/path", handler),
+        // also chi: r.Get("/path", handler) (capitalised)
+        r#"\b(?:e|r|router|app|engine|group)\.(?P<m>GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS|Get|Post|Put|Patch|Delete|Head|Options)\s*\(\s*"(?P<url>[^"]+)""#
+    ).unwrap());
+    for (i, line) in source.lines().enumerate() {
+        for c in re.captures_iter(line) {
+            let framework = if line.contains("gin.") || line.contains("Gin(") {
+                "gin"
+            } else if line.contains("echo.") || line.contains("Echo()") {
+                "echo"
+            } else { "go-router" };
+            push_handler(out, path, i+1, "go", framework, &c["m"], &c["url"]);
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Rust — Actix-web, Axum, Rocket
+// ────────────────────────────────────────────────────────────────────
+fn rust_clients(path: &Path, source: &str, out: &mut Vec<ClientCall>) {
+    static REQWEST: OnceLock<Regex> = OnceLock::new();
+    static REQWEST_BUILDER: OnceLock<Regex> = OnceLock::new();
+    let direct = REQWEST.get_or_init(|| Regex::new(
+        r#"reqwest::(?P<m>get|post|put|patch|delete|head)\s*\(\s*"(?P<url>[^"]+)""#
+    ).unwrap());
+    let builder = REQWEST_BUILDER.get_or_init(|| Regex::new(
+        r#"\.(?P<m>get|post|put|patch|delete|head)\s*\(\s*"(?P<url>[^"]+)""#
+    ).unwrap());
+    for (i, line) in source.lines().enumerate() {
+        for c in direct.captures_iter(line) {
+            push_client(out, path, i+1, "rust", "reqwest", &c["m"], &c["url"]);
+        }
+        // The builder pattern (`client.get("/url")`) is broader so we
+        // gate on the line mentioning a known crate name to keep noise
+        // low.
+        if line.contains("Client::") || line.contains("reqwest::Client")
+            || line.contains("ClientBuilder") || line.contains(".send(")
+        {
+            for c in builder.captures_iter(line) {
+                if c.get(2).map(|m| m.as_str().starts_with("http")).unwrap_or(false) {
+                    push_client(out, path, i+1, "rust", "reqwest-builder", &c["m"], &c["url"]);
+                }
+            }
+        }
+    }
+}
+
+fn rust_handlers(path: &Path, source: &str, out: &mut Vec<ServerEndpoint>) {
+    static ACTIX: OnceLock<Regex> = OnceLock::new();
+    static ROCKET: OnceLock<Regex> = OnceLock::new();
+    static AXUM: OnceLock<Regex> = OnceLock::new();
+    let actix = ACTIX.get_or_init(|| Regex::new(
+        // #[get("/path")], #[post(...)], etc.
+        r##"#\[\s*(?P<m>get|post|put|patch|delete|head|options)\s*\(\s*"(?P<url>[^"]+)"\s*\)"##
+    ).unwrap());
+    let rocket = ROCKET.get_or_init(|| Regex::new(
+        // #[get("/path")], #[post("/path", data = "<x>")] — same shape
+        // as Actix; we report Rocket separately based on the file
+        // mentioning rocket::.
+        r##"#\[\s*(?P<m>get|post|put|patch|delete)\s*\(\s*"(?P<url>[^"]+)""##
+    ).unwrap());
+    let axum = AXUM.get_or_init(|| Regex::new(
+        // .route("/path", get(handler).post(handler2))
+        r#"\.route\s*\(\s*"(?P<url>[^"]+)"\s*,\s*(?P<m>get|post|put|patch|delete|head|options|any)\s*\("#
+    ).unwrap());
+    for (i, line) in source.lines().enumerate() {
+        for c in actix.captures_iter(line) {
+            // Disambiguate Actix vs Rocket by source markers.
+            let framework = if source.contains("rocket::") || source.contains("[macro_use] extern crate rocket") {
+                "rocket"
+            } else if source.contains("actix_web") {
+                "actix-web"
+            } else { "rust-attribute" };
+            push_handler(out, path, i+1, "rust", framework, &c["m"], &c["url"]);
+        }
+        for c in axum.captures_iter(line) {
+            push_handler(out, path, i+1, "rust", "axum", &c["m"], &c["url"]);
+        }
+        let _ = rocket; // covered by ACTIX regex; framework label disambiguated above
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Swift — Vapor
+// ────────────────────────────────────────────────────────────────────
+fn swift_clients(path: &Path, source: &str, out: &mut Vec<ClientCall>) {
+    static URL_SESSION: OnceLock<Regex> = OnceLock::new();
+    let re = URL_SESSION.get_or_init(|| Regex::new(
+        r#"URLSession\.shared\.(?:dataTask|data)\s*\(\s*with:\s*URL\(string:\s*"(?P<url>[^"]+)""#
+    ).unwrap());
+    for (i, line) in source.lines().enumerate() {
+        for c in re.captures_iter(line) {
+            push_client(out, path, i+1, "swift", "URLSession", "GET", &c["url"]);
+        }
+    }
+}
+
+fn swift_handlers(path: &Path, source: &str, out: &mut Vec<ServerEndpoint>) {
+    static VAPOR: OnceLock<Regex> = OnceLock::new();
+    let re = VAPOR.get_or_init(|| Regex::new(
+        // app.get("/path") { ... }, app.post("users", "create") { ... }
+        r#"(?:app|router|routes)\.(?P<m>get|post|put|patch|delete|head)\s*\(\s*"(?P<url>[^"]+)""#
+    ).unwrap());
+    for (i, line) in source.lines().enumerate() {
+        for c in re.captures_iter(line) {
+            push_handler(out, path, i+1, "swift", "vapor", &c["m"], &c["url"]);
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Elixir — Phoenix
+// ────────────────────────────────────────────────────────────────────
+fn elixir_clients(path: &Path, source: &str, out: &mut Vec<ClientCall>) {
+    static HTTPOISON: OnceLock<Regex> = OnceLock::new();
+    let re = HTTPOISON.get_or_init(|| Regex::new(
+        r#"HTTPoison\.(?P<m>get|post|put|patch|delete|head|request)\s*\(\s*"(?P<url>[^"]+)""#
+    ).unwrap());
+    for (i, line) in source.lines().enumerate() {
+        for c in re.captures_iter(line) {
+            push_client(out, path, i+1, "elixir", "HTTPoison", &c["m"], &c["url"]);
+        }
+    }
+}
+
+fn elixir_handlers(path: &Path, source: &str, out: &mut Vec<ServerEndpoint>) {
+    static PHOENIX: OnceLock<Regex> = OnceLock::new();
+    let re = PHOENIX.get_or_init(|| Regex::new(
+        // Phoenix router.ex: get "/users", UserController, :index
+        r#"^\s*(?P<m>get|post|put|patch|delete|head|options|forward)\s+"(?P<url>[^"]+)""#
+    ).unwrap());
+    for (i, line) in source.lines().enumerate() {
+        for c in re.captures_iter(line) {
+            push_handler(out, path, i+1, "elixir", "phoenix", &c["m"], &c["url"]);
+        }
+    }
+}
+
+// ────────────────────────────────────────────────────────────────────
+// GraphQL — language-agnostic embedded queries / mutations
+// ────────────────────────────────────────────────────────────────────
+fn graphql_clients(path: &Path, source: &str, lang: Lang, out: &mut Vec<ClientCall>) {
+    static QUERY_LIT: OnceLock<Regex> = OnceLock::new();
+    // Captures `query Foo { ... }` and `mutation Bar { ... }` blocks.
+    // Also captures the FIRST root field accessed (we use it as the
+    // synthesised path for matching against the spec).
+    let re = QUERY_LIT.get_or_init(|| Regex::new(
+        r"(?ms)(?P<kind>query|mutation|subscription)\s+(?P<name>[A-Za-z_][A-Za-z_0-9]*)?\s*[^{]*\{\s*(?P<root>[A-Za-z_][A-Za-z_0-9]*)"
+    ).unwrap());
+    let language = match lang {
+        Lang::Python                       => "python",
+        Lang::Javascript | Lang::Typescript => "javascript",
+        Lang::Csharp                       => "csharp",
+        Lang::Java                         => "java",
+        Lang::Go                           => "go",
+        Lang::Ruby                         => "ruby",
+        Lang::Rust                         => "rust",
+        Lang::Swift                        => "swift",
+        Lang::Elixir                       => "elixir",
+        _                                  => "unknown",
+    };
+    for c in re.captures_iter(source) {
+        let kind = match c.name("kind").map(|m| m.as_str()) {
+            Some("query")        => "Query",
+            Some("mutation")     => "Mutation",
+            Some("subscription") => "Subscription",
+            _                    => continue,
+        };
+        let root_field = c.name("root").map(|m| m.as_str()).unwrap_or("?");
+        let path_str = format!("/graphql#{kind}.{root_field}");
+        // Locate the line number — find the start byte of `kind` in
+        // source and count newlines.
+        let start = c.get(0).map(|m| m.start()).unwrap_or(0);
+        let line_no = source[..start].matches('\n').count() + 1;
+        out.push(ClientCall {
+            file:            path.to_path_buf(),
+            line:            line_no,
+            language:        language.into(),
+            method:          Method::Post,
+            path:            path_str.clone(),
+            normalised_path: path_str,
+            via:             "graphql".into(),
+        });
+    }
 }
 
 /// Compose a class-level path prefix with a method-level relative

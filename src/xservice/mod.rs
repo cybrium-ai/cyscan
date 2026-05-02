@@ -22,8 +22,10 @@
 //! by framework; we collapse them all to `/users/{}`.
 
 pub mod discovery;
-pub mod spec;
+pub mod k8s;
 pub mod match_engine;
+pub mod spec;
+pub mod taint;
 
 use std::path::PathBuf;
 
@@ -104,6 +106,15 @@ pub struct CrossServiceMap {
     pub handlers: Vec<ServerEndpoint>,
     pub links:    Vec<ServiceLink>,
     pub specs:    Vec<spec::DiscoveredSpec>,
+    /// k8s topology — Service name → metadata + the deployments that
+    /// satisfy each Service's selector. Lets the matcher confirm
+    /// `http://user-svc/api/users` is intra-cluster and resolves to a
+    /// Deployment that we have source for.
+    pub k8s: k8s::K8sTopology,
+    /// Cross-service taint links — chains where a tainted source in
+    /// one service flows into a sink in a downstream service. Built
+    /// post-scan; populated by `taint::build_cross_service_taint`.
+    pub taint_links: Vec<taint::CrossServiceTaint>,
 }
 
 impl CrossServiceMap {
@@ -203,15 +214,24 @@ impl CrossServiceMap {
 }
 
 /// Build the project-wide cross-service map by walking `target` once,
-/// running the per-language discovery, parsing any OpenAPI/Protobuf
-/// specs, and pairing clients to handlers/specs.
+/// running the per-language discovery, parsing any OpenAPI / Protobuf /
+/// GraphQL specs, building the k8s topology, and pairing clients to
+/// handlers / specs.
 pub fn build<P: AsRef<std::path::Path>>(target: P) -> CrossServiceMap {
     let target = target.as_ref();
     let clients  = discovery::find_client_calls(target);
     let handlers = discovery::find_server_endpoints(target);
     let specs    = spec::find_specs(target);
+    let k8s      = k8s::discover_topology(target);
     let links    = match_engine::pair_clients_to_handlers(&clients, &handlers, &specs);
-    CrossServiceMap { clients, handlers, links, specs }
+    CrossServiceMap {
+        clients,
+        handlers,
+        links,
+        specs,
+        k8s,
+        taint_links: Vec::new(),
+    }
 }
 
 /// Normalise a path so framework-specific param styles all collapse to

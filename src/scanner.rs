@@ -44,11 +44,27 @@ pub fn run(target: &Path, pack: &RulePack) -> Result<Vec<Finding>> {
     // emission can tag handler-side findings with their upstream
     // callers. Always runs (cheap regex pass over each file). The
     // resulting CrossServiceMap is also surfaced via `cyscan xservice`.
-    let xservice = crate::xservice::build(target);
+    let mut xservice = crate::xservice::build(target);
     log::info!(
-        "xservice: {} clients, {} handlers, {} links",
-        xservice.clients.len(), xservice.handlers.len(), xservice.links.len(),
+        "xservice: {} clients, {} handlers, {} links, k8s_services={}, specs={}",
+        xservice.clients.len(),
+        xservice.handlers.len(),
+        xservice.links.len(),
+        xservice.k8s.services.len(),
+        xservice.specs.len(),
     );
+
+    // Cross-service taint summary propagation (v0.18 — the practical
+    // half of the IR work). When a project taint graph is available
+    // (i.e. some rule has a `dataflow:` block so the propagator ran)
+    // we ask `xservice::taint` to walk the link graph and emit
+    // CrossServiceTaint entries for chains where a tainted source
+    // reaches a downstream handler across the service boundary.
+    if let Some(proj) = project.as_ref() {
+        xservice.taint_links =
+            crate::xservice::taint::build_cross_service_taint(&xservice, proj);
+        log::info!("xservice taint links: {}", xservice.taint_links.len());
+    }
 
     let mut findings: Vec<Finding> = files
         .par_iter()
@@ -80,6 +96,45 @@ pub fn run(target: &Path, pack: &RulePack) -> Result<Vec<Finding>> {
                                     "path":     c.path,
                                     "via":      c.via,
                                 })).collect::<Vec<_>>()),
+                            );
+                        }
+
+                        // v0.18 — taint flowing across services into
+                        // this handler. Tag findings so reviewers see
+                        // the chain inline.
+                        let related_taint: Vec<&crate::xservice::taint::CrossServiceTaint> =
+                            xservice.taint_links.iter()
+                                .filter(|t| t.handler_file == f.file)
+                                .collect();
+                        if !related_taint.is_empty() {
+                            f.evidence.insert(
+                                "cross_service_taint".into(),
+                                serde_json::json!(related_taint),
+                            );
+                        }
+
+                        // v0.18 — k8s topology resolution for any
+                        // upstream caller's URL. Lets reviewers see
+                        // "AuthController.cs calls user-svc which
+                        // resolves to Deployment user-service".
+                        let mut resolutions: Vec<serde_json::Value> = Vec::new();
+                        for c in &callers {
+                            if let Some(resolved) = crate::xservice::k8s::resolve_url(
+                                &c.path, &xservice.k8s,
+                            ) {
+                                resolutions.push(serde_json::json!({
+                                    "caller_file":  c.file.display().to_string(),
+                                    "caller_path":  c.path,
+                                    "service":      resolved.service.name,
+                                    "namespace":    resolved.service.namespace,
+                                    "deployments":  resolved.deployments,
+                                }));
+                            }
+                        }
+                        if !resolutions.is_empty() {
+                            f.evidence.insert(
+                                "cross_service_k8s_resolution".into(),
+                                serde_json::json!(resolutions),
                             );
                         }
                     }
