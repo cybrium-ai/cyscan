@@ -2,6 +2,18 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.15.0] — 2026-05-02
+
+### Added
+- **Backwards reachability** in the taint engine. `ProjectSemantics::sources_reaching(sink_fn)` walks the reverse call graph upward from a sink function and returns every source kind that transitively reaches it. `ProjectSemantics::callers_of(sink_fn)` returns the caller chain. Findings now carry `evidence.dataflow_reaching_sources` (set of source kinds) and `evidence.dataflow_caller_chain` (BFS caller list) when reachable. Closes the Semgrep-Pro "ask the question from the sink, not the source" gap.
+- **Dynamic dispatch via callable aliases.** `FileSemantics.callable_aliases: HashMap<String, String>` maps identifiers bound to callable sinks (`f = eval` → `f -> eval`). `ProjectSemantics::build` mirrors taint onto the underlying name so `f(x)` is treated identically to `eval(x)` in the propagator. Allowlist-restricted to known sink callables to keep the alias map high-signal.
+- **Decorator-implied framework binding.** `FileSemantics.decorated_functions: HashMap<fn_name, Vec<decorator>>`. The matcher's framework filter now considers a rule with `frameworks: [flask]` as eligible when the file has any function decorated `@app.route` or `@blueprint.route`, even if the file's import set didn't catch flask. Same logic for fastapi (`@router.get/post/put/delete/patch`), django (`@login_required`, `@csrf_exempt`, `@require_*`, `@permission_required`), express (`@app.*`, `@router.*`), spring (`@RequestMapping`, `@GetMapping`, `@PostMapping`, `@Controller`, `@RestController`), and rails (`before_action`).
+- **Metaprogrammed-class evidence (Phase D).** `FileSemantics.metaprogrammed_classes: HashMap<class, reasons>` flags classes declared with `metaclass=...` or that override `__init_subclass__`. Findings inside a flagged class get `evidence.metaprogrammed_class = { class, reasons }` so reviewers know to double-check rule applicability — the engine doesn't *resolve* what the metaclass does, but it doesn't pretend it isn't there either.
+- 4 new integration / unit tests cover the four new behaviours.
+
+### Notes
+This release narrows but does not fully close the gap to Semgrep Pro / Checkmarx One on engine depth. The taint engine is still forward-only fixed-point at its core (Phase B's backwards reachability is a query layer over the same data); we don't do constant propagation, alias analysis is identifier-only (`f = eval`, not `f = obj.method`), and metaprogramming is surfaced rather than resolved. See README parity scorecard.
+
 ## [0.14.0] — 2026-05-02
 
 ### Added

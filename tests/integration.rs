@@ -169,6 +169,112 @@ message: "matched"
         .stdout(predicate::str::contains("TEST-PNR").not());
 }
 
+// ─── Engine depth: dynamic dispatch / decorators / metaprogramming ────────
+
+#[test]
+fn callable_alias_extracted_for_eval() {
+    // Phase A — `f = eval` should populate callable_aliases.
+    let src = "f = eval\n";
+    let s = cyscan::matcher::semantics::extract(cyscan::lang::Lang::Python, src);
+    assert_eq!(
+        s.callable_aliases.get("f").map(|s| s.as_str()),
+        Some("eval"),
+        "callable_aliases should map `f -> eval`, got {:?}",
+        s.callable_aliases,
+    );
+}
+
+#[test]
+fn decorator_implies_framework_for_handler() {
+    // Phase C — a function decorated `@app.route` makes a `frameworks: [flask]`
+    // rule fire even when the file's import doesn't pull from flask directly.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    let src   = tmp.path().join("src");
+    fs::create_dir(&rules).unwrap();
+    fs::create_dir(&src).unwrap();
+
+    fs::write(rules.join("flask_only.yml"), r#"
+id: TEST-DECO-FW
+title: "Flask handler bug"
+severity: high
+languages: [python]
+frameworks: [flask]
+regex: "DANGER"
+message: "matched"
+"#).unwrap();
+    fs::write(src.join("handler.py"), r#"
+from app import app
+
+@app.route("/x", methods=["POST"])
+def view():
+    DANGER
+"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", src.to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-DECO-FW"))
+        .collect();
+    assert_eq!(hits.len(), 1, "decorator-implied framework should fire the rule");
+    let fw = &hits[0]["evidence"]["framework"];
+    assert!(fw.is_array(), "framework evidence should be array, got {:?}", fw);
+    let fws: Vec<&str> = fw.as_array().unwrap().iter().filter_map(|v| v.as_str()).collect();
+    assert!(fws.contains(&"flask"), "should report flask via decorator, got {:?}", fws);
+}
+
+#[test]
+fn metaprogrammed_class_surfaces_in_evidence() {
+    // Phase D — class with `metaclass=` should be flagged on every
+    // finding inside its body so reviewers know to double-check.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    let src   = tmp.path().join("src");
+    fs::create_dir(&rules).unwrap();
+    fs::create_dir(&src).unwrap();
+    fs::write(rules.join("meta.yml"), r#"
+id: TEST-META
+title: "danger in class"
+severity: low
+languages: [python]
+regex: "DANGER"
+message: "matched"
+"#).unwrap();
+    fs::write(src.join("plugin.py"), r#"
+class Plugin(metaclass=Registry):
+    DANGER
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", src.to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hit = json.as_array().unwrap().iter()
+        .find(|f| f["rule_id"].as_str() == Some("TEST-META"))
+        .expect("rule should fire");
+    let mp = &hit["evidence"]["metaprogrammed_class"];
+    assert!(mp.is_object(), "metaprogrammed_class evidence should be present");
+    assert_eq!(mp["class"].as_str(), Some("Plugin"));
+    let reasons: Vec<&str> = mp["reasons"].as_array().unwrap().iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+    assert!(
+        reasons.iter().any(|r| r.contains("metaclass=")),
+        "reasons should mention metaclass, got {:?}", reasons,
+    );
+}
+
 // ─── Inter-procedural dataflow tests (Gap A4) ───────────────────────────────
 
 #[test]
