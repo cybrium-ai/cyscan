@@ -87,7 +87,7 @@ impl Lang {
             // Config / data
             "xml" | "xsl" | "xslt" | "xsd" | "svg" | "xhtml" => Self::Xml,
             "toml" => Self::Toml,
-            "ini" | "cfg" => Self::Ini,
+            "ini" => Self::Ini,
             "properties" => Self::Properties,
             "csv" | "tsv" => Self::Csv,
             "md" | "mdx" => Self::Markdown,

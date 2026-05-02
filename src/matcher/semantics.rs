@@ -687,11 +687,6 @@ fn hierarchical_path_candidates(token: &str) -> Vec<String> {
     out
 }
 
-fn semantic_tokens(text: &str) -> impl Iterator<Item = &str> {
-    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.'))
-        .filter(|token| !token.is_empty())
-}
-
 fn lookup_string_map(map: &HashMap<String, String>, text: &str) -> Option<String> {
     for token in semantic_lookup_candidates(text) {
         for candidate in hierarchical_path_candidates(&token) {

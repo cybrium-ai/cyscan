@@ -8,10 +8,7 @@
 //!   evidence.verified = true|false
 //!   evidence.verified_as = "user@example.com" (identity if available)
 
-use std::collections::HashMap;
 use std::time::Duration;
-
-use anyhow::Result;
 
 /// Verification result.
 #[derive(Debug)]

@@ -40,17 +40,14 @@ pub struct EndpointReport {
 
 /// Run all endpoint checks for the current platform.
 pub fn scan() -> EndpointReport {
-    let mut checks: Vec<EndpointCheck> = Vec::new();
-
     #[cfg(target_os = "macos")]
-    {
-        checks = macos::run_checks();
-    }
+    let checks: Vec<EndpointCheck> = macos::run_checks();
 
     #[cfg(target_os = "linux")]
-    {
-        checks = linux::run_checks();
-    }
+    let checks: Vec<EndpointCheck> = linux::run_checks();
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    let checks: Vec<EndpointCheck> = Vec::new();
 
     let passed = checks.iter().filter(|c| c.passed).count();
     let failed = checks.iter().filter(|c| !c.passed).count();

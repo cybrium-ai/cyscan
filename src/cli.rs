@@ -330,7 +330,6 @@ pub fn run() -> Result<ExitCode> {
                     _ => {
                         crate::cia::print_summary(&cia_scores, &findings, &pack);
                     }
-                    Format::Sarif => {}
                 }
             }
 
@@ -426,7 +425,7 @@ pub fn run() -> Result<ExitCode> {
                 Format::Json => {
                     println!("{}", serde_json::to_string_pretty(&health).unwrap_or_default());
                 }
-                _ => {
+                Format::Text => {
                     let icon = if health.score >= 80 { "PASS" } else if health.score >= 50 { "WARN" } else { "FAIL" };
                     println!("\nRepository Health Score: {}/100 [{}]\n", health.score, icon);
                     for check in &health.checks {
@@ -444,6 +443,9 @@ pub fn run() -> Result<ExitCode> {
                         }
                     }
                     println!();
+                }
+                Format::Sarif => {
+                    println!("{}", serde_json::to_string_pretty(&health).unwrap_or_default());
                 }
             }
             Ok(ExitCode::from(if health.score >= 50 { 0 } else { 1 }))
@@ -508,7 +510,7 @@ pub fn run() -> Result<ExitCode> {
                 Format::Json => {
                     println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
                 }
-                _ => {
+                Format::Text => {
                     let icon = if report.score >= 80 { "\x1b[32mGOOD\x1b[0m" }
                         else if report.score >= 50 { "\x1b[33mFAIR\x1b[0m" }
                         else { "\x1b[31mPOOR\x1b[0m" };
@@ -584,7 +586,7 @@ pub fn run() -> Result<ExitCode> {
                 Format::Json => {
                     println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
                 }
-                _ => {
+                Format::Text => {
                     let icon = if report.score >= 80 { "\x1b[32mGOOD\x1b[0m" }
                         else if report.score >= 50 { "\x1b[33mFAIR\x1b[0m" }
                         else { "\x1b[31mPOOR\x1b[0m" };

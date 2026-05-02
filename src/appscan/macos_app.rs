@@ -25,15 +25,13 @@ pub fn scan(app_path: &Path) -> anyhow::Result<AppReport> {
 
     let mut findings = Vec::new();
     let mut frameworks = Vec::new();
-    let mut entitlements = Vec::new();
 
     // 1. Code signing
     findings.push(check_code_signing(app_path));
 
     // 2. Entitlements
-    let (ent_findings, ent_list) = check_entitlements(app_path);
+    let (ent_findings, entitlements) = check_entitlements(app_path);
     findings.extend(ent_findings);
-    entitlements = ent_list;
 
     // 3. App Transport Security
     findings.push(check_ats(&info_plist));
@@ -323,7 +321,7 @@ fn check_frameworks(fw_dir: &Path) -> (Vec<AppFinding>, Vec<String>) {
     (findings, fw_list)
 }
 
-fn find_binary(contents: &Path, app_name: &str) -> Option<std::path::PathBuf> {
+fn find_binary(contents: &Path, _app_name: &str) -> Option<std::path::PathBuf> {
     let macos_dir = contents.join("MacOS");
     if macos_dir.exists() {
         if let Ok(entries) = std::fs::read_dir(&macos_dir) {

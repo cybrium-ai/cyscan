@@ -1,6 +1,6 @@
 //! Summary table formatter — replicates the `trivy k8s --report summary` output.
 
-use super::{K8sReport, ResourceReport, SeverityCounts};
+use super::{K8sReport, ResourceReport};
 
 /// Print the summary report (Trivy-style table).
 pub fn print_summary(report: &K8sReport) {
@@ -58,7 +58,6 @@ fn print_table(resources: &[ResourceReport]) {
     // Header
     let sep_ns = "─".repeat(ns_w + 2);
     let sep_res = "─".repeat(res_w + 2);
-    let sep_5 = "─────";
     println!("┌{}┬{}┬─────────────────────────────┬─────────────────────────────┬─────────────────────────────┐",
         sep_ns, sep_res);
     println!("│ {:<ns_w$} │ {:<res_w$} │      Vulnerabilities        │     Misconfigurations       │          Secrets            │",
