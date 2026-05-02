@@ -1,13 +1,14 @@
 //! Matcher dispatch — picks regex vs tree-sitter per rule, emits findings.
 
+pub mod dsl;
 pub mod entropy;
 pub mod regex;
 pub mod semantics;
 pub mod treesitter;
 pub mod verify;
 
-use std::path::Path;
 use std::collections::HashSet;
+use std::path::Path;
 
 use crate::{finding::Finding, lang::Lang, rule::Rule};
 
@@ -35,7 +36,8 @@ pub fn run_rules_with_semantics<'a>(
     base_path: Option<&Path>,
     semantics: &semantics::FileSemantics,
 ) -> Vec<Finding> {
-    let applicable: Vec<&Rule> = rules.iter()
+    let applicable: Vec<&Rule> = rules
+        .iter()
         .filter(|r| {
             (r.languages.contains(&lang) || r.languages.contains(&Lang::Generic))
                 && rule_matches_frameworks(r, frameworks)
@@ -64,8 +66,14 @@ pub fn run_rules_with_semantics<'a>(
                 }
             }
             let (tree, _) = parsed.as_ref().unwrap();
-            findings.extend(treesitter::match_rule(rule, lang, path, source, tree, semantics));
-        } else if rule.regex.is_some() || rule.pattern.is_some() || !rule.patterns.is_empty() {
+            findings.extend(treesitter::match_rule(
+                rule, lang, path, source, tree, semantics,
+            ));
+        } else if rule.regex.is_some()
+            || rule.pattern.is_some()
+            || !rule.patterns.is_empty()
+            || !rule.pattern_either.is_empty()
+        {
             findings.extend(regex::match_rule(rule, lang, path, source, semantics));
         }
     }
@@ -88,7 +96,9 @@ fn rule_matches_frameworks(rule: &Rule, frameworks: &HashSet<String>) -> bool {
         return true;
     }
 
-    rule.frameworks.iter().any(|fw| frameworks.contains(&normalise_framework_name(fw)))
+    rule.frameworks
+        .iter()
+        .any(|fw| frameworks.contains(&normalise_framework_name(fw)))
 }
 
 pub fn normalise_framework_name(name: &str) -> String {
@@ -101,21 +111,30 @@ pub fn normalise_framework_name(name: &str) -> String {
 fn enrich_precision(findings: &mut [Finding]) {
     for finding in findings {
         if let Some(wrapper_kind) = safe_wrapper_kind(&finding.snippet) {
-            finding.evidence.entry("safe_wrapper_kind".into())
+            finding
+                .evidence
+                .entry("safe_wrapper_kind".into())
                 .or_insert_with(|| serde_json::json!(wrapper_kind));
         }
         let (label, score, reason) = confidence_for_finding(finding);
-        finding.evidence.entry("confidence".into())
+        finding
+            .evidence
+            .entry("confidence".into())
             .or_insert_with(|| serde_json::json!(label));
-        finding.evidence.entry("confidence_score".into())
+        finding
+            .evidence
+            .entry("confidence_score".into())
             .or_insert_with(|| serde_json::json!(score));
-        finding.evidence.entry("confidence_reason".into())
+        finding
+            .evidence
+            .entry("confidence_reason".into())
             .or_insert_with(|| serde_json::json!(reason));
     }
 }
 
 fn confidence_for_finding(finding: &Finding) -> (&'static str, f64, &'static str) {
-    let matcher_kind = finding.evidence
+    let matcher_kind = finding
+        .evidence
         .get("matcher_kind")
         .and_then(|v| v.as_str())
         .unwrap_or("unknown");
@@ -124,7 +143,8 @@ fn confidence_for_finding(finding: &Finding) -> (&'static str, f64, &'static str
     let has_framework = finding.evidence.contains_key("framework");
     let has_sanitizer = finding.evidence.contains_key("sanitizer_kind");
     let has_safe_wrapper = finding.evidence.contains_key("safe_wrapper_kind");
-    let path_sensitivity = finding.evidence
+    let path_sensitivity = finding
+        .evidence
         .get("path_sensitivity")
         .and_then(|v| v.as_str());
 
@@ -183,7 +203,10 @@ fn safe_wrapper_kind(snippet: &str) -> Option<&'static str> {
     if compact.contains("HttpUtility.HtmlEncode(") || compact.contains("WebUtility.HtmlEncode(") {
         return Some("aspnet.html_encode");
     }
-    if compact.contains("HtmlEncoder.Default.Encode(") || compact.contains("IHtmlHelper.Encode(") || compact.contains("Html.Encode(") {
+    if compact.contains("HtmlEncoder.Default.Encode(")
+        || compact.contains("IHtmlHelper.Encode(")
+        || compact.contains("Html.Encode(")
+    {
         return Some("aspnet.html_encode");
     }
     if compact.contains("JavaScriptEncoder.Default.Encode(") {
@@ -202,7 +225,10 @@ fn safe_wrapper_kind(snippet: &str) -> Option<&'static str> {
     if compact.contains("AntiXssEncoder.HtmlEncode(") {
         return Some("aspnet.antixss_html_encode");
     }
-    if compact.contains("MvcHtmlString.Create(") || compact.contains("HtmlString(") || compact.contains("IHtmlContent") {
+    if compact.contains("MvcHtmlString.Create(")
+        || compact.contains("HtmlString(")
+        || compact.contains("IHtmlContent")
+    {
         return Some("aspnet.typed_html_wrapper");
     }
     if compact.contains("TagBuilder") && compact.contains(".InnerHtml.Append(") {
@@ -217,7 +243,8 @@ fn safe_wrapper_kind(snippet: &str) -> Option<&'static str> {
     if compact.contains("conditional_escape(") {
         return Some("django.conditional_escape");
     }
-    if compact.contains("HtmlUtils.htmlEscape(") || compact.contains("HtmlUtils.htmlEscapeDecimal(") {
+    if compact.contains("HtmlUtils.htmlEscape(") || compact.contains("HtmlUtils.htmlEscapeDecimal(")
+    {
         return Some("spring.html_escape");
     }
     if compact.contains("ESAPI.encoder().encodeForHTML(") {
@@ -229,7 +256,8 @@ fn safe_wrapper_kind(snippet: &str) -> Option<&'static str> {
     if compact.contains("strip_tags(") {
         return Some("rails.strip_tags");
     }
-    if compact.contains("html_escape(") || compact.contains(".html_safe") || compact.contains("h(") {
+    if compact.contains("html_escape(") || compact.contains(".html_safe") || compact.contains("h(")
+    {
         return Some("rails.html_escape");
     }
     if compact.contains("flask.escape(") || compact.contains("markupsafe.escape(") {
@@ -287,7 +315,19 @@ mod tests {
 
         enrich_precision(&mut findings);
 
-        assert_eq!(findings[0].evidence.get("safe_wrapper_kind").and_then(|v| v.as_str()), Some("aspnet.html_encode"));
-        assert_eq!(findings[0].evidence.get("confidence").and_then(|v| v.as_str()), Some("low"));
+        assert_eq!(
+            findings[0]
+                .evidence
+                .get("safe_wrapper_kind")
+                .and_then(|v| v.as_str()),
+            Some("aspnet.html_encode")
+        );
+        assert_eq!(
+            findings[0]
+                .evidence
+                .get("confidence")
+                .and_then(|v| v.as_str()),
+            Some("low")
+        );
     }
 }

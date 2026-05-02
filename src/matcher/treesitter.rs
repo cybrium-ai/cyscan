@@ -1,8 +1,8 @@
 //! Tree-sitter matcher. One Parser per call — tree-sitter Parsers aren't
 //! Sync-safe, so we don't try to share them across threads.
 
-use std::path::{Path, PathBuf};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use regex::{Regex, RegexBuilder};
@@ -10,7 +10,7 @@ use tree_sitter::{Parser, Query, QueryCursor, Tree};
 
 use crate::{finding::Finding, lang::Lang, rule::Rule};
 
-use super::semantics::FileSemantics;
+use super::{dsl::metavariable_comparison_matches, semantics::FileSemantics};
 
 #[derive(Debug, Clone)]
 struct PathSensitivity {
@@ -26,27 +26,34 @@ enum IntraFileTaintOutcome {
 
 pub fn parse(lang: Lang, source: &str) -> Result<Tree> {
     let mut parser = Parser::new();
-    let grammar = lang.tree_sitter()
+    let grammar = lang
+        .tree_sitter()
         .with_context(|| format!("no tree-sitter grammar for {lang}"))?;
-    parser.set_language(&grammar)
+    parser
+        .set_language(&grammar)
         .with_context(|| format!("setting tree-sitter language {lang}"))?;
-    parser.parse(source, None)
+    parser
+        .parse(source, None)
         .context("tree-sitter parse returned None")
 }
 
 pub fn match_rule(
-    rule:   &Rule,
-    lang:   Lang,
-    path:   &Path,
+    rule: &Rule,
+    lang: Lang,
+    path: &Path,
     source: &str,
-    tree:   &Tree,
+    tree: &Tree,
     semantics: &FileSemantics,
 ) -> Vec<Finding> {
-    let Some(q_str) = rule.query.as_deref() else { return Vec::new() };
+    let Some(q_str) = rule.query.as_deref() else {
+        return Vec::new();
+    };
 
-    let Some(grammar) = lang.tree_sitter() else { return Vec::new() };
+    let Some(grammar) = lang.tree_sitter() else {
+        return Vec::new();
+    };
     let query = match Query::new(&grammar, q_str) {
-        Ok(q)  => q,
+        Ok(q) => q,
         Err(e) => {
             log::warn!("rule {}: query compile failed: {e}", rule.id);
             return Vec::new();
@@ -61,20 +68,32 @@ pub fn match_rule(
         // Report on the first captured node — rules author the query
         // so the first capture is the "problem" node. For queries with
         // multiple captures we take the primary.
-        let Some(cap) = select_primary_capture(&query, &m.captures) else { continue };
-        let node     = cap.node;
-        let start    = node.start_position();
-        let end      = node.end_position();
-        let snippet  = node.utf8_text(bytes).unwrap_or("").lines().next()
-            .unwrap_or("").trim().to_string();
+        let Some(cap) = select_primary_capture(&query, &m.captures) else {
+            continue;
+        };
+        let node = cap.node;
+        let start = node.start_position();
+        let end = node.end_position();
+        let snippet = node
+            .utf8_text(bytes)
+            .unwrap_or("")
+            .lines()
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_string();
         let mut evidence = HashMap::new();
         evidence.insert("matcher_kind".into(), serde_json::json!("tree_sitter"));
         let mut captures = HashMap::new();
         for capture in m.captures {
             let name = query.capture_names()[capture.index as usize].to_string();
             if let Ok(text) = capture.node.utf8_text(bytes) {
-                captures.entry(name.clone()).or_insert_with(|| text.to_string());
-                evidence.entry(name).or_insert_with(|| serde_json::json!(text));
+                captures
+                    .entry(name.clone())
+                    .or_insert_with(|| text.to_string());
+                evidence
+                    .entry(name)
+                    .or_insert_with(|| serde_json::json!(text));
             }
         }
 
@@ -85,27 +104,28 @@ pub fn match_rule(
             continue;
         }
 
-        let path_sensitivity = analyze_path_sensitivity(rule, lang, source, node, &captures, semantics);
+        let path_sensitivity =
+            analyze_path_sensitivity(rule, lang, source, node, &captures, semantics);
         evidence.extend(path_sensitivity.evidence);
         evidence.extend(base_semantic_evidence(rule, semantics));
 
         out.push(Finding {
-            rule_id:    rule.id.clone(),
-            title:      rule.title.clone(),
-            severity:   rule.severity,
-            message:    rule.message.clone(),
-            file:       PathBuf::from(path),
-            line:       start.row + 1,
-            column:     start.column + 1,
-            end_line:   end.row + 1,
+            rule_id: rule.id.clone(),
+            title: rule.title.clone(),
+            severity: rule.severity,
+            message: rule.message.clone(),
+            file: PathBuf::from(path),
+            line: start.row + 1,
+            column: start.column + 1,
+            end_line: end.row + 1,
             end_column: end.column + 1,
             fingerprint: String::new(),
             start_byte: node.start_byte(),
-            end_byte:   node.end_byte(),
+            end_byte: node.end_byte(),
             snippet,
             fix_recipe: rule.fix_recipe.clone(),
-            fix:        rule.fix.clone(),
-            cwe:        rule.cwe.clone(),
+            fix: rule.fix.clone(),
+            cwe: rule.cwe.clone(),
             evidence,
             reachability: path_sensitivity.reachability,
         });
@@ -148,7 +168,9 @@ fn semantic_guard(
 ) -> bool {
     match rule.id.as_str() {
         "CBR-PY-PICKLE-LOADS" => {
-            let Some(object) = captures.get("obj") else { return false };
+            let Some(object) = captures.get("obj") else {
+                return false;
+            };
             let object = object.trim();
             if object == "pickle" && semantics.imported_modules.contains("pickle") {
                 return true;
@@ -156,12 +178,16 @@ fn semantic_guard(
             if semantics.alias_to_module.get(object).map(String::as_str) == Some("pickle") {
                 return true;
             }
-            semantics.imported_symbols.get(object)
+            semantics
+                .imported_symbols
+                .get(object)
                 .map(String::as_str)
                 .is_some_and(|sym| sym == "pickle.loads" || sym == "pickle.load")
         }
         "CBR-PY-SQLI-STRING-CONCAT" => {
-            let Some(object) = captures.get("obj") else { return true };
+            let Some(object) = captures.get("obj") else {
+                return true;
+            };
             let object = object.trim();
             if object == "cursor" || object == "db" || object == "conn" || object == "connection" {
                 return true;
@@ -175,7 +201,9 @@ fn semantic_guard(
             true
         }
         "CBR-JS-XSS-INNER-HTML" => {
-            let Some(object) = captures.get("obj") else { return true };
+            let Some(object) = captures.get("obj") else {
+                return true;
+            };
             let object = object.trim();
             if object == "document" || object == "el" || object == "node" || object == "element" {
                 return true;
@@ -186,7 +214,9 @@ fn semantic_guard(
             true
         }
         "CBR-CSHA-SQL_INJECTION" => {
-            let Some(object) = captures.get("obj") else { return false };
+            let Some(object) = captures.get("obj") else {
+                return false;
+            };
             csharp_receiver_is_db_command(object, semantics)
         }
         _ => true,
@@ -209,13 +239,34 @@ fn dsl_pattern_filters_match(
 
     let positive_patterns = tree_positive_patterns(rule);
     if !positive_patterns.is_empty() {
-        let compiled: Vec<Regex> = positive_patterns.into_iter()
+        let compiled: Vec<Regex> = positive_patterns
+            .into_iter()
             .filter_map(compile_tree_filter_regex)
             .collect();
         if compiled.is_empty() {
             return false;
         }
-        if !compiled.iter().all(|re| candidate_texts.iter().any(|text| re.is_match(text))) {
+        if !compiled
+            .iter()
+            .all(|re| candidate_texts.iter().any(|text| re.is_match(text)))
+        {
+            return false;
+        }
+    }
+
+    let either_patterns = tree_either_patterns(rule);
+    if !either_patterns.is_empty() {
+        let compiled: Vec<Regex> = either_patterns
+            .into_iter()
+            .filter_map(compile_tree_filter_regex)
+            .collect();
+        if compiled.is_empty() {
+            return false;
+        }
+        if !compiled
+            .iter()
+            .any(|re| candidate_texts.iter().any(|text| re.is_match(text)))
+        {
             return false;
         }
     }
@@ -232,7 +283,9 @@ fn dsl_pattern_filters_match(
     }
 
     if let Some(pattern_inside) = rule.pattern_inside.as_deref() {
-        let Some(re) = compile_tree_filter_regex(pattern_inside) else { return false };
+        let Some(re) = compile_tree_filter_regex(pattern_inside) else {
+            return false;
+        };
         let mut current = node.parent();
         while let Some(parent) = current {
             if let Ok(text) = parent.utf8_text(source.as_bytes()) {
@@ -245,6 +298,17 @@ fn dsl_pattern_filters_match(
         return false;
     }
 
+    if let Some(comparison) = rule.metavariable_comparison.as_deref() {
+        if !metavariable_comparison_matches(comparison, |name| {
+            if name == "MATCH" {
+                return Some(node_text);
+            }
+            captures.get(name).map(String::as_str)
+        }) {
+            return false;
+        }
+    }
+
     true
 }
 
@@ -252,9 +316,14 @@ fn tree_positive_patterns(rule: &Rule) -> Vec<&str> {
     if !rule.patterns.is_empty() {
         return rule.patterns.iter().map(String::as_str).collect();
     }
-    rule.pattern.as_deref()
+    rule.pattern
+        .as_deref()
         .map(|pat| vec![pat.trim()])
         .unwrap_or_default()
+}
+
+fn tree_either_patterns(rule: &Rule) -> Vec<&str> {
+    rule.pattern_either.iter().map(String::as_str).collect()
 }
 
 fn compile_tree_filter_regex(pattern: &str) -> Option<Regex> {
@@ -362,7 +431,10 @@ fn analyze_path_sensitivity(
                 };
             }
             IntraFileTaintOutcome::NoSource(reason) => {
-                evidence.insert("path_sensitivity".into(), serde_json::json!("no_source_detected"));
+                evidence.insert(
+                    "path_sensitivity".into(),
+                    serde_json::json!("no_source_detected"),
+                );
                 evidence.insert("path_sensitivity_reason".into(), serde_json::json!(reason));
                 return PathSensitivity {
                     reachability: Some("unknown".into()),
@@ -372,7 +444,9 @@ fn analyze_path_sensitivity(
         }
     }
 
-    if let Some((source_kind, framework)) = taint_reason(rule, lang, source, node, captures, semantics) {
+    if let Some((source_kind, framework)) =
+        taint_reason(rule, lang, source, node, captures, semantics)
+    {
         let mut evidence = HashMap::new();
         evidence.insert("path_sensitivity".into(), serde_json::json!("tainted"));
         evidence.insert("source_kind".into(), serde_json::json!(source_kind));
@@ -387,7 +461,10 @@ fn analyze_path_sensitivity(
 
     if requires_attacker_control(rule.id.as_str()) {
         let mut evidence = HashMap::new();
-        evidence.insert("path_sensitivity".into(), serde_json::json!("no_source_detected"));
+        evidence.insert(
+            "path_sensitivity".into(),
+            serde_json::json!("no_source_detected"),
+        );
         return PathSensitivity {
             reachability: Some("unknown".into()),
             evidence,
@@ -408,20 +485,26 @@ fn dead_code_reason(source: &str, node: tree_sitter::Node<'_>) -> Option<String>
         match parent.kind() {
             "if_statement" => {
                 let condition = parent.child_by_field_name("condition");
-                let consequence = parent.child_by_field_name("consequence")
+                let consequence = parent
+                    .child_by_field_name("consequence")
                     .or_else(|| parent.child_by_field_name("body"));
                 if let (Some(cond), Some(body)) = (condition, consequence) {
-                    if contains_node(body, node) && falsey_text(cond.utf8_text(source.as_bytes()).ok()?) {
+                    if contains_node(body, node)
+                        && falsey_text(cond.utf8_text(source.as_bytes()).ok()?)
+                    {
                         return Some("dead_branch_false_condition".into());
                     }
                 }
             }
             "while_statement" => {
                 let condition = parent.child_by_field_name("condition");
-                let body = parent.child_by_field_name("body")
+                let body = parent
+                    .child_by_field_name("body")
                     .or_else(|| parent.child_by_field_name("consequence"));
                 if let (Some(cond), Some(body)) = (condition, body) {
-                    if contains_node(body, node) && falsey_text(cond.utf8_text(source.as_bytes()).ok()?) {
+                    if contains_node(body, node)
+                        && falsey_text(cond.utf8_text(source.as_bytes()).ok()?)
+                    {
                         return Some("dead_loop_false_condition".into());
                     }
                 }
@@ -455,14 +538,19 @@ fn intra_file_taint(
         if line.is_empty() {
             continue;
         }
-        let Some(caps) = assign_re.captures(line) else { continue };
+        let Some(caps) = assign_re.captures(line) else {
+            continue;
+        };
         let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
         let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
         if ident.is_empty() || rhs.is_empty() {
             continue;
         }
 
-        let uses_call_summary = semantics.call_assignments.iter().any(|call| call.ident == ident);
+        let uses_call_summary = semantics
+            .call_assignments
+            .iter()
+            .any(|call| call.ident == ident);
         if uses_call_summary && rhs.contains('(') && rhs.contains(')') {
             if let Some(reason) = semantics.sanitized_identifiers.get(&ident).cloned() {
                 tainted.remove(&ident);
@@ -584,7 +672,10 @@ fn block_scope_prefix(source: &str, node: tree_sitter::Node<'_>) -> Option<Strin
     let mut current = Some(node);
     while let Some(cursor) = current {
         let kind = cursor.kind();
-        if matches!(kind, "statement_block" | "block" | "body_statement" | "do_block") {
+        if matches!(
+            kind,
+            "statement_block" | "block" | "body_statement" | "do_block"
+        ) {
             let start = cursor.start_byte().min(node.start_byte());
             let end = node.start_byte().min(source.len());
             return source.get(start..end).map(str::to_string);
@@ -641,7 +732,9 @@ fn sanitizer_kind(lang: Lang, text: &str, tainted: &HashMap<String, String>) -> 
             }
         }
         Lang::Java => {
-            if compact.contains("HtmlUtils.htmlEscape(") || compact.contains("ESAPI.encoder().encodeForHTML(") {
+            if compact.contains("HtmlUtils.htmlEscape(")
+                || compact.contains("ESAPI.encoder().encodeForHTML(")
+            {
                 return Some("java_html_encoded".into());
             }
             if compact.contains("UriUtils.encode(") || compact.contains("URLEncoder.encode(") {
@@ -663,7 +756,8 @@ fn sanitizer_kind(lang: Lang, text: &str, tainted: &HashMap<String, String>) -> 
             if compact.contains("template.HTMLEscapeString(") {
                 return Some("go.html_escape".into());
             }
-            if compact.contains("url.QueryEscape(") || compact.contains("template.URLQueryEscaper(") {
+            if compact.contains("url.QueryEscape(") || compact.contains("template.URLQueryEscaper(")
+            {
                 return Some("go.url_escape".into());
             }
         }
@@ -685,7 +779,9 @@ fn taint_from_tokens(text: &str, tainted: &HashMap<String, String>) -> Option<St
 
 fn contains_identifier(text: &str, values: &HashMap<String, String>) -> bool {
     semantic_candidates(text).into_iter().any(|token| {
-        hierarchical_path_candidates(&token).into_iter().any(|candidate| values.contains_key(&candidate))
+        hierarchical_path_candidates(&token)
+            .into_iter()
+            .any(|candidate| values.contains_key(&candidate))
     })
 }
 
@@ -703,7 +799,10 @@ fn identifier_reason(text: &str, values: &HashMap<String, String>) -> Option<Str
 fn contains_nonliteral_identifier(lang: Lang, text: &str) -> bool {
     semantic_candidates(text).into_iter().any(|token| {
         !token.is_empty()
-        && token.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+            && token
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
             && !is_ignored_identifier(lang, &token)
     })
 }
@@ -765,7 +864,9 @@ fn normalize_access_path(text: &str) -> String {
 fn semantic_candidates(text: &str) -> Vec<String> {
     let normalized = normalize_access_path(text);
     normalized
-        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$'))
+        .split(|c: char| {
+            !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$')
+        })
         .filter(|token| !token.is_empty())
         .map(str::to_string)
         .collect()
@@ -780,7 +881,9 @@ fn hierarchical_path_candidates(token: &str) -> Vec<String> {
     let mut current = normalized.as_str();
     loop {
         out.push(current.to_string());
-        let Some((parent, _)) = current.rsplit_once('.') else { break };
+        let Some((parent, _)) = current.rsplit_once('.') else {
+            break;
+        };
         current = parent;
     }
     out
@@ -788,13 +891,93 @@ fn hierarchical_path_candidates(token: &str) -> Vec<String> {
 
 fn is_ignored_identifier(lang: Lang, token: &str) -> bool {
     match lang {
-        Lang::Python => matches!(token, "eval" | "exec" | "request" | "args" | "form" | "GET" | "POST" | "input" | "html" | "django" | "utils" | "escape" | "literal_eval"),
-        Lang::Javascript | Lang::Typescript => matches!(token, "eval" | "req" | "request" | "query" | "params" | "body" | "setTimeout" | "setInterval" | "DOMPurify" | "sanitize" | "escapeHtml" | "he" | "encode" | "innerHTML" | "outerHTML" | "document" | "write"),
-        Lang::Csharp => matches!(token, "Request" | "Query" | "Form" | "Headers" | "Cookies" | "Html" | "Raw" | "Process" | "Start" | "HttpUtility" | "WebUtility" | "HtmlEncode" | "UrlEncode" | "HtmlEncoder" | "AntiXssEncoder" | "Uri" | "EscapeDataString"),
-        Lang::Java => matches!(token, "request" | "getParameter" | "getQueryString" | "HtmlUtils" | "htmlEscape" | "ESAPI" | "encodeForHTML" | "UriUtils" | "encode" | "URLEncoder"),
-        Lang::Ruby => matches!(token, "params" | "raw" | "sanitize" | "strip_tags" | "html_escape" | "ERB" | "Util"),
-        Lang::Go => matches!(token, "Query" | "Param" | "FormValue" | "HTMLEscapeString" | "QueryEscape" | "template" | "url"),
-        Lang::Rust => matches!(token, "std" | "env" | "args" | "args_os" | "var" | "var_os" | "nth" | "next" | "unwrap"),
+        Lang::Python => matches!(
+            token,
+            "eval"
+                | "exec"
+                | "request"
+                | "args"
+                | "form"
+                | "GET"
+                | "POST"
+                | "input"
+                | "html"
+                | "django"
+                | "utils"
+                | "escape"
+                | "literal_eval"
+        ),
+        Lang::Javascript | Lang::Typescript => matches!(
+            token,
+            "eval"
+                | "req"
+                | "request"
+                | "query"
+                | "params"
+                | "body"
+                | "setTimeout"
+                | "setInterval"
+                | "DOMPurify"
+                | "sanitize"
+                | "escapeHtml"
+                | "he"
+                | "encode"
+                | "innerHTML"
+                | "outerHTML"
+                | "document"
+                | "write"
+        ),
+        Lang::Csharp => matches!(
+            token,
+            "Request"
+                | "Query"
+                | "Form"
+                | "Headers"
+                | "Cookies"
+                | "Html"
+                | "Raw"
+                | "Process"
+                | "Start"
+                | "HttpUtility"
+                | "WebUtility"
+                | "HtmlEncode"
+                | "UrlEncode"
+                | "HtmlEncoder"
+                | "AntiXssEncoder"
+                | "Uri"
+                | "EscapeDataString"
+        ),
+        Lang::Java => matches!(
+            token,
+            "request"
+                | "getParameter"
+                | "getQueryString"
+                | "HtmlUtils"
+                | "htmlEscape"
+                | "ESAPI"
+                | "encodeForHTML"
+                | "UriUtils"
+                | "encode"
+                | "URLEncoder"
+        ),
+        Lang::Ruby => matches!(
+            token,
+            "params" | "raw" | "sanitize" | "strip_tags" | "html_escape" | "ERB" | "Util"
+        ),
+        Lang::Go => matches!(
+            token,
+            "Query"
+                | "Param"
+                | "FormValue"
+                | "HTMLEscapeString"
+                | "QueryEscape"
+                | "template"
+                | "url"
+        ),
+        Lang::Rust => matches!(
+            token,
+            "std" | "env" | "args" | "args_os" | "var" | "var_os" | "nth" | "next" | "unwrap"
+        ),
         _ => false,
     }
 }
@@ -869,7 +1052,9 @@ fn guarded_reason(
 ) -> Option<String> {
     let text = node.utf8_text(source.as_bytes()).ok()?.trim();
     match rule.id.as_str() {
-        "CBR-JS-XSS-INNER-HTML" | "CBR-JS-DOCUMENT-WRITE" if matches!(lang, Lang::Javascript | Lang::Typescript) => {
+        "CBR-JS-XSS-INNER-HTML" | "CBR-JS-DOCUMENT-WRITE"
+            if matches!(lang, Lang::Javascript | Lang::Typescript) =>
+        {
             if text.contains("DOMPurify.sanitize(") {
                 return Some("dompurify_sanitized".into());
             }
@@ -891,7 +1076,9 @@ fn guarded_reason(
             }
         }
         _ if lang == Lang::Java => {
-            if text.contains("HtmlUtils.htmlEscape(") || text.contains("ESAPI.encoder().encodeForHTML(") {
+            if text.contains("HtmlUtils.htmlEscape(")
+                || text.contains("ESAPI.encoder().encodeForHTML(")
+            {
                 return Some("java_html_encoded".into());
             }
         }
@@ -914,7 +1101,10 @@ fn guarded_reason(
             }
         }
         "CBR-PY-SQLI-STRING-CONCAT" if lang == Lang::Python => {
-            if captures.get("concat").is_some_and(|s| concat_is_literal_only(s)) {
+            if captures
+                .get("concat")
+                .is_some_and(|s| concat_is_literal_only(s))
+            {
                 return Some("constant_query_concatenation".into());
             }
         }
@@ -1130,12 +1320,19 @@ fn contains_node(container: tree_sitter::Node<'_>, child: tree_sitter::Node<'_>)
 
 fn falsey_text(text: &str) -> bool {
     let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
-    matches!(compact.as_str(), "False" | "false" | "0" | "None" | "null" | "undefined")
+    matches!(
+        compact.as_str(),
+        "False" | "false" | "0" | "None" | "null" | "undefined"
+    )
 }
 
 fn call_uses_only_literal_payload(text: &str) -> bool {
-    let Some(open) = text.find('(') else { return false };
-    let Some(close) = text.rfind(')') else { return false };
+    let Some(open) = text.find('(') else {
+        return false;
+    };
+    let Some(close) = text.rfind(')') else {
+        return false;
+    };
     if close <= open + 1 {
         return false;
     }
@@ -1167,9 +1364,10 @@ fn select_primary_capture<'a>(
     const PREFERRED: &[&str] = &["match", "target", "sink", "vuln", "issue", "danger"];
 
     for preferred in PREFERRED {
-        if let Some(capture) = captures.iter().find(|capture| {
-            query.capture_names()[capture.index as usize] == *preferred
-        }) {
+        if let Some(capture) = captures
+            .iter()
+            .find(|capture| query.capture_names()[capture.index as usize] == *preferred)
+        {
             return Some(capture);
         }
     }
