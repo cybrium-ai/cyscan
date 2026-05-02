@@ -21,4 +21,5 @@ pub mod scanner;
 pub mod dataflow;
 pub mod self_update;
 pub mod supply;
+pub mod symbols;
 pub mod triage;
