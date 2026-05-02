@@ -2,6 +2,14 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.12.0] — 2026-05-02
+
+### Added
+- **Inter-procedural dataflow / taint propagation (Gap A4)** — closes the last major parity gap in the Semgrep Pro / Checkmarx One audit. New `src/dataflow/mod.rs` aggregates per-file `FileSemantics` from every scanned file, then runs a fixed-point taint propagator that walks `param_call_edges` (caller param N → callee arg M), `return_param_indices` (function returns its param), `direct_return_sources`, and `return_param_sanitizers` across file boundaries. Rules opt in via a `dataflow:` block; with `require_reachable: true`, findings are suppressed unless a real tainted source reaches the matched function. Findings always get `evidence.dataflow_function`, `evidence.dataflow_reachable`, and (when reachable) `evidence.dataflow_path` + `evidence.dataflow_path_string` showing the `caller → callee → … → sink` chain. The path payload falls back to `"source:<kind>"` when the chain ends at a built-in source so reviewers always see where the taint originated.
+- New `matcher::run_rules_with_project` orchestrator. The single-file `run_rules` is preserved as a wrapper so non-project tests stay cheap.
+- Project pre-pass in `scanner::run` runs only when at least one rule has a `dataflow:` block — rule packs that don't use dataflow pay zero overhead.
+- 2 integration tests covering the cross-file path: `dataflow_require_reachable_suppresses_when_no_source_reaches_sink`, `dataflow_path_carries_source_kind_when_caller_chain_unavailable`.
+
 ## [0.11.0] — 2026-05-02
 
 ### Added
