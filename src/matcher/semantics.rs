@@ -41,6 +41,12 @@ pub fn extract_with_context(
         Lang::Java => extract_java(source, path, base_path),
         Lang::Csharp => extract_csharp(source, path, base_path),
         Lang::Go => extract_go(source, path, base_path),
+        Lang::Rust => extract_rust(source, path, base_path),
+        Lang::Php => extract_php(source, path, base_path),
+        Lang::Swift => extract_swift(source, path, base_path),
+        Lang::Scala => extract_scala(source, path, base_path),
+        Lang::C => extract_c(source, path, base_path),
+        Lang::Bash => extract_bash(source, path, base_path),
         _ => FileSemantics::default(),
     }
 }
@@ -1304,11 +1310,306 @@ fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> Fi
     semantics
 }
 
+fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {
+    let mut semantics = FileSemantics::default();
+    semantics.module_identity = rust_module_identity(path, base_path);
+    let module_identity = semantics.module_identity
+        .clone()
+        .unwrap_or_else(|| "local".to_string());
+    let use_re = Regex::new(r#"^\s*use\s+([^;]+);"#).unwrap();
+    let assign_re = Regex::new(
+        r#"^\s*let\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=]+)?=\s*(.+?)\s*;?\s*$"#
+    ).unwrap();
+    let fn_re = Regex::new(r#"^\s*fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let path_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_:]*)::([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let method_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let lines: Vec<&str> = source.lines().collect();
+
+    for raw_line in &lines {
+        let line = raw_line.split("//").next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        if let Some(caps) = fn_re.captures(line) {
+            let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let params_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+            let params: Vec<String> = params_raw.split(',')
+                .map(|param| param.trim())
+                .filter(|param| !param.is_empty())
+                .filter_map(rust_param_name)
+                .collect();
+            if !func_name.is_empty() {
+                semantics.function_definitions.insert(
+                    format!("{module_identity}::{func_name}"),
+                    params,
+                );
+            }
+        }
+
+        if let Some(caps) = use_re.captures(line) {
+            let raw_import = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim();
+            record_rust_imports(&mut semantics, raw_import, &module_identity);
+            continue;
+        }
+
+        if let Some(caps) = assign_re.captures(line) {
+            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+            if ident.is_empty() || rhs.is_empty() {
+                continue;
+            }
+            if let Some(source_kind) = rust_source_kind(rhs) {
+                semantics.tainted_identifiers.insert(ident, source_kind.to_string());
+            } else {
+                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == ':' || c == '.')) {
+                    if let Some(source_kind) = semantics.tainted_identifiers.get(token) {
+                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    for raw_line in &lines {
+        let line = raw_line.split("//").next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        for caps in path_call_re.captures_iter(line) {
+            let head = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            let method = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+            let args_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+            let Some(target) = resolve_rust_call_target(&semantics, &module_identity, head, Some(method)) else {
+                continue;
+            };
+            record_tainted_call(&mut semantics, &target, args_raw);
+        }
+
+        for caps in method_call_re.captures_iter(line) {
+            let object = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            let method = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+            let args_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+            let Some(target) = resolve_rust_call_target(&semantics, &module_identity, object, Some(method)) else {
+                continue;
+            };
+            record_tainted_call(&mut semantics, &target, args_raw);
+        }
+
+        for caps in direct_call_re.captures_iter(line) {
+            let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            let args_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+            let Some(target) = resolve_rust_call_target(&semantics, &module_identity, func_name, None) else {
+                continue;
+            };
+            record_tainted_call(&mut semantics, &target, args_raw);
+        }
+    }
+
+    semantics
+}
+
+fn extract_php(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {
+    let mut semantics = FileSemantics::default();
+    semantics.module_identity = path_module_identity(path, base_path, &[".php", ".phtml"]);
+    if source.contains("Illuminate\\") || source.contains("Laravel") || source.contains("->redirect(") {
+        semantics.frameworks.insert("laravel".into());
+    }
+    if source.contains("Symfony\\") || source.contains("$this->redirect(") {
+        semantics.frameworks.insert("symfony".into());
+    }
+    if source.contains("add_action(") || source.contains("wp_redirect(") || source.contains("check_ajax_referer(") {
+        semantics.frameworks.insert("wordpress".into());
+    }
+    let use_re = Regex::new(r#"^\s*use\s+([A-Za-z_\\][A-Za-z0-9_\\]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*;"#).unwrap();
+    let assign_re = Regex::new(r#"^\s*\$([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap();
+    let function_re = Regex::new(r#"^\s*function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let lines: Vec<&str> = source.lines().collect();
+
+    for raw_line in &lines {
+        let line = raw_line.split("//").next().unwrap_or("").split('#').next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(caps) = function_re.captures(line) {
+            let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let params_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+            let params: Vec<String> = params_raw.split(',')
+                .map(|p| p.trim().trim_start_matches('$').split('=').next().unwrap_or("").trim().to_string())
+                .filter(|p| !p.is_empty())
+                .collect();
+            if let Some(module_identity) = semantics.module_identity.as_deref() {
+                semantics.function_definitions.insert(format!("{module_identity}::{func_name}"), params);
+            }
+        }
+        if let Some(caps) = use_re.captures(line) {
+            let module = caps.get(1).map(|m| m.as_str()).unwrap_or("").replace('\\', ".");
+            let alias = caps.get(2).map(|m| m.as_str().to_string())
+                .unwrap_or_else(|| module.rsplit('.').next().unwrap_or(&module).to_string());
+            if !module.is_empty() {
+                semantics.imported_modules.insert(module.clone());
+                semantics.alias_to_module.insert(alias, module);
+            }
+        }
+        if let Some(caps) = assign_re.captures(line) {
+            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+            if let Some(source_kind) = php_source_kind(rhs) {
+                semantics.tainted_identifiers.insert(format!("${ident}"), source_kind.to_string());
+                semantics.tainted_identifiers.insert(ident, source_kind.to_string());
+            } else {
+                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$' || c == '>' || c == '[' || c == ']')) {
+                    if let Some(source_kind) = semantics.tainted_identifiers.get(token).cloned() {
+                        semantics.tainted_identifiers.insert(format!("${ident}"), source_kind.clone());
+                        semantics.tainted_identifiers.insert(ident.clone(), source_kind);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    semantics
+}
+
+fn extract_swift(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {
+    let mut semantics = FileSemantics::default();
+    semantics.module_identity = path_module_identity(path, base_path, &[".swift"]);
+    let import_re = Regex::new(r#"^\s*import\s+([A-Za-z_][A-Za-z0-9_]*)"#).unwrap();
+    for raw_line in source.lines() {
+        let line = raw_line.split("//").next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(caps) = import_re.captures(line) {
+            let module = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !module.is_empty() {
+                semantics.imported_modules.insert(module.clone());
+                semantics.alias_to_module.insert(module.clone(), module.clone());
+                if module == "GoogleGenerativeAI" {
+                    semantics.frameworks.insert("gemini".into());
+                }
+                if module == "Vision" || module == "CoreML" {
+                    semantics.frameworks.insert("apple_coreml".into());
+                }
+                if module == "WebKit" {
+                    semantics.frameworks.insert("webkit".into());
+                }
+            }
+        }
+    }
+    semantics
+}
+
+fn extract_scala(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {
+    let mut semantics = FileSemantics::default();
+    semantics.module_identity = path_module_identity(path, base_path, &[".scala"]);
+    let import_re = Regex::new(r#"^\s*import\s+([A-Za-z_][A-Za-z0-9_\.{}]+)"#).unwrap();
+    let assign_re = Regex::new(r#"^\s*(?:val|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$"#).unwrap();
+    for raw_line in source.lines() {
+        let line = raw_line.split("//").next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(caps) = import_re.captures(line) {
+            let module = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim_end_matches("._").to_string();
+            if !module.is_empty() {
+                semantics.imported_modules.insert(module.clone());
+                if module.contains("play.api") {
+                    semantics.frameworks.insert("play".into());
+                }
+                if module.contains("scalaj.http") {
+                    semantics.frameworks.insert("scalaj".into());
+                }
+                if module.contains("dispatch") {
+                    semantics.frameworks.insert("dispatch".into());
+                }
+            }
+        }
+        if let Some(caps) = assign_re.captures(line) {
+            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+            if let Some(source_kind) = scala_source_kind(rhs) {
+                semantics.tainted_identifiers.insert(ident, source_kind.to_string());
+            }
+        }
+    }
+    semantics
+}
+
+fn extract_c(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {
+    let mut semantics = FileSemantics::default();
+    semantics.module_identity = path_module_identity(path, base_path, &[".c", ".h"]);
+    let include_re = Regex::new(r#"^\s*#include\s+[<"]([^>"]+)[>"]"#).unwrap();
+    let assign_re = Regex::new(r#"^\s*(?:char\s*\*|const\s+char\s*\*|int\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap();
+    for raw_line in source.lines() {
+        let line = raw_line.split("//").next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(caps) = include_re.captures(line) {
+            let module = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !module.is_empty() {
+                semantics.imported_modules.insert(module);
+            }
+        }
+        if let Some(caps) = assign_re.captures(line) {
+            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+            if let Some(source_kind) = c_source_kind(rhs) {
+                semantics.tainted_identifiers.insert(ident, source_kind.to_string());
+            }
+        }
+    }
+    semantics
+}
+
+fn extract_bash(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {
+    let mut semantics = FileSemantics::default();
+    semantics.module_identity = path_module_identity(path, base_path, &[".sh", ".bash"]);
+    let assign_re = Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*)=(.+?)\s*$"#).unwrap();
+    for raw_line in source.lines() {
+        let line = raw_line.split('#').next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(caps) = assign_re.captures(line) {
+            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+            if let Some(source_kind) = bash_source_kind(rhs) {
+                semantics.tainted_identifiers.insert(format!("${ident}"), source_kind.to_string());
+                semantics.tainted_identifiers.insert(ident, source_kind.to_string());
+            } else {
+                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$')) {
+                    if let Some(source_kind) = semantics.tainted_identifiers.get(token).cloned() {
+                        semantics.tainted_identifiers.insert(format!("${ident}"), source_kind.clone());
+                        semantics.tainted_identifiers.insert(ident.clone(), source_kind);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    semantics
+}
+
 fn go_module_identity(path: Option<&Path>, base_path: Option<&Path>) -> Option<String> {
     path_module_identity(path, base_path, &[".go"]).map(|identity| {
         identity.rsplit_once('.')
             .map(|(module, _)| module.to_string())
             .unwrap_or(identity)
+    })
+}
+
+fn rust_module_identity(path: Option<&Path>, base_path: Option<&Path>) -> Option<String> {
+    path_module_identity(path, base_path, &[".rs"]).map(|identity| {
+        if identity.ends_with(".mod") {
+            identity.trim_end_matches(".mod").to_string()
+        } else {
+            identity
+        }
     })
 }
 
@@ -1318,6 +1619,23 @@ fn go_param_name(param: &str) -> Option<String> {
     tokens.first()
         .map(|name| name.trim_start_matches("...").to_string())
         .filter(|name| !name.is_empty())
+}
+
+fn rust_param_name(param: &str) -> Option<String> {
+    let cleaned = param.split('=').next()?.trim();
+    let name = cleaned.split(':').next()?.trim();
+    let name = name
+        .trim_start_matches("mut ")
+        .trim_start_matches('&')
+        .trim_start_matches("mut ")
+        .trim();
+    if name == "self" || name == "&self" || name == "&mut self" {
+        return None;
+    }
+    if name.is_empty() {
+        return None;
+    }
+    Some(name.to_string())
 }
 
 fn resolve_go_call_target(
@@ -1332,6 +1650,137 @@ fn resolve_go_call_target(
             Some(format!("{module}::{method}"))
         }
         None => {
+            let local_target = format!("{module_identity}::{head}");
+            if semantics.function_definitions.contains_key(&local_target) {
+                return Some(local_target);
+            }
+            None
+        }
+    }
+}
+
+fn record_rust_imports(
+    semantics: &mut FileSemantics,
+    raw_import: &str,
+    module_identity: &str,
+) {
+    if let Some(prefix) = raw_import.strip_suffix("::*") {
+        let module = resolve_rust_import_target(prefix.trim(), module_identity);
+        if !module.is_empty() {
+            semantics.imported_modules.insert(module.clone());
+            if let Some(alias) = module.rsplit('.').next() {
+                semantics.alias_to_module.insert(alias.to_string(), module.clone());
+            }
+            tag_rust_frameworks(semantics, &module);
+        }
+        return;
+    }
+
+    if let Some((prefix, suffix)) = raw_import.rsplit_once("::{") {
+        let base = resolve_rust_import_target(prefix.trim(), module_identity);
+        let suffix = suffix.trim_end_matches('}');
+        for item in suffix.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+            let (symbol, alias) = match item.split_once(" as ") {
+                Some((symbol, alias)) => (symbol.trim(), alias.trim()),
+                None => (item, item.rsplit("::").next().unwrap_or(item)),
+            };
+            let qualified = format!("{base}.{}", symbol.replace("::", "."));
+            semantics.imported_symbols.insert(alias.to_string(), qualified.clone());
+            semantics.alias_to_module.insert(alias.to_string(), qualified);
+        }
+        semantics.imported_modules.insert(base.clone());
+        tag_rust_frameworks(semantics, &base);
+        return;
+    }
+
+    let (target, alias) = match raw_import.rsplit_once(" as ") {
+        Some((target, alias)) => (target.trim(), Some(alias.trim())),
+        None => (raw_import.trim(), None),
+    };
+    let qualified = resolve_rust_import_target(target, module_identity);
+    if qualified.is_empty() {
+        return;
+    }
+    semantics.imported_modules.insert(qualified.clone());
+    let tail = target.rsplit("::").next().unwrap_or(target);
+    let alias = alias.unwrap_or(tail);
+    if target.contains("::") && tail.chars().next().is_some_and(|c| c.is_ascii_lowercase()) {
+        semantics.imported_symbols.insert(alias.to_string(), qualified.clone());
+    }
+    semantics.alias_to_module.insert(alias.to_string(), qualified.clone());
+    tag_rust_frameworks(semantics, &qualified);
+}
+
+fn resolve_rust_import_target(raw_import: &str, module_identity: &str) -> String {
+    let raw_import = raw_import.trim();
+    if let Some(rest) = raw_import.strip_prefix("crate::") {
+        let crate_root = module_identity.split('.').next().unwrap_or(module_identity);
+        return if rest.is_empty() {
+            crate_root.to_string()
+        } else {
+            format!("{crate_root}.{}", rest.replace("::", "."))
+        };
+    }
+    if raw_import == "self" {
+        return module_identity.to_string();
+    }
+    if let Some(rest) = raw_import.strip_prefix("self::") {
+        let mut parts: Vec<&str> = module_identity.split('.').collect();
+        parts.pop();
+        let mut base = parts.join(".");
+        if !base.is_empty() && !rest.is_empty() {
+            base.push('.');
+        }
+        return format!("{base}{}", rest.replace("::", "."));
+    }
+    if let Some(rest) = raw_import.strip_prefix("super::") {
+        let mut parts: Vec<&str> = module_identity.split('.').collect();
+        parts.pop();
+        if !parts.is_empty() {
+            parts.pop();
+        }
+        let mut base = parts.join(".");
+        if !base.is_empty() && !rest.is_empty() {
+            base.push('.');
+        }
+        return format!("{base}{}", rest.replace("::", "."));
+    }
+    raw_import.replace("::", ".")
+}
+
+fn tag_rust_frameworks(semantics: &mut FileSemantics, import: &str) {
+    if import.contains("actix_web") {
+        semantics.frameworks.insert("actix".into());
+    }
+    if import.contains("axum") {
+        semantics.frameworks.insert("axum".into());
+    }
+    if import.contains("rocket") {
+        semantics.frameworks.insert("rocket".into());
+    }
+    if import.contains("reqwest") {
+        semantics.frameworks.insert("reqwest".into());
+    }
+}
+
+fn resolve_rust_call_target(
+    semantics: &FileSemantics,
+    module_identity: &str,
+    head: &str,
+    member: Option<&str>,
+) -> Option<String> {
+    match member {
+        Some(method) => {
+            if let Some(imported) = semantics.imported_symbols.get(head) {
+                return Some(format!("{}::{method}", imported.replace('.', "::")));
+            }
+            let module = semantics.alias_to_module.get(head)?;
+            Some(format!("{}::{method}", module.replace('.', "::")))
+        }
+        None => {
+            if let Some(imported) = semantics.imported_symbols.get(head) {
+                return Some(qualified_symbol_identity(imported));
+            }
             let local_target = format!("{module_identity}::{head}");
             if semantics.function_definitions.contains_key(&local_target) {
                 return Some(local_target);
@@ -1455,6 +1904,70 @@ fn go_source_kind(rhs: &str) -> Option<&'static str> {
     }
     if compact.contains("r.URL.Query().Get(") {
         return Some("go.http.query");
+    }
+    None
+}
+
+fn rust_source_kind(rhs: &str) -> Option<&'static str> {
+    let compact: String = rhs.chars().filter(|c| !c.is_whitespace()).collect();
+    if compact.contains("std::env::args()") {
+        return Some("rust.env.args");
+    }
+    if compact.contains("std::env::args_os()") {
+        return Some("rust.env.args_os");
+    }
+    if compact.contains("std::env::var(") || compact.contains("std::env::var_os(") {
+        return Some("rust.env.var");
+    }
+    None
+}
+
+fn php_source_kind(rhs: &str) -> Option<&'static str> {
+    let compact: String = rhs.chars().filter(|c| !c.is_whitespace()).collect();
+    if compact.contains("$_GET[") || compact.contains("$_GET") {
+        return Some("php.request.get");
+    }
+    if compact.contains("$_POST[") || compact.contains("$_POST") {
+        return Some("php.request.post");
+    }
+    if compact.contains("$_REQUEST[") || compact.contains("$_REQUEST") {
+        return Some("php.request.request");
+    }
+    if compact.contains("$_COOKIE[") || compact.contains("$_COOKIE") {
+        return Some("php.request.cookie");
+    }
+    None
+}
+
+fn scala_source_kind(rhs: &str) -> Option<&'static str> {
+    let compact: String = rhs.chars().filter(|c| !c.is_whitespace()).collect();
+    if compact.contains("request.getParameter(") || compact.contains("request.getQueryString(") {
+        return Some("scala.http.request_parameter");
+    }
+    if compact.contains("request.queryString") {
+        return Some("scala.http.query_string");
+    }
+    None
+}
+
+fn c_source_kind(rhs: &str) -> Option<&'static str> {
+    let compact: String = rhs.chars().filter(|c| !c.is_whitespace()).collect();
+    if compact.contains("argv[") {
+        return Some("c.argv");
+    }
+    if compact.contains("getenv(") {
+        return Some("c.getenv");
+    }
+    None
+}
+
+fn bash_source_kind(rhs: &str) -> Option<&'static str> {
+    let compact: String = rhs.chars().filter(|c| !c.is_whitespace()).collect();
+    if compact.contains("$1") || compact.contains("${1}") {
+        return Some("bash.positional_arg");
+    }
+    if compact.contains("$@") || compact.contains("$*") {
+        return Some("bash.positional_args");
     }
     None
 }
@@ -1588,6 +2101,81 @@ mod tests {
         assert!(semantics.tainted_calls.iter().any(|(target, idx, kind)|
             target == "app/helper::Run" && *idx == 0 && kind == "go.http.query"
         ));
+    }
+
+    #[test]
+    fn rust_module_function_identities_and_tainted_calls_are_resolved() {
+        use std::path::Path;
+        let source = r#"
+            use crate::helper::run;
+            fn entry() {
+                let user = std::env::args().nth(1);
+                run(user);
+            }
+        "#;
+        let semantics = extract_with_context(
+            Lang::Rust,
+            source,
+            Some(Path::new("/repo/src/main.rs")),
+            Some(Path::new("/repo")),
+        );
+        assert_eq!(semantics.module_identity.as_deref(), Some("src.main"));
+        assert_eq!(semantics.imported_symbols.get("run").map(String::as_str), Some("src.helper.run"));
+        assert_eq!(semantics.tainted_identifiers.get("user").map(String::as_str), Some("rust.env.args"));
+        assert!(semantics.tainted_calls.iter().any(|(target, idx, kind)|
+            target == "src.helper::run" && *idx == 0 && kind == "rust.env.args"
+        ));
+    }
+
+    #[test]
+    fn rust_use_groups_and_frameworks_are_extracted() {
+        let source = r#"
+            use reqwest::{Client, header::HeaderMap};
+            use axum as web;
+        "#;
+        let semantics = extract(Lang::Rust, source);
+        assert_eq!(semantics.imported_symbols.get("Client").map(String::as_str), Some("reqwest.Client"));
+        assert_eq!(semantics.imported_symbols.get("HeaderMap").map(String::as_str), Some("reqwest.header.HeaderMap"));
+        assert!(semantics.frameworks.contains("reqwest"));
+        assert!(semantics.frameworks.contains("axum"));
+        assert_eq!(semantics.alias_to_module.get("web").map(String::as_str), Some("axum"));
+    }
+
+    #[test]
+    fn php_request_sources_are_extracted() {
+        let source = "$name = $_GET['name'];\n";
+        let semantics = extract(Lang::Php, source);
+        assert_eq!(semantics.tainted_identifiers.get("name").map(String::as_str), Some("php.request.get"));
+        assert_eq!(semantics.tainted_identifiers.get("$name").map(String::as_str), Some("php.request.get"));
+    }
+
+    #[test]
+    fn swift_imports_are_extracted() {
+        let source = "import GoogleGenerativeAI\nimport Vision\n";
+        let semantics = extract(Lang::Swift, source);
+        assert!(semantics.frameworks.contains("gemini"));
+        assert!(semantics.frameworks.contains("apple_coreml"));
+    }
+
+    #[test]
+    fn scala_request_sources_are_extracted() {
+        let source = "val url = request.getParameter(\"url\")\n";
+        let semantics = extract(Lang::Scala, source);
+        assert_eq!(semantics.tainted_identifiers.get("url").map(String::as_str), Some("scala.http.request_parameter"));
+    }
+
+    #[test]
+    fn c_argv_sources_are_extracted() {
+        let source = "char *value = argv[1];\n";
+        let semantics = extract(Lang::C, source);
+        assert_eq!(semantics.tainted_identifiers.get("value").map(String::as_str), Some("c.argv"));
+    }
+
+    #[test]
+    fn bash_positional_sources_are_extracted() {
+        let source = "cmd=$1\n";
+        let semantics = extract(Lang::Bash, source);
+        assert_eq!(semantics.tainted_identifiers.get("cmd").map(String::as_str), Some("bash.positional_arg"));
     }
 
     #[test]

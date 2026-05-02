@@ -685,6 +685,178 @@ fn ruby_content_tag_params_is_sink_labeled() {
 }
 
 #[test]
+fn rust_args_is_sink_labeled() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules  = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("main.rs");
+    fs::write(
+        &src,
+        r#"
+fn run() {
+    let _args = std::env::args();
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-RUST-ARGS\""))
+        .stdout(predicate::str::contains("\"sink_kind\": \"rust.env.args\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn rust_unsafe_usage_is_sink_labeled() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules  = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("main.rs");
+    fs::write(
+        &src,
+        "fn run() { unsafe { core::ptr::read_volatile(0 as *const u8); } }\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-RUST-UNSAFE_USAGE\""))
+        .stdout(predicate::str::contains("\"sink_kind\": \"rust.unsafe_block\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn php_assert_get_is_sink_labeled() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("php-assert.yml"),
+        r#"
+id:        CBR-PHP-ASSERT_USE_AUDIT
+title:     "Assert Use Audit"
+severity:  critical
+languages: ['php']
+message: |
+  Calling assert with user input is equivalent to eval'ing.
+regex: 'assert\(.+\)'
+"#,
+    ).unwrap();
+    let src = tmp.path().join("index.php");
+    fs::write(
+        &src,
+        "<?php $payload = $_GET['payload']; assert($payload);",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-PHP-ASSERT_USE_AUDIT\""))
+        .stdout(predicate::str::contains("\"sink_kind\": \"php.assert\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"php.request.get\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn swift_insecure_random_is_sink_labeled() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules  = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("main.swift");
+    fs::write(
+        &src,
+        "func run() { _ = random() }\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-SWIF-INSECURE_RANDOM\""))
+        .stdout(predicate::str::contains("\"sink_kind\": \"swift.random\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn scala_ssrf_request_param_is_sink_labeled() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules  = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("Demo.scala");
+    fs::write(
+        &src,
+        "object Demo { def run(request: Request) = { val u = request.getParameter(\"url\"); url(u) } }\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-SCAL-DISPATCH_SSRF\""))
+        .stdout(predicate::str::contains("\"sink_kind\": \"scala.dispatch.url\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"scala.http.request_parameter\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn c_printf_argv_is_sink_labeled() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules  = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("main.c");
+    fs::write(
+        &src,
+        "int main(int argc, char **argv) { printf(argv[1]); }\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-C-INFO_LEAK_ON_NON_FORMATED_STRI\""))
+        .stdout(predicate::str::contains("\"sink_kind\": \"c.printf\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"c.argv\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn bash_eval_positional_arg_is_sink_labeled() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("bash-eval.yml"),
+        r#"
+id:        CBR-BASH-HOOKS_NO_INPUT_VALIDATION_BASH
+title:     "Hooks No Input Validation Bash"
+severity:  high
+languages: ['bash']
+message: |
+  Piping untrusted input directly to eval is dangerous.
+regex: 'eval'
+"#,
+    ).unwrap();
+    let src = tmp.path().join("hook.sh");
+    fs::write(
+        &src,
+        "cmd=$1\neval $cmd\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-BASH-HOOKS_NO_INPUT_VALIDATION_BASH\""))
+        .stdout(predicate::str::contains("\"sink_kind\": \"bash.eval\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"bash.positional_arg\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
 fn ruby_raw_later_assignment_does_not_backpropagate_taint() {
     use std::fs;
     let tmp = tempfile::tempdir().unwrap();

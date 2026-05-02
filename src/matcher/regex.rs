@@ -361,7 +361,63 @@ fn annotate_regex_finding(
     evidence.insert("matcher_kind".into(), serde_json::json!("regex"));
 
     let sink_kind = match rule.id.as_str() {
+        "CBR-PHP-ASSERT_USE_AUDIT" => Some("php.assert"),
+        "CBR-PHP-BACKTICKS_USE" => Some("php.backticks"),
+        "CBR-PHP-EVAL_USE" => Some("php.eval"),
+        "CBR-PHP-EXEC_USE" => Some("php.exec"),
+        "CBR-PHP-FTP_USE" => Some("php.ftp"),
+        "CBR-PHP-MB_EREG_REPLACE_EVAL" => Some("php.mb_ereg_replace"),
+        "CBR-PHP-OPENSSL_DECRYPT_VALIDATE" => Some("php.openssl_decrypt"),
+        "CBR-PHP-PHP_PERMISSIVE_CORS" => Some("php.header"),
+        "CBR-PHP-PHPINFO_USE" => Some("php.phpinfo"),
+        "CBR-PHP-SYMFONY_NON_LITERAL_REDIRECT" => Some("php.redirect"),
+        "CBR-PHP-UNLINK_USE" => Some("php.unlink"),
+        "CBR-PHP-UNSERIALIZE_USE" => Some("php.unserialize"),
+        "CBR-PHP-WP_OPEN_REDIRECT_AUDIT" => Some("wordpress.redirect"),
+        "CBR-SWIF-DETECT_APPLE_CORE_ML" => Some("swift.coreml"),
+        "CBR-SWIF-DETECT_GEMINI" => Some("swift.gemini"),
+        "CBR-SWIF-INSECURE_RANDOM" => Some("swift.random"),
+        "CBR-SWIF-SWIFT_WEBVIEW_CONFIG_ALLOWS_JS" => Some("swift.webkit.preferences"),
+        "CBR-SCAL-DANGEROUS_SEQ_RUN" => Some("scala.process.seq"),
+        "CBR-SCAL-DANGEROUS_SHELL_RUN" => Some("scala.process.shell"),
+        "CBR-SCAL-DISPATCH_SSRF" => Some("scala.dispatch.url"),
+        "CBR-SCAL-INSECURE_RANDOM" => Some("scala.random"),
+        "CBR-SCAL-NO_NULL_CIPHER" => Some("scala.null_cipher"),
+        "CBR-SCAL-RSA_PADDING_SET" => Some("scala.cipher.get_instance"),
+        "CBR-SCAL-SCALA_JWT_HARDCODED_SECRET" => Some("scala.jwt.hmac256"),
+        "CBR-SCAL-SCALA_SLICK_OVERRIDESQL_LITERA" => Some("scala.slick.override_sql"),
+        "CBR-SCAL-SCALA_SLICK_SQL_NON_LITERAL" => Some("scala.slick.sql"),
+        "CBR-SCAL-SCALAJ_HTTP_SSRF" => Some("scala.scalaj.http"),
+        "CBR-SCAL-WEBSERVICE_SSRF" => Some("scala.ws.url"),
+        "CBR-C-C_STRING_EQUALITY" => Some("c.string_pointer_equality"),
+        "CBR-C-DOUBLE_GOTO" => Some("c.goto"),
+        "CBR-C-INCORRECT_USE_ATO_FN" => Some("c.atoi"),
+        "CBR-C-INCORRECT_USE_SSCANF_FN" => Some("c.sscanf"),
+        "CBR-C-INFO_LEAK_ON_NON_FORMATED_STRI" => Some("c.printf"),
+        "CBR-C-INSECURE_USE_GETS_FN" => Some("c.gets"),
+        "CBR-C-INSECURE_USE_MEMSET" => Some("c.memset"),
+        "CBR-C-INSECURE_USE_SCANF_FN" => Some("c.scanf"),
+        "CBR-C-INSECURE_USE_STRCAT_FN" => Some("c.strcat"),
+        "CBR-C-INSECURE_USE_STRING_COPY_FN" => Some("c.strcpy"),
+        "CBR-C-INSECURE_USE_STRTOK_FN" => Some("c.strtok"),
+        "CBR-BASH-HOOKS_NO_INPUT_VALIDATION_BASH" => Some("bash.eval"),
+        "CBR-BASH-HOOKS_RELATIVE_SCRIPT_PATH_BAS" => Some("bash.relative_script"),
+        "CBR-BASH-HOOKS_UNQUOTED_VARIABLE_BASH_E" => Some("bash.eval"),
+        "CBR-BASH-IFS_TAMPERING" => Some("bash.ifs"),
+        "CBR-BASH-ITERATION_OVER_LS_OUTPUT" => Some("bash.for_loop"),
+        "CBR-BASH-UNQUOTED_COMMAND_SUBSTITUTION_" => Some("bash.command_substitution"),
+        "CBR-BASH-USELESS_CAT" => Some("bash.cat"),
         "CBR-JS-REACT-DANGEROUS-HTML" => Some("react.dangerously_set_inner_html"),
+        "CBR-RUST-ARGS" => Some("rust.env.args"),
+        "CBR-RUST-ARGS_OS" => Some("rust.env.args_os"),
+        "CBR-RUST-CURRENT_EXE" => Some("rust.env.current_exe"),
+        "CBR-RUST-INSECURE_HASHES" => Some("rust.crypto.insecure_hash"),
+        "CBR-RUST-REQWEST_ACCEPT_INVALID" => Some("rust.reqwest.danger_accept_invalid_hostnames"),
+        "CBR-RUST-REQWEST_SET_SENSITIVE" => Some("rust.reqwest.header_insert"),
+        "CBR-RUST-RUSTLS_DANGEROUS" => Some("rust.rustls.dangerous_client_config"),
+        "CBR-RUST-SSL_VERIFY_NONE" => Some("rust.openssl.ssl_verify_none"),
+        "CBR-RUST-TEMP_DIR" => Some("rust.env.temp_dir"),
+        "CBR-RUST-UNSAFE_USAGE" => Some("rust.unsafe_block"),
         "CBR-RUBY-AVOID_RAW" => Some("rails.raw"),
         "CBR-RUBY-AVOID_HTML_SAFE" => Some("rails.html_safe"),
         "CBR-RUBY-AVOID_RENDER_TEXT" => Some("rails.render_text"),
@@ -388,6 +444,122 @@ fn annotate_regex_finding(
     }
 
     match rule.id.as_str() {
+        "CBR-PHP-ASSERT_USE_AUDIT"
+        | "CBR-PHP-BACKTICKS_USE"
+        | "CBR-PHP-EVAL_USE"
+        | "CBR-PHP-EXEC_USE"
+        | "CBR-PHP-FTP_USE"
+        | "CBR-PHP-MB_EREG_REPLACE_EVAL"
+        | "CBR-PHP-OPENSSL_DECRYPT_VALIDATE"
+        | "CBR-PHP-PHP_PERMISSIVE_CORS"
+        | "CBR-PHP-PHPINFO_USE"
+        | "CBR-PHP-SYMFONY_NON_LITERAL_REDIRECT"
+        | "CBR-PHP-UNLINK_USE"
+        | "CBR-PHP-UNSERIALIZE_USE"
+        | "CBR-PHP-WP_OPEN_REDIRECT_AUDIT" => {
+            if semantics.frameworks.contains("laravel") {
+                evidence.insert("framework".into(), serde_json::json!("laravel"));
+            } else if semantics.frameworks.contains("symfony") {
+                evidence.insert("framework".into(), serde_json::json!("symfony"));
+            } else if semantics.frameworks.contains("wordpress") {
+                evidence.insert("framework".into(), serde_json::json!("wordpress"));
+            }
+            if let Some(source_kind) = regex_source_kind(lang, snippet, semantics) {
+                evidence.insert("path_sensitivity".into(), serde_json::json!("tainted"));
+                evidence.insert("source_kind".into(), serde_json::json!(source_kind));
+                return (evidence, Some("reachable".into()));
+            }
+            evidence.insert("path_sensitivity".into(), serde_json::json!("reachable"));
+            return (evidence, Some("reachable".into()));
+        }
+        "CBR-SWIF-DETECT_APPLE_CORE_ML"
+        | "CBR-SWIF-DETECT_GEMINI"
+        | "CBR-SWIF-INSECURE_RANDOM"
+        | "CBR-SWIF-SWIFT_WEBVIEW_CONFIG_ALLOWS_JS" => {
+            if semantics.frameworks.contains("gemini") {
+                evidence.insert("framework".into(), serde_json::json!("gemini"));
+            } else if semantics.frameworks.contains("apple_coreml") {
+                evidence.insert("framework".into(), serde_json::json!("apple_coreml"));
+            } else if semantics.frameworks.contains("webkit") {
+                evidence.insert("framework".into(), serde_json::json!("webkit"));
+            }
+            evidence.insert("path_sensitivity".into(), serde_json::json!("reachable"));
+            return (evidence, Some("reachable".into()));
+        }
+        "CBR-SCAL-DANGEROUS_SEQ_RUN"
+        | "CBR-SCAL-DANGEROUS_SHELL_RUN"
+        | "CBR-SCAL-DISPATCH_SSRF"
+        | "CBR-SCAL-INSECURE_RANDOM"
+        | "CBR-SCAL-NO_NULL_CIPHER"
+        | "CBR-SCAL-RSA_PADDING_SET"
+        | "CBR-SCAL-SCALA_JWT_HARDCODED_SECRET"
+        | "CBR-SCAL-SCALA_SLICK_OVERRIDESQL_LITERA"
+        | "CBR-SCAL-SCALA_SLICK_SQL_NON_LITERAL"
+        | "CBR-SCAL-SCALAJ_HTTP_SSRF"
+        | "CBR-SCAL-WEBSERVICE_SSRF" => {
+            if let Some(source_kind) = regex_source_kind(lang, snippet, semantics) {
+                evidence.insert("path_sensitivity".into(), serde_json::json!("tainted"));
+                evidence.insert("source_kind".into(), serde_json::json!(source_kind));
+                return (evidence, Some("reachable".into()));
+            }
+            if semantics.frameworks.contains("play") {
+                evidence.insert("framework".into(), serde_json::json!("play"));
+            } else if semantics.frameworks.contains("dispatch") {
+                evidence.insert("framework".into(), serde_json::json!("dispatch"));
+            } else if semantics.frameworks.contains("scalaj") {
+                evidence.insert("framework".into(), serde_json::json!("scalaj"));
+            }
+            evidence.insert("path_sensitivity".into(), serde_json::json!("reachable"));
+            return (evidence, Some("reachable".into()));
+        }
+        "CBR-C-C_STRING_EQUALITY"
+        | "CBR-C-DOUBLE_GOTO"
+        | "CBR-C-INCORRECT_USE_ATO_FN"
+        | "CBR-C-INCORRECT_USE_SSCANF_FN"
+        | "CBR-C-INFO_LEAK_ON_NON_FORMATED_STRI"
+        | "CBR-C-INSECURE_USE_GETS_FN"
+        | "CBR-C-INSECURE_USE_MEMSET"
+        | "CBR-C-INSECURE_USE_SCANF_FN"
+        | "CBR-C-INSECURE_USE_STRCAT_FN"
+        | "CBR-C-INSECURE_USE_STRING_COPY_FN"
+        | "CBR-C-INSECURE_USE_STRTOK_FN"
+        | "CBR-BASH-HOOKS_NO_INPUT_VALIDATION_BASH"
+        | "CBR-BASH-HOOKS_RELATIVE_SCRIPT_PATH_BAS"
+        | "CBR-BASH-HOOKS_UNQUOTED_VARIABLE_BASH_E"
+        | "CBR-BASH-IFS_TAMPERING"
+        | "CBR-BASH-ITERATION_OVER_LS_OUTPUT"
+        | "CBR-BASH-UNQUOTED_COMMAND_SUBSTITUTION_"
+        | "CBR-BASH-USELESS_CAT" => {
+            if let Some(source_kind) = regex_source_kind(lang, snippet, semantics) {
+                evidence.insert("path_sensitivity".into(), serde_json::json!("tainted"));
+                evidence.insert("source_kind".into(), serde_json::json!(source_kind));
+                return (evidence, Some("reachable".into()));
+            }
+            evidence.insert("path_sensitivity".into(), serde_json::json!("reachable"));
+            return (evidence, Some("reachable".into()));
+        }
+        "CBR-RUST-ARGS"
+        | "CBR-RUST-ARGS_OS"
+        | "CBR-RUST-CURRENT_EXE"
+        | "CBR-RUST-INSECURE_HASHES"
+        | "CBR-RUST-REQWEST_ACCEPT_INVALID"
+        | "CBR-RUST-REQWEST_SET_SENSITIVE"
+        | "CBR-RUST-RUSTLS_DANGEROUS"
+        | "CBR-RUST-SSL_VERIFY_NONE"
+        | "CBR-RUST-TEMP_DIR"
+        | "CBR-RUST-UNSAFE_USAGE" => {
+            if semantics.frameworks.contains("reqwest") {
+                evidence.insert("framework".into(), serde_json::json!("reqwest"));
+            } else if semantics.frameworks.contains("axum") {
+                evidence.insert("framework".into(), serde_json::json!("axum"));
+            } else if semantics.frameworks.contains("actix") {
+                evidence.insert("framework".into(), serde_json::json!("actix"));
+            } else if semantics.frameworks.contains("rocket") {
+                evidence.insert("framework".into(), serde_json::json!("rocket"));
+            }
+            evidence.insert("path_sensitivity".into(), serde_json::json!("reachable"));
+            return (evidence, Some("reachable".into()));
+        }
         "CBR-JS-REACT-DANGEROUS-HTML" => {
             evidence.insert("framework".into(), serde_json::json!("react"));
             if let Some(sanitizer_kind) = regex_sanitizer_kind(rule.id.as_str(), snippet) {
@@ -719,6 +891,60 @@ fn direct_regex_source_kind(lang: Lang, snippet: &str) -> Option<&'static str> {
             }
             if compact.contains("input(") {
                 return Some("python.input");
+            }
+        }
+        Lang::Rust => {
+            let compact: String = snippet.chars().filter(|c| !c.is_whitespace()).collect();
+            if compact.contains("std::env::args()") {
+                return Some("rust.env.args");
+            }
+            if compact.contains("std::env::args_os()") {
+                return Some("rust.env.args_os");
+            }
+            if compact.contains("std::env::var(") || compact.contains("std::env::var_os(") {
+                return Some("rust.env.var");
+            }
+        }
+        Lang::Php => {
+            let compact: String = snippet.chars().filter(|c| !c.is_whitespace()).collect();
+            if compact.contains("$_GET[") || compact.contains("$_GET") {
+                return Some("php.request.get");
+            }
+            if compact.contains("$_POST[") || compact.contains("$_POST") {
+                return Some("php.request.post");
+            }
+            if compact.contains("$_REQUEST[") || compact.contains("$_REQUEST") {
+                return Some("php.request.request");
+            }
+            if compact.contains("$_COOKIE[") || compact.contains("$_COOKIE") {
+                return Some("php.request.cookie");
+            }
+        }
+        Lang::Scala => {
+            let compact: String = snippet.chars().filter(|c| !c.is_whitespace()).collect();
+            if compact.contains("request.getParameter(") || compact.contains("request.getQueryString(") {
+                return Some("scala.http.request_parameter");
+            }
+            if compact.contains("request.queryString") {
+                return Some("scala.http.query_string");
+            }
+        }
+        Lang::C => {
+            let compact: String = snippet.chars().filter(|c| !c.is_whitespace()).collect();
+            if compact.contains("argv[") {
+                return Some("c.argv");
+            }
+            if compact.contains("getenv(") {
+                return Some("c.getenv");
+            }
+        }
+        Lang::Bash => {
+            let compact: String = snippet.chars().filter(|c| !c.is_whitespace()).collect();
+            if compact.contains("$1") || compact.contains("${1}") {
+                return Some("bash.positional_arg");
+            }
+            if compact.contains("$@") || compact.contains("$*") {
+                return Some("bash.positional_args");
             }
         }
         _ => {}
