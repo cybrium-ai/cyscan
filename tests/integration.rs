@@ -110,6 +110,79 @@ fn supply_no_advisories_flag_skips_osv() {
         .stdout(predicate::str::contains("GHSA-").not());
 }
 
+// ─── Type-resolution + framework-propagation tests (Gap 2 + 5 / A5 + B2) ──
+
+#[test]
+fn semantics_framework_filter_only_fires_in_matching_files() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("framework_only.yml"), r#"
+id: TEST-FW-DJANGO-ONLY
+title: "Django-only rule"
+severity: medium
+languages: [python]
+frameworks: [django]
+regex: "FORBIDDEN"
+message: "matched"
+"#).unwrap();
+
+    let django_file = tmp.path().join("with_django.py");
+    fs::write(&django_file, "from django.shortcuts import redirect\nFORBIDDEN\n").unwrap();
+    let plain_file = tmp.path().join("plain.py");
+    fs::write(&plain_file, "FORBIDDEN\n").unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let arr = json.as_array().unwrap();
+    let hits: Vec<&serde_json::Value> = arr.iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-FW-DJANGO-ONLY"))
+        .collect();
+
+    // Must fire exactly once — on the django file only.
+    assert_eq!(hits.len(), 1, "framework filter should fire only in django file, got {} hits", hits.len());
+    let hit = hits[0];
+    assert!(
+        hit["file"].as_str().unwrap_or("").contains("with_django.py"),
+        "django hit should be on with_django.py",
+    );
+    let fw = &hit["evidence"]["framework"];
+    assert!(fw.is_array(), "evidence.framework should be array, got {:?}", fw);
+    assert_eq!(fw[0].as_str(), Some("django"));
+}
+
+#[test]
+fn semantics_extracts_imports_for_python() {
+    // Direct unit test through the public API. Confirms FileSemantics
+    // populates imported_modules + frameworks when it sees real Python.
+    let src = r#"
+from django.urls import path
+from django.shortcuts import redirect
+import yaml
+import requests
+
+def view(req):
+    target = req.GET.get("next")
+    return redirect(target)
+"#;
+    let s = cyscan::matcher::semantics::extract(cyscan::lang::Lang::Python, src);
+    assert!(s.imported_modules.contains("django.urls") || s.imported_modules.contains("django"),
+        "expected django imports, got {:?}", s.imported_modules);
+    assert!(s.imported_modules.contains("yaml"));
+    assert!(s.imported_modules.contains("requests"));
+    assert!(
+        s.frameworks.contains("django"),
+        "django framework should be detected from `from django.X import` lines, got {:?}", s.frameworks,
+    );
+}
+
 // ─── Reachability evidence tests (Gap 4 / C3) ───────────────────────────────
 
 #[test]
