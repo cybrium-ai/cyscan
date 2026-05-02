@@ -102,6 +102,22 @@ pub struct Rule {
     /// Capture type constraints such as `arg: string` or `fn: identifier`.
     #[serde(default)]
     pub metavariable_types: HashMap<String, String>,
+    /// Per-capture regex constraint — `{ arg: "^https?://" }`. The capture
+    /// must satisfy its regex for the match to fire. Semgrep parity for
+    /// `metavariable-regex`.
+    #[serde(default)]
+    pub metavariable_regex:   HashMap<String, String>,
+    /// Per-capture sub-pattern — `{ arg: "TAINTED" }`. The capture's text
+    /// must additionally contain a substring/regex matching the supplied
+    /// pattern. Semgrep parity for `metavariable-pattern` (regex form;
+    /// nested AST patterns deferred to a future release).
+    #[serde(default)]
+    pub metavariable_pattern: HashMap<String, String>,
+    /// Negative regex filter on the matched span. If any of these regexes
+    /// match the matched text, the finding is suppressed. Semgrep parity
+    /// for `pattern-not-regex`.
+    #[serde(default)]
+    pub pattern_not_regex:    Vec<String>,
     pub message:   String,
     #[serde(default)]
     pub fix_recipe: Option<String>,

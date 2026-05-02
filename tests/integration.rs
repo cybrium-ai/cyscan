@@ -110,6 +110,65 @@ fn supply_no_advisories_flag_skips_osv() {
         .stdout(predicate::str::contains("GHSA-").not());
 }
 
+// ─── Semgrep-max DSL parity (Phase B) ───────────────────────────────────────
+
+#[test]
+fn dsl_metavariable_regex_filters_capture() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("metavar_re.yml"), r#"
+id: TEST-MR
+title: "URL token"
+severity: low
+languages: [python]
+regex: "TOKEN_[A-Za-z0-9_]+"
+metavariable_regex:
+  match: "^TOKEN_[A-Z]{6,}$"
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), "x = TOKEN_short\ny = TOKEN_LONGENOUGH\n").unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TOKEN_LONGENOUGH"))
+        .stdout(predicate::str::contains("TOKEN_short").not());
+}
+
+#[test]
+fn dsl_pattern_not_regex_suppresses_matched_span() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("not_re.yml"), r#"
+id: TEST-PNR
+title: "Naked SELECT"
+severity: medium
+languages: [python]
+regex: "SELECT \\* FROM"
+pattern_not_regex:
+  - "WHERE id ="
+message: "matched"
+"#).unwrap();
+    let src = tmp.path().join("a.py");
+    fs::write(&src, "x = \"SELECT * FROM users\"\n").unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TEST-PNR"));
+
+    fs::write(&src, "x = \"SELECT * FROM users WHERE id = 1\"\n").unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TEST-PNR").not());
+}
+
 // ─── Inter-procedural dataflow tests (Gap A4) ───────────────────────────────
 
 #[test]

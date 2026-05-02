@@ -9,7 +9,11 @@ use regex::Regex;
 
 use crate::{finding::Finding, rule::Rule};
 
-use super::dsl::{metavariable_comparisons_match, metavariable_types_match, CaptureMeta};
+use super::dsl::{
+    metavariable_comparisons_match, metavariable_pattern_match,
+    metavariable_regex_match, metavariable_types_match,
+    pattern_not_regex_passes, CaptureMeta,
+};
 
 /// Convert semgrep-style AST pattern to regex.
 ///
@@ -146,6 +150,22 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
                 continue;
             }
             if !metavar_types.is_empty() && !metavariable_types_match(metavar_types, &captures) {
+                continue;
+            }
+            // Semgrep-max DSL parity: per-capture regex + sub-pattern,
+            // and matched-span negative regex.
+            if !metavariable_regex_match(&rule.metavariable_regex, &captures) {
+                continue;
+            }
+            if !metavariable_pattern_match(&rule.metavariable_pattern, &captures) {
+                continue;
+            }
+            // pattern_not_regex matches against the whole line so a
+            // rule like `regex: "SELECT * FROM"` + `pattern_not_regex:
+            // ["WHERE id ="]` correctly suppresses `SELECT * FROM
+            // users WHERE id = 1` even though the matched span itself
+            // doesn't carry the "WHERE id =" text.
+            if !pattern_not_regex_passes(&rule.pattern_not_regex, trimmed) {
                 continue;
             }
             out.push(Finding {

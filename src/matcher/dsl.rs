@@ -68,6 +68,53 @@ pub(super) fn metavariable_types_match<'a>(
     })
 }
 
+/// Per-capture regex match — Semgrep `metavariable-regex` parity.
+/// Returns true only when EVERY constraint is satisfied; an unknown
+/// capture or an unparseable regex causes failure for that pair.
+pub(super) fn metavariable_regex_match<'a>(
+    constraints: &HashMap<String, String>,
+    captures: &HashMap<String, CaptureMeta<'a>>,
+) -> bool {
+    if constraints.is_empty() { return true; }
+    constraints.iter().all(|(raw_name, pattern)| {
+        let name = raw_name.trim().trim_start_matches('$');
+        let Some(meta) = captures.get(name) else { return false };
+        match ::regex::Regex::new(pattern) {
+            Ok(re) => re.is_match(meta.text),
+            Err(_) => false,
+        }
+    })
+}
+
+/// Per-capture sub-pattern match — Semgrep `metavariable-pattern`
+/// parity (regex flavour). Tries substring first (cheap), then regex.
+/// Nested AST patterns are out of scope for this OSS engine and
+/// deferred to a future release.
+pub(super) fn metavariable_pattern_match<'a>(
+    constraints: &HashMap<String, String>,
+    captures: &HashMap<String, CaptureMeta<'a>>,
+) -> bool {
+    if constraints.is_empty() { return true; }
+    constraints.iter().all(|(raw_name, pattern)| {
+        let name = raw_name.trim().trim_start_matches('$');
+        let Some(meta) = captures.get(name) else { return false };
+        if meta.text.contains(pattern.as_str()) { return true; }
+        match ::regex::Regex::new(pattern) {
+            Ok(re) => re.is_match(meta.text),
+            Err(_) => false,
+        }
+    })
+}
+
+/// Matched-span negative regex filter — Semgrep `pattern-not-regex`
+/// parity. Returns true when the span SURVIVES the filter.
+pub(super) fn pattern_not_regex_passes(patterns: &[String], text: &str) -> bool {
+    if patterns.is_empty() { return true; }
+    !patterns.iter().any(|p| {
+        ::regex::Regex::new(p).map(|re| re.is_match(text)).unwrap_or(false)
+    })
+}
+
 fn split_comparison(expr: &str) -> Option<(&str, &'static str, &str)> {
     for op in [
         " starts_with ",
