@@ -141,33 +141,49 @@ fn js_clients(path: &Path, source: &str, out: &mut Vec<ClientCall>) {
     }
 }
 
-// JS / TS — handlers (Express, NestJS, Hono, Fastify)
+// JS / TS — handlers (Express, NestJS, Hono, Fastify) with class-level
+// path-prefix composition for NestJS @Controller("/users") + @Get(":id").
 fn js_handlers(path: &Path, source: &str, out: &mut Vec<ServerEndpoint>) {
     static EXPRESS: OnceLock<Regex> = OnceLock::new();
     static NEST_DECORATOR: OnceLock<Regex> = OnceLock::new();
-    static NEST_PATH: OnceLock<Regex> = OnceLock::new();
+    static NEST_CONTROLLER: OnceLock<Regex> = OnceLock::new();
+    static FASTIFY: OnceLock<Regex> = OnceLock::new();
+    static HONO: OnceLock<Regex> = OnceLock::new();
+    static CLASS_HEAD: OnceLock<Regex> = OnceLock::new();
 
     let express = EXPRESS.get_or_init(|| Regex::new(
-        r#"(?:app|router|server)\.(?P<m>get|post|put|patch|delete|head|options|all)\s*\(\s*['"`](?P<url>[^'"`]+)['"`]"#
+        r#"(?:app|router|server|fastify|hono)\.(?P<m>get|post|put|patch|delete|head|options|all)\s*\(\s*['"`](?P<url>[^'"`]+)['"`]"#
     ).unwrap());
     let nest_decorator = NEST_DECORATOR.get_or_init(|| Regex::new(
         r#"@(?P<m>Get|Post|Put|Patch|Delete|Head|Options)\s*\(\s*(?:['"`](?P<url>[^'"`]+)['"`])?\s*\)"#
     ).unwrap());
-    let nest_path = NEST_PATH.get_or_init(|| Regex::new(
+    let nest_controller = NEST_CONTROLLER.get_or_init(|| Regex::new(
         r#"@Controller\s*\(\s*['"`](?P<url>[^'"`]+)['"`]"#
     ).unwrap());
+    let _ = FASTIFY.get_or_init(|| Regex::new("").unwrap());
+    let _ = HONO.get_or_init(|| Regex::new("").unwrap());
+    let class_head = CLASS_HEAD.get_or_init(|| Regex::new(
+        r#"\bclass\s+[A-Za-z_$][A-Za-z_0-9$]*"#
+    ).unwrap());
+
+    let mut current_prefix = String::new();
+    let mut pending_prefix: Option<String> = None;
 
     for (i, line) in source.lines().enumerate() {
+        if let Some(c) = nest_controller.captures(line) {
+            pending_prefix = Some(c["url"].to_string());
+        }
+        if class_head.is_match(line) {
+            current_prefix = pending_prefix.take().unwrap_or_default();
+        }
+
         for c in express.captures_iter(line) {
             push_handler(out, path, i+1, "javascript", "express", &c["m"], &c["url"]);
         }
         for c in nest_decorator.captures_iter(line) {
             let url = c.name("url").map(|x| x.as_str()).unwrap_or("/");
-            push_handler(out, path, i+1, "javascript", "nestjs", &c["m"], url);
-        }
-        for c in nest_path.captures_iter(line) {
-            // @Controller declares a base path — record as ANY/<path>.
-            push_handler(out, path, i+1, "javascript", "nestjs", "ANY", &c["url"]);
+            let composed = compose_path(&current_prefix, url);
+            push_handler(out, path, i+1, "javascript", "nestjs", &c["m"], &composed);
         }
     }
 }
@@ -195,10 +211,13 @@ fn csharp_clients(path: &Path, source: &str, out: &mut Vec<ClientCall>) {
     }
 }
 
-// C# — handlers (ASP.NET Core attributes + minimal API)
+// C# — handlers (ASP.NET Core attributes + minimal API) with class-level
+// [Route("/api/users")] composition.
 fn csharp_handlers(path: &Path, source: &str, out: &mut Vec<ServerEndpoint>) {
     static ATTR: OnceLock<Regex> = OnceLock::new();
     static MINIMAL: OnceLock<Regex> = OnceLock::new();
+    static CLASS_ROUTE: OnceLock<Regex> = OnceLock::new();
+    static CLASS_HEAD: OnceLock<Regex> = OnceLock::new();
 
     let attr = ATTR.get_or_init(|| Regex::new(
         r#"\[Http(?P<m>Get|Post|Put|Patch|Delete|Head|Options)\s*(?:\(\s*"(?P<url>[^"]+)"\s*\))?\]"#
@@ -206,11 +225,28 @@ fn csharp_handlers(path: &Path, source: &str, out: &mut Vec<ServerEndpoint>) {
     let minimal = MINIMAL.get_or_init(|| Regex::new(
         r#"app\.Map(?P<m>Get|Post|Put|Patch|Delete)\s*\(\s*"(?P<url>[^"]+)""#
     ).unwrap());
+    let class_route = CLASS_ROUTE.get_or_init(|| Regex::new(
+        r#"\[Route\s*\(\s*"(?P<url>[^"]+)"\s*\)\]"#
+    ).unwrap());
+    let class_head = CLASS_HEAD.get_or_init(|| Regex::new(
+        r#"\bclass\s+[A-Za-z_][A-Za-z_0-9]*"#
+    ).unwrap());
+
+    let mut current_prefix = String::new();
+    let mut pending_prefix: Option<String> = None;
 
     for (i, line) in source.lines().enumerate() {
+        if let Some(c) = class_route.captures(line) {
+            pending_prefix = Some(c["url"].to_string());
+        }
+        if class_head.is_match(line) {
+            current_prefix = pending_prefix.take().unwrap_or_default();
+        }
+
         for c in attr.captures_iter(line) {
             let url = c.name("url").map(|x| x.as_str()).unwrap_or("/");
-            push_handler(out, path, i+1, "csharp", "aspnet", &c["m"], url);
+            let composed = compose_path(&current_prefix, url);
+            push_handler(out, path, i+1, "csharp", "aspnet", &c["m"], &composed);
         }
         for c in minimal.captures_iter(line) {
             push_handler(out, path, i+1, "csharp", "aspnet-minimal", &c["m"], &c["url"]);
@@ -251,10 +287,16 @@ fn java_clients(path: &Path, source: &str, out: &mut Vec<ClientCall>) {
     }
 }
 
-// Java — handlers (Spring MVC)
+// Java — handlers (Spring MVC, path-prefix-aware)
+//
+// Spring lets you put a class-level @RequestMapping("/api") that
+// composes with method-level @PostMapping("/users") to produce
+// "/api/users". We track the class-level prefix as we walk the file.
 fn java_handlers(path: &Path, source: &str, out: &mut Vec<ServerEndpoint>) {
     static MAPPING: OnceLock<Regex> = OnceLock::new();
     static REQUEST_MAPPING: OnceLock<Regex> = OnceLock::new();
+    static CLASS_HEAD: OnceLock<Regex> = OnceLock::new();
+    static CLASS_LEVEL_MAPPING: OnceLock<Regex> = OnceLock::new();
 
     let mapping = MAPPING.get_or_init(|| Regex::new(
         r#"@(?P<m>Get|Post|Put|Patch|Delete|Head|Options)Mapping\s*(?:\(\s*(?:value\s*=\s*)?"(?P<url>[^"]+)")?"#
@@ -262,15 +304,39 @@ fn java_handlers(path: &Path, source: &str, out: &mut Vec<ServerEndpoint>) {
     let request_mapping = REQUEST_MAPPING.get_or_init(|| Regex::new(
         r#"@RequestMapping\s*\(\s*(?:value\s*=\s*)?"(?P<url>[^"]+)"(?:[^)]*method\s*=\s*RequestMethod\.(?P<m>[A-Z]+))?"#
     ).unwrap());
+    let class_head = CLASS_HEAD.get_or_init(|| Regex::new(
+        r#"\bclass\s+[A-Za-z_][A-Za-z_0-9]*"#
+    ).unwrap());
+    let class_level_mapping = CLASS_LEVEL_MAPPING.get_or_init(|| Regex::new(
+        r#"@RequestMapping\s*\(\s*(?:value\s*=\s*)?"(?P<url>[^"]+)""#
+    ).unwrap());
+
+    let mut current_prefix = String::new();
+    let mut pending_class_prefix: Option<String> = None;
 
     for (i, line) in source.lines().enumerate() {
+        // Stash a class-level @RequestMapping so the next `class` line
+        // adopts it as its prefix. Skip when the line also contains a
+        // method= clause — that's a method-level mapping, not class.
+        if !line.contains("method") && !line.contains("Mapping(method") {
+            if let Some(c) = class_level_mapping.captures(line) {
+                pending_class_prefix = Some(c["url"].to_string());
+            }
+        }
+        // When we see a class header, lock in the prefix.
+        if class_head.is_match(line) {
+            current_prefix = pending_class_prefix.take().unwrap_or_default();
+        }
+
         for c in mapping.captures_iter(line) {
             let url = c.name("url").map(|x| x.as_str()).unwrap_or("/");
-            push_handler(out, path, i+1, "java", "spring", &c["m"], url);
+            let composed = compose_path(&current_prefix, url);
+            push_handler(out, path, i+1, "java", "spring", &c["m"], &composed);
         }
         for c in request_mapping.captures_iter(line) {
             let m = c.name("m").map(|x| x.as_str()).unwrap_or("ANY");
-            push_handler(out, path, i+1, "java", "spring", m, &c["url"]);
+            let composed = compose_path(&current_prefix, &c["url"]);
+            push_handler(out, path, i+1, "java", "spring", m, &composed);
         }
     }
 }
@@ -363,4 +429,19 @@ fn push_handler(
         normalised_path: normalise_path(url),
         handler_name:    None,
     });
+}
+
+/// Compose a class-level path prefix with a method-level relative
+/// path. Empty prefix returns the relative path as-is. Otherwise
+/// trims '/' boundaries so we never emit `/api//users`.
+pub(super) fn compose_path(prefix: &str, relative: &str) -> String {
+    let p = prefix.trim_end_matches('/').trim();
+    let r = relative.trim_start_matches('/').trim();
+    if p.is_empty() {
+        if relative.starts_with('/') { relative.into() } else { format!("/{r}") }
+    } else if r.is_empty() {
+        p.into()
+    } else {
+        format!("{p}/{r}")
+    }
 }

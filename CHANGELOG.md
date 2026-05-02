@@ -2,6 +2,18 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.17.0] — 2026-05-02
+
+### Added
+- **Cross-service evidence wired into scan-time findings.** Every finding inside an HTTP handler now carries `evidence.cross_service_callers` listing every controller / upstream caller that routes into it — even across language boundaries. A SQL-injection finding in `db.py:lookup` shows up tagged with the C# `AuthController.cs:Login` and the Java `UserService.java:login` that reach it. SARIF emission turns the list into `relatedLocations` so CodeQL-style viewers render the chain inline.
+- **Composite cross-service finding aggregation.** When the same `rule_id` fires inside both an HTTP handler and a controller that calls it, the scanner emits a synthetic `<RULE>-XSVC` finding tagged `evidence.cross_service_chain` listing every linked finding location. SARIF consumers see the chain as a single reviewable result with related-locations, instead of N disconnected findings.
+- **Path-prefix composition.** Spring `@RequestMapping("/api") + @PostMapping("/users")` → `/api/users`, ASP.NET Core `[Route("/api")] + [HttpPost("/users")]` → `/api/users`, NestJS `@Controller("/api") + @Post("/users")` → `/api/users`. Class-level prefixes are tracked as the file is walked and composed onto every method-level mapping below them. Closes the cross-service-pairing false-negative where the client called `/api/users` but the handler showed up as `/users`.
+- **DOT + Mermaid graph output for `cyscan xservice`.** `cyscan xservice -f dot | dot -Tsvg > xservice.svg` for Graphviz; `cyscan xservice -f mermaid` produces inline-renderable Mermaid for GitHub markdown / Notion. Edges labelled with method + path; unmatched (external) calls drawn dashed.
+- 3 new integration tests: path-prefix composition, scanner-side cross_service_callers evidence, DOT/Mermaid output shape.
+
+### Notes
+SARIF related-locations also surface the linked findings from `cross_service_chain` and the upstream callers from `cross_service_callers`, so any SARIF consumer (GitHub Code Scanning, VS Code SARIF Viewer, IDEA SARIF plugin) will render the cross-service chain natively.
+
 ## [0.16.0] — 2026-05-02
 
 ### Added

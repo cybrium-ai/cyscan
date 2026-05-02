@@ -169,6 +169,130 @@ message: "matched"
         .stdout(predicate::str::contains("TEST-PNR").not());
 }
 
+// ─── Cross-service evidence + aggregation + path prefix (v0.17.0) ──────────
+
+#[test]
+fn xservice_path_prefix_composes_for_spring_class_level_mapping() {
+    // Spring lets @RequestMapping("/api") at class level compose with
+    // @PostMapping("/users") at method level → "/api/users". This must
+    // match a C# client calling "/api/users".
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("Auth.cs"), r#"
+public class Auth {
+    public async Task Run() {
+        await httpClient.PostAsync("/api/users", body);
+    }
+}
+"#).unwrap();
+    fs::write(tmp.path().join("UserService.java"), r#"
+@RequestMapping("/api")
+public class UserService {
+    @PostMapping("/users")
+    public Response create(@RequestBody Body b) { return null; }
+}
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["xservice", tmp.path().to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let map: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let links = map["links"].as_array().unwrap();
+    let cs_to_java = links.iter().find(|l| {
+        l["client"]["language"].as_str() == Some("csharp")
+            && l["handler"].is_object()
+            && l["handler"]["language"].as_str() == Some("java")
+    });
+    assert!(
+        cs_to_java.is_some(),
+        "C# /api/users should match Java @RequestMapping(/api) + @PostMapping(/users); got {:#?}",
+        links,
+    );
+}
+
+#[test]
+fn scan_findings_in_handler_carry_cross_service_callers_evidence() {
+    use std::fs;
+    let tmp   = tempfile::tempdir().unwrap();
+    let cs    = tmp.path().join("auth");
+    let py    = tmp.path().join("svc");
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&cs).unwrap();
+    fs::create_dir(&py).unwrap();
+    fs::create_dir(&rules).unwrap();
+
+    fs::write(cs.join("Auth.cs"), r#"
+public class Auth {
+    public async Task Run() {
+        await httpClient.PostAsync("/svc/danger", body);
+    }
+}
+"#).unwrap();
+    fs::write(py.join("svc.py"), r#"
+@app.route("/svc/danger", methods=["POST"])
+def handler():
+    DANGER_TOKEN
+"#).unwrap();
+    fs::write(rules.join("danger.yml"), r#"
+id: TEST-XSVC-CALLERS
+title: "danger"
+severity: high
+languages: [python]
+regex: "DANGER_TOKEN"
+message: "matched"
+"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hit = json.as_array().unwrap().iter()
+        .find(|f| f["rule_id"].as_str() == Some("TEST-XSVC-CALLERS"))
+        .expect("rule should fire on the handler");
+    let callers = hit["evidence"]["cross_service_callers"].as_array()
+        .expect("cross_service_callers evidence should be present");
+    assert!(
+        !callers.is_empty(),
+        "callers list should include the C# upstream caller, got {:?}", callers,
+    );
+    assert_eq!(callers[0]["language"].as_str(), Some("csharp"));
+    assert_eq!(callers[0]["method"].as_str(),   Some("POST"));
+    assert_eq!(callers[0]["path"].as_str(),     Some("/svc/danger"));
+}
+
+#[test]
+fn xservice_dot_and_mermaid_render_for_polyglot_graph() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("Auth.cs"), r#"
+public class Auth { public async Task R() { await httpClient.PostAsync("/x", b); } }
+"#).unwrap();
+    fs::write(tmp.path().join("svc.py"), r#"
+@app.route("/x", methods=["POST"])
+def h(): pass
+"#).unwrap();
+    let dot = Command::cargo_bin("cyscan").unwrap()
+        .args(["xservice", tmp.path().to_str().unwrap(), "-f", "dot"])
+        .assert().success().get_output().stdout.clone();
+    let dot = String::from_utf8(dot).unwrap();
+    assert!(dot.starts_with("digraph cyscan_xservice"), "DOT preamble missing: {dot}");
+    assert!(dot.contains("POST /x"), "DOT should label edge with method+path");
+
+    let mer = Command::cargo_bin("cyscan").unwrap()
+        .args(["xservice", tmp.path().to_str().unwrap(), "-f", "mermaid"])
+        .assert().success().get_output().stdout.clone();
+    let mer = String::from_utf8(mer).unwrap();
+    assert!(mer.starts_with("graph LR"), "Mermaid preamble missing: {mer}");
+    assert!(mer.contains("|POST /x|"), "Mermaid edge missing label");
+}
+
 // ─── Cross-service API contract (Option 1 / v0.16.0) ───────────────────────
 
 #[test]

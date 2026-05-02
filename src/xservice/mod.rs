@@ -106,6 +106,102 @@ pub struct CrossServiceMap {
     pub specs:    Vec<spec::DiscoveredSpec>,
 }
 
+impl CrossServiceMap {
+    /// Return every client call that reaches a handler living in
+    /// `handler_file`. Used by the scanner to tag findings inside an
+    /// HTTP handler with `evidence.cross_service_callers`.
+    ///
+    /// Match resolution: a callers list is built per (file, method,
+    /// normalised_path) so a finding deep inside `users.py` can pull
+    /// the entire upstream caller chain (C#, Java, etc.) without the
+    /// caller having to walk the link graph manually.
+    pub fn callers_of_handler(
+        &self,
+        handler_file: &std::path::Path,
+        line: usize,
+    ) -> Vec<&ClientCall> {
+        // Find the closest enclosing handler at or above `line` in
+        // `handler_file` — handlers are unique per (file, line) so we
+        // pick the largest line<=line.
+        let enclosing = self.handlers.iter()
+            .filter(|h| h.file == handler_file && h.line <= line)
+            .max_by_key(|h| h.line);
+        let Some(h) = enclosing else { return Vec::new() };
+
+        self.links.iter()
+            .filter(|l| {
+                if let Some(linked_h) = &l.handler {
+                    linked_h.file == h.file
+                        && linked_h.normalised_path == h.normalised_path
+                        && linked_h.method == h.method
+                } else {
+                    false
+                }
+            })
+            .map(|l| &l.client)
+            .collect()
+    }
+
+    /// Render the map as a DOT graph (Graphviz). One node per file,
+    /// edges labelled with method + path. Renderable via:
+    ///   cyscan xservice -f dot | dot -Tsvg > xservice.svg
+    pub fn to_dot(&self) -> String {
+        let mut out = String::from("digraph cyscan_xservice {\n  rankdir=LR;\n  node [shape=box, fontname=\"Inter\"];\n");
+        let mut nodes: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        for link in &self.links {
+            nodes.insert(format!("\"{}\"", link.client.file.display()));
+            if let Some(h) = &link.handler {
+                nodes.insert(format!("\"{}\"", h.file.display()));
+            }
+        }
+        for n in &nodes {
+            out.push_str(&format!("  {n};\n"));
+        }
+        for link in &self.links {
+            let from = format!("\"{}\"", link.client.file.display());
+            let to = link.handler.as_ref()
+                .map(|h| format!("\"{}\"", h.file.display()))
+                .unwrap_or_else(|| "\"<external>\"".into());
+            let label = format!("{} {}", link.client.method.as_str(), link.client.path);
+            let style = if link.handler.is_some() { "solid" } else { "dashed" };
+            out.push_str(&format!(
+                "  {from} -> {to} [label=\"{label}\", style={style}];\n",
+            ));
+        }
+        out.push_str("}\n");
+        out
+    }
+
+    /// Render the map as Mermaid (renders inline in GitHub markdown,
+    /// Notion, etc.). Same shape as the DOT output.
+    pub fn to_mermaid(&self) -> String {
+        let mut out = String::from("graph LR\n");
+        let mut id_for: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut next_id = 0usize;
+        let mut id = |out: &mut String, label: &str| -> String {
+            if let Some(existing) = id_for.get(label) {
+                return existing.clone();
+            }
+            let n = format!("N{next_id}");
+            next_id += 1;
+            out.push_str(&format!("  {n}[\"{label}\"]\n"));
+            id_for.insert(label.to_string(), n.clone());
+            n
+        };
+        for link in &self.links {
+            let from = id(&mut out, &link.client.file.display().to_string());
+            let to = match &link.handler {
+                Some(h) => id(&mut out, &h.file.display().to_string()),
+                None    => id(&mut out, "<external>"),
+            };
+            let arrow = if link.handler.is_some() { "-->" } else { "-.->" };
+            let label = format!("{} {}", link.client.method.as_str(), link.client.path);
+            out.push_str(&format!("  {from} {arrow}|{label}| {to}\n"));
+        }
+        out
+    }
+}
+
 /// Build the project-wide cross-service map by walking `target` once,
 /// running the per-language discovery, parsing any OpenAPI/Protobuf
 /// specs, and pairing clients to handlers/specs.

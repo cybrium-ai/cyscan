@@ -231,9 +231,10 @@ enum Cmd {
         #[arg(default_value = ".")]
         target: PathBuf,
 
-        /// Output format.
-        #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
-        format: Format,
+        /// Output format. Adds `dot` and `mermaid` graph renders on
+        /// top of the regular text/JSON output.
+        #[arg(long, short = 'f', value_enum, default_value_t = XserviceFormat::Text)]
+        format: XserviceFormat,
 
         /// Show only links (paired clients ↔ handlers); skip
         /// unmatched callers and standalone handlers.
@@ -312,6 +313,19 @@ pub enum Format {
     Text,
     Json,
     Sarif,
+}
+
+/// Output formats specific to `cyscan xservice`. Adds `dot` and
+/// `mermaid` graph renders on top of the regular text / json shapes.
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+pub enum XserviceFormat {
+    #[default]
+    Text,
+    Json,
+    /// Graphviz DOT — pipe through `dot -Tsvg` to render.
+    Dot,
+    /// Mermaid graph — paste into GitHub markdown / Notion.
+    Mermaid,
 }
 
 fn print_banner() {
@@ -762,10 +776,16 @@ pub fn run() -> Result<ExitCode> {
             print_banner();
             let map = crate::xservice::build(&target);
             match format {
-                Format::Json | Format::Sarif => {
+                XserviceFormat::Json => {
                     println!("{}", serde_json::to_string_pretty(&map).unwrap_or_default());
                 }
-                Format::Text => {
+                XserviceFormat::Dot => {
+                    println!("{}", map.to_dot());
+                }
+                XserviceFormat::Mermaid => {
+                    println!("{}", map.to_mermaid());
+                }
+                XserviceFormat::Text => {
                     eprintln!();
                     eprintln!("  Cross-service API surface");
                     eprintln!("  -------------------------");
