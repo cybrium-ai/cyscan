@@ -1422,6 +1422,29 @@ fn python_return_taint_from_imported_helper_reaches_sink() {
 }
 
 #[test]
+fn python_multihop_interprocedural_taint_reaches_sink() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("helpers.py"),
+        "def sink(value):\n    eval(value)\n\ndef bounce(value):\n    sink(value)\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("entry.py"),
+        "from flask import request\nfrom helpers import bounce\nuser = request.args.get('code')\nbounce(user)\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-PY-CODE-EVAL\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"flask.request.args\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
 fn javascript_interprocedural_taint_uses_resolved_import_targets() {
     use std::fs;
     use serde_json::Value;
@@ -1486,6 +1509,29 @@ export function run(data) {
     let other = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("other.js"))).unwrap();
     assert!(other["evidence"].get("source_kind").is_none());
     assert_eq!(other["reachability"], "unknown");
+}
+
+#[test]
+fn javascript_multihop_interprocedural_taint_reaches_sink() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("helpers.js"),
+        "export function sink(value) {\n  el.innerHTML = value;\n}\n\nexport function bounce(value) {\n  sink(value);\n}\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("entry.js"),
+        "import { bounce } from './helpers';\nconst user = req.query.code;\nbounce(user);\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-JS-XSS-INNER-HTML\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"express.req.query\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
 }
 
 #[test]
@@ -1597,6 +1643,67 @@ class Runner {
 }
 
 #[test]
+fn java_return_taint_from_imported_helper_reaches_sink() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("app/helper")).unwrap();
+    fs::write(
+        rules_dir.join("java-danger.yml"),
+        r#"
+id:         CBR-JAVA-SCRIPT_ENGINE_INJECTION
+title:      "danger() usage"
+severity:   critical
+languages:  [java]
+message: |
+  Passing dynamic input to danger is unsafe.
+query: |
+  (method_invocation
+    name: (identifier) @fn
+    arguments: (argument_list (_) @arg)
+    (#eq? @fn "danger")) @call
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("app/Entry.java"),
+        r#"
+package app;
+import app.helper.Runner;
+class Entry {
+    void handle(HttpServletRequest request) {
+        String user = request.getParameter("cmd");
+        String wrapped = Runner.wrap(user);
+        danger(wrapped);
+    }
+    void danger(String value) {
+    }
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("app/helper/Runner.java"),
+        r#"
+package app.helper;
+class Runner {
+    static String wrap(String data) {
+        return data;
+    }
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-JAVA-SCRIPT_ENGINE_INJECTION\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"spring.http_request_parameter\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
 fn go_interprocedural_taint_uses_resolved_import_targets() {
     use std::fs;
     use serde_json::Value;
@@ -1676,6 +1783,63 @@ func danger(data string) {
 }
 
 #[test]
+fn go_return_taint_from_imported_helper_reaches_sink() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("helper")).unwrap();
+    fs::write(
+        rules_dir.join("go-danger.yml"),
+        r#"
+id:         CBR-GO-COMMAND_INJECTION
+title:      "danger() usage"
+severity:   critical
+languages:  [go]
+message: |
+  Passing dynamic input to danger is unsafe.
+query: |
+  (call_expression
+    function: (identifier) @fn
+    arguments: (argument_list (_) @arg)
+    (#eq? @fn "danger")) @call
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("entry.go"),
+        r#"
+package main
+import helper "helper"
+func handle(c *Context) {
+    user := c.Query("cmd")
+    wrapped := helper.Wrap(user)
+    danger(wrapped)
+}
+func danger(value string) {
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("helper/helper.go"),
+        r#"
+package helper
+func Wrap(data string) string {
+    return data
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-GO-COMMAND_INJECTION\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"go.http.query\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
 fn ruby_interprocedural_taint_uses_resolved_import_targets() {
     use std::fs;
     use serde_json::Value;
@@ -1741,6 +1905,42 @@ end
     let other = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("other.rb"))).unwrap();
     assert!(other["evidence"].get("source_kind").is_none());
     assert_eq!(other["reachability"], "unknown");
+}
+
+#[test]
+fn ruby_return_taint_from_imported_helper_reaches_sink() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+
+    fs::write(
+        tmp.path().join("entry.rb"),
+        r#"
+require_relative './helper'
+value = params[:name]
+wrapped = Helper.wrap(value)
+raw(wrapped)
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("helper.rb"),
+        r#"
+module Helper
+  def self.wrap(data)
+    return data
+  end
+end
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-RUBY-AVOID_RAW\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"rails.params\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
 }
 
 #[test]
@@ -1823,6 +2023,120 @@ class Helper {
     let other = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("Demo/Other/Helper.cs"))).unwrap();
     assert!(other["evidence"].get("source_kind").is_none());
     assert_eq!(other["reachability"], "unknown");
+}
+
+#[test]
+fn csharp_return_taint_from_imported_helper_reaches_sink() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("Demo/Web")).unwrap();
+    fs::write(
+        rules_dir.join("csharp-raw.yml"),
+        r#"
+id:        CBR-CSHA-XSS_HTML_RAW
+title:     "Cross-Site Scripting (XSS) via Html.Raw"
+severity:  high
+languages: ['csharp']
+message: |
+  Html.Raw on user input is unsafe.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      expression: (identifier) @obj (#eq? @obj "Html")
+      name: (identifier) @method (#eq? @method "Raw"))
+    arguments: (argument_list
+      (argument) @arg))
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("Demo/Entry.cs"),
+        r#"
+using Helper = Demo.Web.Helper;
+class Entry {
+    void Handle() {
+        var value = Request.Query["id"];
+        var wrapped = Helper.Wrap(value);
+        Html.Raw(wrapped);
+    }
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("Demo/Web/Helper.cs"),
+        r#"
+namespace Demo.Web;
+class Helper {
+    public static string Wrap(string data) {
+        return data;
+    }
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-CSHA-XSS_HTML_RAW\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"aspnet.request_query\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn rust_return_taint_from_imported_helper_reaches_sink() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("rust-danger.yml"),
+        r#"
+id:         CBR-GO-COMMAND_INJECTION
+title:      "danger() usage"
+severity:   critical
+languages:  [rust]
+message: |
+  Passing dynamic input to danger is unsafe.
+query: |
+  (call_expression
+    function: (identifier) @fn
+    arguments: (arguments (_) @arg)
+    (#eq? @fn "danger")) @call
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("main.rs"),
+        r#"
+use helper::wrap;
+fn main() {
+    let user = std::env::args().nth(1).unwrap();
+    let wrapped = wrap(user);
+    danger(wrapped);
+}
+fn danger(value: String) {
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("helper.rs"),
+        r#"
+pub fn wrap(data: String) -> String {
+    return data;
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-GO-COMMAND_INJECTION\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"rust.env.args\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
 }
 
 #[test]

@@ -693,6 +693,7 @@ fn is_ignored_identifier(lang: Lang, token: &str) -> bool {
         Lang::Java => matches!(token, "request" | "getParameter" | "getQueryString" | "HtmlUtils" | "htmlEscape" | "ESAPI" | "encodeForHTML" | "UriUtils" | "encode" | "URLEncoder"),
         Lang::Ruby => matches!(token, "params" | "raw" | "sanitize" | "strip_tags" | "html_escape" | "ERB" | "Util"),
         Lang::Go => matches!(token, "Query" | "Param" | "FormValue" | "HTMLEscapeString" | "QueryEscape" | "template" | "url"),
+        Lang::Rust => matches!(token, "std" | "env" | "args" | "args_os" | "var" | "var_os" | "nth" | "next" | "unwrap"),
         _ => false,
     }
 }
@@ -704,6 +705,7 @@ fn assignment_regex(lang: Lang) -> Option<Regex> {
         Lang::Csharp | Lang::Java => Some(Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]\.?]*\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
         Lang::Ruby => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$"#).unwrap()),
         Lang::Go => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+?)\s*$"#).unwrap()),
+        Lang::Rust => Some(Regex::new(r#"^\s*let\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=]+)?=\s*(.+?)\s*;?\s*$"#).unwrap()),
         _ => None,
     }
 }
@@ -723,6 +725,7 @@ fn intra_file_reason(lang: Lang) -> String {
         Lang::Java => "java_intra_function_taint",
         Lang::Ruby => "ruby_intra_function_taint",
         Lang::Go => "go_intra_function_taint",
+        Lang::Rust => "rust_intra_function_taint",
         _ => "intra_file_taint",
     }
     .into()
@@ -736,6 +739,7 @@ fn no_source_reason(lang: Lang) -> String {
         Lang::Java => "java_intra_function_no_source",
         Lang::Ruby => "ruby_intra_function_no_source",
         Lang::Go => "go_intra_function_no_source",
+        Lang::Rust => "rust_intra_function_no_source",
         _ => "intra_file_no_source",
     }
     .into()
@@ -749,6 +753,7 @@ fn guarded_reason_label(lang: Lang) -> String {
         Lang::Java => "java_sanitized_input",
         Lang::Ruby => "ruby_sanitized_input",
         Lang::Go => "go_sanitized_input",
+        Lang::Rust => "rust_sanitized_input",
         _ => "sanitized_input",
     }
     .into()
@@ -917,6 +922,23 @@ fn direct_source_kind(lang: Lang, text: &str) -> Option<&'static str> {
             }
             if text.contains(".FormValue(") {
                 return Some("go.http.form");
+            }
+        }
+        Lang::Rust => {
+            if text.contains("std::env::args()")
+                || text.contains("std::env::args().nth(")
+                || text.contains("std::env::args().next(")
+            {
+                return Some("rust.env.args");
+            }
+            if text.contains("std::env::args_os()")
+                || text.contains("std::env::args_os().nth(")
+                || text.contains("std::env::args_os().next(")
+            {
+                return Some("rust.env.args_os");
+            }
+            if text.contains("std::env::var(") || text.contains("std::env::var_os(") {
+                return Some("rust.env.var");
             }
         }
         _ => {}

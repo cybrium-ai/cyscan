@@ -12,6 +12,14 @@ pub struct CallAssignment {
     pub args: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ParamCallEdge {
+    pub caller: String,
+    pub callee: String,
+    pub callee_arg_idx: usize,
+    pub caller_param_idx: usize,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct FileSemantics {
     pub module_identity: Option<String>,
@@ -27,6 +35,8 @@ pub struct FileSemantics {
     pub function_definitions: HashMap<String, Vec<String>>,
     /// List of (function_name, argument_index, source_kind) for calls in this file.
     pub tainted_calls: Vec<(String, usize, String)>,
+    /// Call edges that propagate a caller parameter into a callee argument.
+    pub param_call_edges: Vec<ParamCallEdge>,
     /// Functions that return one or more of their parameters by index.
     pub return_param_indices: HashMap<String, Vec<usize>>,
     /// Functions that directly return a source kind without caller-controlled params.
@@ -116,6 +126,7 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                     let Some(target) = resolve_python_call_target(&semantics, &module_identity, object, Some(method)) else {
                         continue;
                     };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
                     record_python_tainted_call(&mut semantics, &target, args_raw);
                 }
                 for caps in direct_call_re.captures_iter(line) {
@@ -124,6 +135,7 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                     let Some(target) = resolve_python_call_target(&semantics, &module_identity, func_name, None) else {
                         continue;
                     };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
                     record_python_tainted_call(&mut semantics, &target, args_raw);
                 }
                 if let Some(caps) = return_re.captures(line) {
@@ -373,6 +385,41 @@ fn push_unique_string(map: &mut HashMap<String, Vec<String>>, key: &str, value: 
     }
 }
 
+fn record_param_call_edges(
+    semantics: &mut FileSemantics,
+    caller: &str,
+    callee: &str,
+    args_raw: &str,
+    params: &[String],
+    local_taint: &HashMap<String, Result<usize, String>>,
+) {
+    for (callee_arg_idx, arg) in args_raw.split(',').enumerate() {
+        let arg = arg.trim();
+        let caller_param_idx = if let Some(idx) = params.iter().position(|param| param == arg) {
+            Some(idx)
+        } else {
+            match local_taint.get(arg) {
+                Some(Ok(idx)) => Some(*idx),
+                _ => None,
+            }
+        };
+        let Some(caller_param_idx) = caller_param_idx else { continue };
+        if !semantics.param_call_edges.iter().any(|edge|
+            edge.caller == caller
+                && edge.callee == callee
+                && edge.callee_arg_idx == callee_arg_idx
+                && edge.caller_param_idx == caller_param_idx
+        ) {
+            semantics.param_call_edges.push(ParamCallEdge {
+                caller: caller.to_string(),
+                callee: callee.to_string(),
+                callee_arg_idx,
+                caller_param_idx,
+            });
+        }
+    }
+}
+
 fn path_module_identity(
     path: Option<&Path>,
     base_path: Option<&Path>,
@@ -470,6 +517,7 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
                     let Some(target) = resolve_js_call_target(&semantics, &module_identity, object, Some(method)) else {
                         continue;
                     };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
                     record_js_tainted_call(&mut semantics, &target, args_raw);
                 }
                 for caps in direct_call_re.captures_iter(line) {
@@ -478,6 +526,7 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
                     let Some(target) = resolve_js_call_target(&semantics, &module_identity, func_name, None) else {
                         continue;
                     };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
                     record_js_tainted_call(&mut semantics, &target, args_raw);
                 }
                 if let Some(caps) = return_re.captures(line) {
@@ -806,9 +855,11 @@ fn extract_ruby(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
     let def_re = Regex::new(
         r#"^\s*def\s+(?:self\.)?([A-Za-z_][A-Za-z0-9_!?=]*)\s*(?:\((.*?)\))?"#
     ).unwrap();
+    let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_!?=]*)\s*\((.*?)\)"#).unwrap();
     let member_call_re = Regex::new(r#"([A-Z][A-Za-z0-9_:]*)\s*[\.:]{1,2}\s*([A-Za-z_][A-Za-z0-9_!?=]*)\s*\((.*?)\)"#).unwrap();
     let lines: Vec<&str> = source.lines().collect();
+    let mut current_fn: Option<(String, Vec<String>, i32, HashMap<String, Result<usize, String>>)> = None;
 
     if source.contains("params[")
         || source.contains("params.")
@@ -822,6 +873,84 @@ fn extract_ruby(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
 
     for raw_line in &lines {
         let line = raw_line.split('#').next().unwrap_or("").trim();
+        if let Some((func_identity, params, depth, local_taint)) = current_fn.as_mut() {
+            if !line.is_empty() {
+                if let Some(caps) = assign_re.captures(line) {
+                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+                    if !ident.is_empty() && !rhs.is_empty() {
+                        if let Some(source_kind) = ruby_source_kind(rhs) {
+                            semantics.tainted_identifiers.insert(ident.clone(), source_kind.to_string());
+                            local_taint.insert(ident, Err(source_kind.to_string()));
+                        } else if let Some(idx) = params.iter().position(|param| param == rhs) {
+                            local_taint.insert(ident, Ok(idx));
+                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                            }
+                            local_taint.insert(ident, kind);
+                        } else {
+                            for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == ':' )) {
+                                if let Some(kind) = local_taint.get(token).cloned() {
+                                    if let Err(source_kind) = &kind {
+                                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                                    }
+                                    local_taint.insert(ident.clone(), kind);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for caps in member_call_re.captures_iter(line) {
+                    let object = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let method = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_ruby_call_target(&semantics, &module_identity, object, Some(method)) else {
+                        continue;
+                    };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
+                    record_tainted_call(&mut semantics, &target, args_raw);
+                }
+
+                for caps in direct_call_re.captures_iter(line) {
+                    let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_ruby_call_target(&semantics, &module_identity, func_name, None) else {
+                        continue;
+                    };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
+                    record_tainted_call(&mut semantics, &target, args_raw);
+                }
+
+                if let Some(caps) = return_re.captures(line) {
+                    let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim();
+                    if let Some(source_kind) = ruby_source_kind(expr) {
+                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
+                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
+                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
+                    } else if let Some(kind) = local_taint.get(expr) {
+                        match kind {
+                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
+                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
+                        }
+                    }
+                }
+            }
+
+            if line.starts_with("def ") {
+                *depth += 1;
+            }
+            if line == "end" {
+                *depth -= 1;
+                if *depth <= 0 {
+                    current_fn = None;
+                }
+            }
+            continue;
+        }
+
         if line.is_empty() {
             continue;
         }
@@ -834,10 +963,12 @@ fn extract_ruby(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
                 .filter(|s| !s.is_empty())
                 .collect();
             if !func_name.is_empty() {
+                let func_identity = format!("{module_identity}::{func_name}");
                 semantics.function_definitions.insert(
-                    format!("{module_identity}::{func_name}"),
-                    params,
+                    func_identity.clone(),
+                    params.clone(),
                 );
+                current_fn = Some((func_identity, params, 1, HashMap::new()));
             }
         }
 
@@ -960,6 +1091,7 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
     let method_re = Regex::new(
         r#"^\s*(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)\s*\{"#
     ).unwrap();
+    let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*;?\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let member_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_\.]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let request_param_re = Regex::new(
@@ -991,9 +1123,82 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
     }
 
     let lines: Vec<&str> = source.lines().collect();
+    let mut current_fn: Option<(String, Vec<String>, i32, HashMap<String, Result<usize, String>>)> = None;
 
     for raw_line in &lines {
         let line = raw_line.split("//").next().unwrap_or("").trim();
+        if let Some((func_identity, params, brace_depth, local_taint)) = current_fn.as_mut() {
+            if !line.is_empty() {
+                if let Some(caps) = assign_re.captures(line) {
+                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
+                    if !ident.is_empty() && !rhs.is_empty() {
+                        if let Some(source_kind) = java_source_kind(rhs) {
+                            semantics.tainted_identifiers.insert(ident.clone(), source_kind.to_string());
+                            local_taint.insert(ident, Err(source_kind.to_string()));
+                        } else if let Some(idx) = params.iter().position(|param| param == rhs) {
+                            local_taint.insert(ident, Ok(idx));
+                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                            }
+                            local_taint.insert(ident, kind);
+                        } else {
+                            for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
+                                if let Some(kind) = local_taint.get(token).cloned() {
+                                    if let Err(source_kind) = &kind {
+                                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                                    }
+                                    local_taint.insert(ident.clone(), kind);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for caps in member_call_re.captures_iter(line) {
+                    let object = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let method = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_java_call_target(&semantics, &module_identity, object, Some(method)) else {
+                        continue;
+                    };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
+                    record_tainted_call(&mut semantics, &target, args_raw);
+                }
+
+                for caps in direct_call_re.captures_iter(line) {
+                    let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_java_call_target(&semantics, &module_identity, func_name, None) else {
+                        continue;
+                    };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
+                    record_tainted_call(&mut semantics, &target, args_raw);
+                }
+
+                if let Some(caps) = return_re.captures(line) {
+                    let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
+                    if let Some(source_kind) = java_source_kind(expr) {
+                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
+                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
+                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
+                    } else if let Some(kind) = local_taint.get(expr) {
+                        match kind {
+                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
+                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
+                        }
+                    }
+                }
+            }
+            *brace_depth += line.matches('{').count() as i32;
+            *brace_depth -= line.matches('}').count() as i32;
+            if *brace_depth <= 0 {
+                current_fn = None;
+            }
+        }
+
         if line.is_empty() {
             continue;
         }
@@ -1007,10 +1212,14 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
                 .filter_map(java_param_name)
                 .collect();
             if !func_name.is_empty() {
-                semantics.function_definitions.insert(
-                    format!("{module_identity}::{func_name}"),
+                let func_identity = format!("{module_identity}::{func_name}");
+                semantics.function_definitions.insert(func_identity.clone(), params.clone());
+                current_fn = Some((
+                    func_identity,
                     params,
-                );
+                    line.matches('{').count() as i32 - line.matches('}').count() as i32,
+                    HashMap::new(),
+                ));
             }
         }
 
@@ -1216,12 +1425,86 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
     let method_re = Regex::new(
         r#"^\s*(?:public|private|protected|internal)?\s*(?:static\s+)?(?:async\s+)?(?:sealed\s+)?(?:override\s+)?[A-Za-z_][A-Za-z0-9_<>\.\[\]]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)\s*\{"#
     ).unwrap();
+    let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*;?\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let member_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_\.]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let lines: Vec<&str> = source.lines().collect();
+    let mut current_fn: Option<(String, Vec<String>, i32, HashMap<String, Result<usize, String>>)> = None;
 
     for raw_line in &lines {
         let line = raw_line.split("//").next().unwrap_or("").trim();
+        if let Some((func_identity, params, brace_depth, local_taint)) = current_fn.as_mut() {
+            if !line.is_empty() {
+                if let Some(caps) = assign_re.captures(line) {
+                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
+                    if !ident.is_empty() && !rhs.is_empty() {
+                        if let Some(source_kind) = csharp_source_kind(rhs) {
+                            semantics.tainted_identifiers.insert(ident.clone(), source_kind.to_string());
+                            local_taint.insert(ident, Err(source_kind.to_string()));
+                        } else if let Some(idx) = params.iter().position(|param| param == rhs) {
+                            local_taint.insert(ident, Ok(idx));
+                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                            }
+                            local_taint.insert(ident, kind);
+                        } else {
+                            for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
+                                if let Some(kind) = local_taint.get(token).cloned() {
+                                    if let Err(source_kind) = &kind {
+                                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                                    }
+                                    local_taint.insert(ident.clone(), kind);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for caps in member_call_re.captures_iter(line) {
+                    let object = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let method = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_csharp_call_target(&semantics, &module_identity, object, Some(method)) else {
+                        continue;
+                    };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
+                    record_tainted_call(&mut semantics, &target, args_raw);
+                }
+
+                for caps in direct_call_re.captures_iter(line) {
+                    let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_csharp_call_target(&semantics, &module_identity, func_name, None) else {
+                        continue;
+                    };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
+                    record_tainted_call(&mut semantics, &target, args_raw);
+                }
+
+                if let Some(caps) = return_re.captures(line) {
+                    let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
+                    if let Some(source_kind) = csharp_source_kind(expr) {
+                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
+                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
+                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
+                    } else if let Some(kind) = local_taint.get(expr) {
+                        match kind {
+                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
+                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
+                        }
+                    }
+                }
+            }
+            *brace_depth += line.matches('{').count() as i32;
+            *brace_depth -= line.matches('}').count() as i32;
+            if *brace_depth <= 0 {
+                current_fn = None;
+            }
+        }
+
         if line.is_empty() {
             continue;
         }
@@ -1235,10 +1518,14 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                 .filter_map(csharp_param_name)
                 .collect();
             if !func_name.is_empty() {
-                semantics.function_definitions.insert(
-                    format!("{module_identity}::{func_name}"),
+                let func_identity = format!("{module_identity}::{func_name}");
+                semantics.function_definitions.insert(func_identity.clone(), params.clone());
+                current_fn = Some((
+                    func_identity,
                     params,
-                );
+                    line.matches('{').count() as i32 - line.matches('}').count() as i32,
+                    HashMap::new(),
+                ));
             }
         }
 
@@ -1405,13 +1692,87 @@ fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> Fi
         r#"^\s*(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+?)\s*$"#
     ).unwrap();
     let func_re = Regex::new(r#"^\s*func\s+(?:\([^)]+\)\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let member_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let mut in_import_block = false;
     let lines: Vec<&str> = source.lines().collect();
+    let mut current_fn: Option<(String, Vec<String>, i32, HashMap<String, Result<usize, String>>)> = None;
 
     for raw_line in &lines {
         let line = raw_line.split("//").next().unwrap_or("").trim();
+        if let Some((func_identity, params, brace_depth, local_taint)) = current_fn.as_mut() {
+            if !line.is_empty() {
+                if let Some(caps) = assign_re.captures(line) {
+                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+                    if !ident.is_empty() && !rhs.is_empty() {
+                        if let Some(source_kind) = go_source_kind(rhs) {
+                            semantics.tainted_identifiers.insert(ident.clone(), source_kind.to_string());
+                            local_taint.insert(ident, Err(source_kind.to_string()));
+                        } else if let Some(idx) = params.iter().position(|param| param == rhs) {
+                            local_taint.insert(ident, Ok(idx));
+                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                            }
+                            local_taint.insert(ident, kind);
+                        } else {
+                            for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
+                                if let Some(kind) = local_taint.get(token).cloned() {
+                                    if let Err(source_kind) = &kind {
+                                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                                    }
+                                    local_taint.insert(ident.clone(), kind);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for caps in member_call_re.captures_iter(line) {
+                    let object = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let method = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_go_call_target(&semantics, &module_identity, object, Some(method)) else {
+                        continue;
+                    };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
+                    record_tainted_call(&mut semantics, &target, args_raw);
+                }
+
+                for caps in direct_call_re.captures_iter(line) {
+                    let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_go_call_target(&semantics, &module_identity, func_name, None) else {
+                        continue;
+                    };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
+                    record_tainted_call(&mut semantics, &target, args_raw);
+                }
+
+                if let Some(caps) = return_re.captures(line) {
+                    let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim();
+                    if let Some(source_kind) = go_source_kind(expr) {
+                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
+                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
+                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
+                    } else if let Some(kind) = local_taint.get(expr) {
+                        match kind {
+                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
+                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
+                        }
+                    }
+                }
+            }
+            *brace_depth += line.matches('{').count() as i32;
+            *brace_depth -= line.matches('}').count() as i32;
+            if *brace_depth <= 0 {
+                current_fn = None;
+            }
+        }
+
         if line.is_empty() {
             continue;
         }
@@ -1425,10 +1786,14 @@ fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> Fi
                 .filter_map(go_param_name)
                 .collect();
             if !func_name.is_empty() {
-                semantics.function_definitions.insert(
-                    format!("{module_identity}::{func_name}"),
+                let func_identity = format!("{module_identity}::{func_name}");
+                semantics.function_definitions.insert(func_identity.clone(), params.clone());
+                current_fn = Some((
+                    func_identity,
                     params,
-                );
+                    line.matches('{').count() as i32 - line.matches('}').count() as i32,
+                    HashMap::new(),
+                ));
             }
         }
 
@@ -1531,13 +1896,98 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
         r#"^\s*let\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=]+)?=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
     let fn_re = Regex::new(r#"^\s*fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*;?\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let path_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_:]*)::([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let method_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let lines: Vec<&str> = source.lines().collect();
+    let mut current_fn: Option<(String, Vec<String>, i32, HashMap<String, Result<usize, String>>)> = None;
 
     for raw_line in &lines {
         let line = raw_line.split("//").next().unwrap_or("").trim();
+        if let Some((func_identity, params, brace_depth, local_taint)) = current_fn.as_mut() {
+            if !line.is_empty() {
+                if let Some(caps) = assign_re.captures(line) {
+                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
+                    if !ident.is_empty() && !rhs.is_empty() {
+                        if let Some(source_kind) = rust_source_kind(rhs) {
+                            semantics.tainted_identifiers.insert(ident.clone(), source_kind.to_string());
+                            local_taint.insert(ident, Err(source_kind.to_string()));
+                        } else if let Some(idx) = params.iter().position(|param| param == rhs) {
+                            local_taint.insert(ident, Ok(idx));
+                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                            }
+                            local_taint.insert(ident, kind);
+                        } else {
+                            for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == ':' || c == '.')) {
+                                if let Some(kind) = local_taint.get(token).cloned() {
+                                    if let Err(source_kind) = &kind {
+                                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                                    }
+                                    local_taint.insert(ident.clone(), kind);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                for caps in path_call_re.captures_iter(line) {
+                    let head = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let method = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_rust_call_target(&semantics, &module_identity, head, Some(method)) else {
+                        continue;
+                    };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
+                    record_tainted_call(&mut semantics, &target, args_raw);
+                }
+
+                for caps in method_call_re.captures_iter(line) {
+                    let object = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let method = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_rust_call_target(&semantics, &module_identity, object, Some(method)) else {
+                        continue;
+                    };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
+                    record_tainted_call(&mut semantics, &target, args_raw);
+                }
+
+                for caps in direct_call_re.captures_iter(line) {
+                    let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_rust_call_target(&semantics, &module_identity, func_name, None) else {
+                        continue;
+                    };
+                    record_param_call_edges(&mut semantics, func_identity, &target, args_raw, params, local_taint);
+                    record_tainted_call(&mut semantics, &target, args_raw);
+                }
+
+                if let Some(caps) = return_re.captures(line) {
+                    let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
+                    if let Some(source_kind) = rust_source_kind(expr) {
+                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
+                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
+                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
+                    } else if let Some(kind) = local_taint.get(expr) {
+                        match kind {
+                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
+                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
+                        }
+                    }
+                }
+            }
+            *brace_depth += line.matches('{').count() as i32;
+            *brace_depth -= line.matches('}').count() as i32;
+            if *brace_depth <= 0 {
+                current_fn = None;
+            }
+        }
+
         if line.is_empty() {
             continue;
         }
@@ -1551,10 +2001,14 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
                 .filter_map(rust_param_name)
                 .collect();
             if !func_name.is_empty() {
-                semantics.function_definitions.insert(
-                    format!("{module_identity}::{func_name}"),
+                let func_identity = format!("{module_identity}::{func_name}");
+                semantics.function_definitions.insert(func_identity.clone(), params.clone());
+                current_fn = Some((
+                    func_identity,
                     params,
-                );
+                    line.matches('{').count() as i32 - line.matches('}').count() as i32,
+                    HashMap::new(),
+                ));
             }
         }
 
@@ -2120,10 +2574,16 @@ fn go_source_kind(rhs: &str) -> Option<&'static str> {
 
 fn rust_source_kind(rhs: &str) -> Option<&'static str> {
     let compact: String = rhs.chars().filter(|c| !c.is_whitespace()).collect();
-    if compact.contains("std::env::args()") {
+    if compact.contains("std::env::args()")
+        || compact.contains("std::env::args().nth(")
+        || compact.contains("std::env::args().next(")
+    {
         return Some("rust.env.args");
     }
-    if compact.contains("std::env::args_os()") {
+    if compact.contains("std::env::args_os()")
+        || compact.contains("std::env::args_os().nth(")
+        || compact.contains("std::env::args_os().next(")
+    {
         return Some("rust.env.args_os");
     }
     if compact.contains("std::env::var(") || compact.contains("std::env::var_os(") {
