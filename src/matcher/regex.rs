@@ -767,17 +767,17 @@ fn annotate_regex_finding(
         | "CBR-SCAL-SCALA_SLICK_SQL_NON_LITERAL"
         | "CBR-SCAL-SCALAJ_HTTP_SSRF"
         | "CBR-SCAL-WEBSERVICE_SSRF" => {
-            if let Some(source_kind) = regex_source_kind(lang, snippet, semantics) {
-                evidence.insert("path_sensitivity".into(), serde_json::json!("tainted"));
-                evidence.insert("source_kind".into(), serde_json::json!(source_kind));
-                return (evidence, Some("reachable".into()));
-            }
             if semantics.frameworks.contains("play") {
                 evidence.insert("framework".into(), serde_json::json!("play"));
             } else if semantics.frameworks.contains("dispatch") {
                 evidence.insert("framework".into(), serde_json::json!("dispatch"));
             } else if semantics.frameworks.contains("scalaj") {
                 evidence.insert("framework".into(), serde_json::json!("scalaj"));
+            }
+            if let Some(source_kind) = regex_source_kind(lang, snippet, semantics) {
+                evidence.insert("path_sensitivity".into(), serde_json::json!("tainted"));
+                evidence.insert("source_kind".into(), serde_json::json!(source_kind));
+                return (evidence, Some("reachable".into()));
             }
             evidence.insert("path_sensitivity".into(), serde_json::json!("reachable"));
             return (evidence, Some("reachable".into()));
@@ -1240,6 +1240,27 @@ fn direct_regex_source_kind(lang: Lang, snippet: &str) -> Option<&'static str> {
         }
         Lang::Php => {
             let compact: String = snippet.chars().filter(|c| !c.is_whitespace()).collect();
+            if compact.contains("request()->input(")
+                || compact.contains("request()->get(")
+                || compact.contains("request()->query(")
+                || compact.contains("Request::input(")
+                || compact.contains("Request::get(")
+                || compact.contains("Request::query(")
+                || compact.contains("request(")
+            {
+                return Some("laravel.request.input");
+            }
+            if compact.contains("$request->query->get(")
+                || compact.contains("$request->query->all(")
+                || compact.contains("$request->get(")
+            {
+                return Some("symfony.request.query");
+            }
+            if compact.contains("$request->request->get(")
+                || compact.contains("$request->request->all(")
+            {
+                return Some("symfony.request.body");
+            }
             if compact.contains("$_GET[") || compact.contains("$_GET") {
                 return Some("php.request.get");
             }
@@ -1255,9 +1276,17 @@ fn direct_regex_source_kind(lang: Lang, snippet: &str) -> Option<&'static str> {
         }
         Lang::Scala => {
             let compact: String = snippet.chars().filter(|c| !c.is_whitespace()).collect();
-            if compact.contains("request.getParameter(")
-                || compact.contains("request.getQueryString(")
+            if compact.contains("request.getQueryString(")
+                || compact.contains("request.queryString(")
+                || compact.contains("request.queryString.get(")
+                || compact.contains("params(")
             {
+                return Some("play.request.query_string");
+            }
+            if compact.contains("request.body.asFormUrlEncoded") {
+                return Some("play.request.form");
+            }
+            if compact.contains("request.getParameter(") {
                 return Some("scala.http.request_parameter");
             }
             if compact.contains("request.queryString") {

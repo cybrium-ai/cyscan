@@ -1508,6 +1508,134 @@ regex: 'assert\(.+\)'
 }
 
 #[test]
+fn php_laravel_redirect_input_is_framework_labeled() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("php-redirect.yml"),
+        r#"
+id:        CBR-PHP-SYMFONY_NON_LITERAL_REDIRECT
+title:     "Symfony Non Literal Redirect"
+severity:  high
+languages: ['php']
+message: |
+  Redirecting to user-controlled input is unsafe.
+regex: 'redirect\(.+\)'
+"#,
+    )
+    .unwrap();
+    let src = tmp.path().join("index.php");
+    fs::write(
+        &src,
+        "<?php use Illuminate\\Http\\Request; function go() { $next = request()->input('next'); return redirect($next); }\n",
+    )
+    .unwrap();
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "scan",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            rules_dir.to_str().unwrap(),
+            "--format",
+            "json",
+        ])
+        .assert()
+        .stdout(predicate::str::contains(
+            "\"rule_id\": \"CBR-PHP-SYMFONY_NON_LITERAL_REDIRECT\"",
+        ))
+        .stdout(predicate::str::contains("\"framework\": \"laravel\""))
+        .stdout(predicate::str::contains(
+            "\"source_kind\": \"laravel.request.input\"",
+        ))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn php_symfony_redirect_query_is_framework_labeled() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("php-redirect.yml"),
+        r#"
+id:        CBR-PHP-SYMFONY_NON_LITERAL_REDIRECT
+title:     "Symfony Non Literal Redirect"
+severity:  high
+languages: ['php']
+message: |
+  Redirecting to user-controlled input is unsafe.
+regex: 'redirect\(.+\)'
+"#,
+    )
+    .unwrap();
+    let src = tmp.path().join("index.php");
+    fs::write(
+        &src,
+        "<?php use Symfony\\Component\\HttpFoundation\\Request; class DemoController { function go($request) { $next = $request->query->get('next'); return $this->redirect($next); } }\n",
+    )
+    .unwrap();
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "scan",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            rules_dir.to_str().unwrap(),
+            "--format",
+            "json",
+        ])
+        .assert()
+        .stdout(predicate::str::contains(
+            "\"rule_id\": \"CBR-PHP-SYMFONY_NON_LITERAL_REDIRECT\"",
+        ))
+        .stdout(predicate::str::contains("\"framework\": \"symfony\""))
+        .stdout(predicate::str::contains(
+            "\"source_kind\": \"symfony.request.query\"",
+        ))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn php_wordpress_redirect_request_is_framework_labeled() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("index.php");
+    fs::write(
+        &src,
+        "<?php add_action('init', 'go'); function go() { $next = $_REQUEST['next']; wp_redirect($next); }\n",
+    )
+    .unwrap();
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "scan",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            &rules,
+            "--format",
+            "json",
+        ])
+        .assert()
+        .stdout(predicate::str::contains(
+            "\"rule_id\": \"CBR-PHP-WP_OPEN_REDIRECT_AUDIT\"",
+        ))
+        .stdout(predicate::str::contains("\"framework\": \"wordpress\""))
+        .stdout(predicate::str::contains(
+            "\"source_kind\": \"php.request.request\"",
+        ))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
 fn swift_insecure_random_is_sink_labeled() {
     use std::fs;
     let manifest = env!("CARGO_MANIFEST_DIR");
@@ -1531,6 +1659,49 @@ fn swift_insecure_random_is_sink_labeled() {
             "\"rule_id\": \"CBR-SWIF-INSECURE_RANDOM\"",
         ))
         .stdout(predicate::str::contains("\"sink_kind\": \"swift.random\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn swift_webview_rule_is_framework_labeled() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("swift-webkit.yml"),
+        r#"
+id:        CBR-SWIF-SWIFT_WEBVIEW_CONFIG_ALLOWS_JS
+title:     "Swift Webview Config Allows Js Open Windows"
+severity:  high
+languages: ['swift']
+message: |
+  WKWebView JavaScript window opening should be restricted.
+regex: 'WKPreferences'
+"#,
+    )
+    .unwrap();
+    let src = tmp.path().join("main.swift");
+    fs::write(&src, "import WebKit\nlet prefs = WKPreferences()\n").unwrap();
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "scan",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            rules_dir.to_str().unwrap(),
+            "--format",
+            "json",
+        ])
+        .assert()
+        .stdout(predicate::str::contains(
+            "\"rule_id\": \"CBR-SWIF-SWIFT_WEBVIEW_CONFIG_ALLOWS_JS\"",
+        ))
+        .stdout(predicate::str::contains(
+            "\"sink_kind\": \"swift.webkit.preferences\"",
+        ))
+        .stdout(predicate::str::contains("\"framework\": \"webkit\""))
         .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
 }
 
@@ -1565,6 +1736,52 @@ fn scala_ssrf_request_param_is_sink_labeled() {
         ))
         .stdout(predicate::str::contains(
             "\"source_kind\": \"scala.http.request_parameter\"",
+        ))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn scala_play_query_string_is_framework_labeled() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("scala-ws.yml"),
+        r#"
+id:        CBR-SCAL-WEBSERVICE_SSRF
+title:     "Webservice Ssrf"
+severity:  high
+languages: ['scala']
+message: |
+  User-controlled URLs passed to WS are unsafe.
+regex: 'WS\.url\(.+\)'
+"#,
+    )
+    .unwrap();
+    let src = tmp.path().join("Demo.scala");
+    fs::write(
+        &src,
+        "import play.api.mvc._\nobject Demo { def run(request: Request[AnyContent]) = { val u = request.getQueryString(\"url\"); WS.url(u.get) } }\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "scan",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            rules_dir.to_str().unwrap(),
+            "--format",
+            "json",
+        ])
+        .assert()
+        .stdout(predicate::str::contains(
+            "\"rule_id\": \"CBR-SCAL-WEBSERVICE_SSRF\"",
+        ))
+        .stdout(predicate::str::contains("\"framework\": \"play\""))
+        .stdout(predicate::str::contains(
+            "\"source_kind\": \"play.request.query_string\"",
         ))
         .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
 }

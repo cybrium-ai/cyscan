@@ -3713,10 +3713,7 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
 fn extract_php(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {
     let mut semantics = FileSemantics::default();
     semantics.module_identity = path_module_identity(path, base_path, &[".php", ".phtml"]);
-    if source.contains("Illuminate\\")
-        || source.contains("Laravel")
-        || source.contains("->redirect(")
-    {
+    if source.contains("Illuminate\\") || source.contains("Laravel") {
         semantics.frameworks.insert("laravel".into());
     }
     if source.contains("Symfony\\") || source.contains("$this->redirect(") {
@@ -4397,6 +4394,25 @@ fn rust_source_kind(rhs: &str) -> Option<&'static str> {
 
 fn php_source_kind(rhs: &str) -> Option<&'static str> {
     let compact: String = rhs.chars().filter(|c| !c.is_whitespace()).collect();
+    if compact.contains("request()->input(")
+        || compact.contains("request()->get(")
+        || compact.contains("request()->query(")
+        || compact.contains("Request::input(")
+        || compact.contains("Request::get(")
+        || compact.contains("Request::query(")
+        || compact.contains("request(")
+    {
+        return Some("laravel.request.input");
+    }
+    if compact.contains("$request->query->get(")
+        || compact.contains("$request->query->all(")
+        || compact.contains("$request->get(")
+    {
+        return Some("symfony.request.query");
+    }
+    if compact.contains("$request->request->get(") || compact.contains("$request->request->all(") {
+        return Some("symfony.request.body");
+    }
     if compact.contains("$_GET[") || compact.contains("$_GET") {
         return Some("php.request.get");
     }
@@ -4414,7 +4430,17 @@ fn php_source_kind(rhs: &str) -> Option<&'static str> {
 
 fn scala_source_kind(rhs: &str) -> Option<&'static str> {
     let compact: String = rhs.chars().filter(|c| !c.is_whitespace()).collect();
-    if compact.contains("request.getParameter(") || compact.contains("request.getQueryString(") {
+    if compact.contains("request.getQueryString(")
+        || compact.contains("request.queryString(")
+        || compact.contains("request.queryString.get(")
+        || compact.contains("params(")
+    {
+        return Some("play.request.query_string");
+    }
+    if compact.contains("request.body.asFormUrlEncoded") {
+        return Some("play.request.form");
+    }
+    if compact.contains("request.getParameter(") {
         return Some("scala.http.request_parameter");
     }
     if compact.contains("request.queryString") {
