@@ -210,6 +210,7 @@ fn make_finding(adv: &Advisory, dep: &Dependency) -> Finding {
         cwe:        Vec::new(),
         evidence:   HashMap::new(),
         reachability: None,
+        fingerprint: String::new(),
     }
 }
 

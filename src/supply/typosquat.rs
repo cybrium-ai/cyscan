@@ -67,6 +67,7 @@ pub fn scan(deps: &[Dependency]) -> Vec<Finding> {
                     cwe:        vec!["CWE-506".to_string()],
                     evidence:   HashMap::new(),
                     reachability: None,
+                    fingerprint: String::new(),
                 });
                 break; // Only report the first popular match per dep.
             }

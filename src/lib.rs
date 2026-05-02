@@ -20,3 +20,4 @@ pub mod rule;
 pub mod scanner;
 pub mod self_update;
 pub mod supply;
+pub mod triage;

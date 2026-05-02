@@ -53,6 +53,7 @@ pub fn scan(deps: &[Dependency], rules: &[Rule]) -> Vec<Finding> {
                 cwe:        rule.cwe.clone(),
                 evidence:   std::collections::HashMap::new(),
                 reachability: None,
+                fingerprint: String::new(),
             });
         }
     }

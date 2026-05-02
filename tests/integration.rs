@@ -110,6 +110,163 @@ fn supply_no_advisories_flag_skips_osv() {
         .stdout(predicate::str::contains("GHSA-").not());
 }
 
+// ─── Triage workflow tests (Gap 1) ──────────────────────────────────────────
+
+#[test]
+fn triage_init_set_list_and_history_work() {
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let tmp = tempfile::tempdir().unwrap();
+    let triage_path = tmp.path().join("triage.json");
+
+    // init
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["triage", "init", "--path", triage_path.to_str().unwrap()])
+        .assert()
+        .success();
+    assert!(triage_path.exists(), "triage file should be created");
+
+    // set
+    let fp = "deadbeefcafef00d";
+    Command::cargo_bin("cyscan").unwrap()
+        .args([
+            "triage", "set", fp, "false_positive",
+            "--path", triage_path.to_str().unwrap(),
+            "--note", "test note",
+            "--author", "anand",
+        ])
+        .assert()
+        .success();
+
+    // list — should contain the fingerprint and status
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["triage", "list", "--path", triage_path.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(fp))
+        .stdout(predicate::str::contains("false_positive"));
+
+    // history — should show one event
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["triage", "history", fp, "--path", triage_path.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("anand"))
+        .stdout(predicate::str::contains("test note"));
+
+    let _ = manifest; // suppress unused warning when only used for cwd anchor elsewhere
+}
+
+#[test]
+fn scan_applies_triage_status_and_hide_triaged() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+
+    // fixture: one Python file with eval()
+    let src = tmp.path().join("vuln.py");
+    fs::write(&src, "eval(user_input)\n").unwrap();
+    let triage_path = tmp.path().join("triage.json");
+
+    // initial scan to grab the fingerprint
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args([
+            "scan", tmp.path().to_str().unwrap(),
+            "--rules", &rules,
+            "--format", "json",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let fp = json[0]["fingerprint"].as_str().unwrap().to_string();
+    assert!(!fp.is_empty(), "scanner must populate finding.fingerprint");
+
+    // mark as false_positive
+    Command::cargo_bin("cyscan").unwrap()
+        .args([
+            "triage", "init", "--path", triage_path.to_str().unwrap(),
+        ]).assert().success();
+    Command::cargo_bin("cyscan").unwrap()
+        .args([
+            "triage", "set", &fp, "false_positive",
+            "--path", triage_path.to_str().unwrap(),
+        ]).assert().success();
+
+    // re-scan with --hide-triaged: that finding should be gone
+    let out2 = Command::cargo_bin("cyscan").unwrap()
+        .args([
+            "scan", tmp.path().to_str().unwrap(),
+            "--rules", &rules,
+            "--format", "json",
+            "--triage", triage_path.to_str().unwrap(),
+            "--hide-triaged",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json2: serde_json::Value = serde_json::from_slice(&out2).unwrap();
+    let arr = json2.as_array().unwrap();
+    assert!(
+        arr.iter().all(|f| f["fingerprint"].as_str() != Some(&fp)),
+        "triaged finding should be hidden",
+    );
+}
+
+#[test]
+fn triaged_findings_do_not_trigger_fail_on() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+
+    let src = tmp.path().join("vuln.py");
+    fs::write(&src, "eval(user_input)\n").unwrap();
+    let triage_path = tmp.path().join("triage.json");
+
+    // Without triage → fail-on=high should exit non-zero (eval is high+)
+    Command::cargo_bin("cyscan").unwrap()
+        .args([
+            "scan", tmp.path().to_str().unwrap(),
+            "--rules", &rules,
+            "--fail-on", "low",
+        ])
+        .assert()
+        .code(1);
+
+    // Capture fingerprint, then mark every finding as accepted_risk
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["triage", "init", "--path", triage_path.to_str().unwrap()]).assert().success();
+    for f in json.as_array().unwrap() {
+        let fp = f["fingerprint"].as_str().unwrap();
+        Command::cargo_bin("cyscan").unwrap()
+            .args(["triage", "set", fp, "accepted_risk", "--path", triage_path.to_str().unwrap()])
+            .assert().success();
+    }
+
+    // Now the same scan with --triage should exit 0 — all findings excluded
+    Command::cargo_bin("cyscan").unwrap()
+        .args([
+            "scan", tmp.path().to_str().unwrap(),
+            "--rules", &rules,
+            "--fail-on", "low",
+            "--triage", triage_path.to_str().unwrap(),
+        ])
+        .assert()
+        .code(0);
+}
+
 fn copy_tree(src: &std::path::Path, dst: &std::path::Path) {
     for entry in std::fs::read_dir(src).unwrap() {
         let entry = entry.unwrap();

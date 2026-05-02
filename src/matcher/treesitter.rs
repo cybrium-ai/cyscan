@@ -70,6 +70,7 @@ pub fn match_rule(
             cwe:        rule.cwe.clone(),
                 evidence: HashMap::new(),
                 reachability: None,
+            fingerprint: String::new(),
         });
     }
     out
