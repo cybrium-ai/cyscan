@@ -221,6 +221,25 @@ enum Cmd {
         #[command(subcommand)]
         cmd: TriageCmd,
     },
+
+    /// Discover the cross-service API surface — HTTP/gRPC clients
+    /// paired with their target handlers across languages. Closes the
+    /// "C# controller calls Java service calls Python DB helper"
+    /// visibility gap that pure SAST doesn't cover.
+    Xservice {
+        /// Target directory to analyse.
+        #[arg(default_value = ".")]
+        target: PathBuf,
+
+        /// Output format.
+        #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
+        format: Format,
+
+        /// Show only links (paired clients ↔ handlers); skip
+        /// unmatched callers and standalone handlers.
+        #[arg(long, default_value_t = false)]
+        links_only: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -738,6 +757,58 @@ pub fn run() -> Result<ExitCode> {
                 Ok(ExitCode::from(0))
             }
         },
+
+        Cmd::Xservice { target, format, links_only } => {
+            print_banner();
+            let map = crate::xservice::build(&target);
+            match format {
+                Format::Json | Format::Sarif => {
+                    println!("{}", serde_json::to_string_pretty(&map).unwrap_or_default());
+                }
+                Format::Text => {
+                    eprintln!();
+                    eprintln!("  Cross-service API surface");
+                    eprintln!("  -------------------------");
+                    eprintln!("    clients:  {}", map.clients.len());
+                    eprintln!("    handlers: {}", map.handlers.len());
+                    eprintln!("    specs:    {}", map.specs.len());
+                    eprintln!("    links:    {}", map.links.len());
+                    eprintln!();
+
+                    if !links_only && !map.specs.is_empty() {
+                        println!("API specs discovered:");
+                        for spec in &map.specs {
+                            println!("  {}  ({:?}, {} operations)",
+                                spec.file.display(), spec.kind, spec.operations.len());
+                        }
+                        println!();
+                    }
+
+                    if !map.links.is_empty() {
+                        println!("CLIENT  →  HANDLER  (matched_via)");
+                        for link in &map.links {
+                            if links_only && link.handler.is_none() { continue; }
+                            let h = link.handler.as_ref()
+                                .map(|h| format!("{} {}  [{}/{}:{}]",
+                                    h.method.as_str(), h.path,
+                                    h.framework, h.file.display(), h.line))
+                                .unwrap_or_else(|| "<external / unmatched>".into());
+                            println!("  {} {}  [{}:{}]  →  {}  ({})",
+                                link.client.method.as_str(),
+                                link.client.path,
+                                link.client.file.display(),
+                                link.client.line,
+                                h,
+                                link.matched_via,
+                            );
+                        }
+                    } else {
+                        println!("No client calls discovered.");
+                    }
+                }
+            }
+            Ok(ExitCode::from(0))
+        }
     }
 }
 

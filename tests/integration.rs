@@ -169,6 +169,105 @@ message: "matched"
         .stdout(predicate::str::contains("TEST-PNR").not());
 }
 
+// ─── Cross-service API contract (Option 1 / v0.16.0) ───────────────────────
+
+#[test]
+fn xservice_pairs_csharp_client_to_java_to_python() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let cs   = tmp.path().join("auth");
+    let java = tmp.path().join("user-svc");
+    let py   = tmp.path().join("db");
+    fs::create_dir(&cs).unwrap();
+    fs::create_dir(&java).unwrap();
+    fs::create_dir(&py).unwrap();
+
+    fs::write(cs.join("AuthController.cs"), r#"
+public class AuthController {
+    public async Task<Response> Login(LoginRequest body) {
+        return await httpClient.PostAsync("/api/users/{id}/login", body);
+    }
+}
+"#).unwrap();
+    fs::write(java.join("UserService.java"), r#"
+@RestController
+public class UserService {
+    @PostMapping("/api/users/{id}/login")
+    public Response login(@PathVariable String id, @RequestBody LoginRequest body) {
+        return restTemplate.getForObject("/db/lookup/{id}", Response.class);
+    }
+}
+"#).unwrap();
+    fs::write(py.join("db.py"), r#"
+@app.route("/db/lookup/<id>", methods=["GET"])
+def lookup(id):
+    return {"user": id}
+"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["xservice", tmp.path().to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let map: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let links = map["links"].as_array().unwrap();
+    assert!(links.len() >= 2, "expected >= 2 links, got {}", links.len());
+
+    // Find the C# → Java link
+    let cs_to_java = links.iter().find(|l| {
+        l["client"]["language"].as_str() == Some("csharp")
+            && l["handler"].is_object()
+            && l["handler"]["language"].as_str() == Some("java")
+    });
+    assert!(cs_to_java.is_some(), "C# → Java link should exist; got {:#?}", links);
+
+    // Find the Java → Python link
+    let java_to_py = links.iter().find(|l| {
+        l["client"]["language"].as_str() == Some("java")
+            && l["handler"].is_object()
+            && l["handler"]["language"].as_str() == Some("python")
+    });
+    assert!(java_to_py.is_some(), "Java → Python link should exist; got {:#?}", links);
+}
+
+#[test]
+fn xservice_normalises_path_param_styles() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("client.py"), r#"
+requests.get("/users/123")
+"#).unwrap();
+    fs::write(tmp.path().join("server.py"), r#"
+@app.route("/users/<id>", methods=["GET"])
+def view(id): pass
+"#).unwrap();
+    // Different param styles in client vs server — must still match.
+    fs::write(tmp.path().join("openapi.yaml"), r#"
+openapi: 3.0.0
+info: { title: t, version: 1 }
+paths:
+  /users/{id}:
+    get:
+      operationId: getUser
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["xservice", tmp.path().to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout.clone();
+    let map: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let specs = map["specs"].as_array().unwrap();
+    assert!(!specs.is_empty(), "openapi.yaml should be discovered");
+    let ops = specs[0]["operations"].as_array().unwrap();
+    assert!(
+        ops.iter().any(|op| op["normalised_path"].as_str() == Some("/users/{}")),
+        "openapi op should normalise to /users/{{}}, got {:?}", ops,
+    );
+}
+
 // ─── Engine depth: dynamic dispatch / decorators / metaprogramming ────────
 
 #[test]

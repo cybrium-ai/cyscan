@@ -2,6 +2,17 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.16.0] — 2026-05-02
+
+### Added
+- **`cyscan xservice` — cross-service API contract scanner.** Discovers every HTTP/gRPC client call and server endpoint in a polyglot repo, pairs them by `(method, normalised_path)`, and surfaces the cross-service map as text or JSON. **No other OSS scanner ships this.** Closes the "C# controller calls Java service calls Python DB helper" visibility gap that pure SAST doesn't address (and that Semgrep Pro / Checkmarx One don't address either — they trace within a language, not across).
+  - **Client detection:** Python `requests`/`httpx`/`aiohttp`, JS/TS `fetch`/`axios`/`got`, C# `HttpClient`, Java `RestTemplate`/`WebClient`, Go `net/http`, Ruby `Net::HTTP`/`HTTParty`/`RestClient`/`Faraday`.
+  - **Handler detection:** Flask/FastAPI/Django, Express/NestJS, ASP.NET Core (attributes + minimal API), Spring MVC (`@*Mapping` + `@RequestMapping`), Go `http.HandleFunc`, Rails routes.
+  - **Spec parsing:** OpenAPI YAML/JSON (Swagger 2 + 3), Protobuf service definitions (`rpc Foo(Bar) returns (Baz);` → `/Service/Foo` POST). When spec files are committed they become a third match source.
+  - **Path normalisation:** `/users/{id}` ≡ `/users/:id` ≡ `/users/<id>` ≡ `/users/<int:id>` ≡ `/users/(?P<id>[^/]+)` all collapse to `/users/{}` so cross-framework matches work without per-style hacks.
+  - **Match engine output:** Each link reports `client → handler` plus `matched_via` of `direct`, `spec:<file>`, or `unmatched` (for calls to external APIs).
+  - 2 new integration tests: cross-language pair (C# → Java → Python) + path-style normalisation (OpenAPI/Flask styles).
+
 ## [0.15.0] — 2026-05-02
 
 ### Added
