@@ -88,6 +88,226 @@ impl SymbolTable {
     }
 }
 
+/// Build a scope-aware symbol table for a single JavaScript or
+/// TypeScript source file. Curly-brace scope detection — every `{`
+/// opens a new scope, `}` closes the innermost one. We tag the scope
+/// kind based on the immediately-preceding header token (`function`,
+/// `class`, `=>` for arrow fns, anything else = block scope).
+pub fn build_javascript_symbol_table(source: &str) -> SymbolTable {
+    let mut table = SymbolTable::default();
+    let total_lines = source.lines().count().max(1);
+
+    // Module scope first.
+    table.scopes.push(Scope {
+        kind:       ScopeKind::Module,
+        start_line: 1,
+        end_line:   total_lines,
+        indent:     0,
+        bindings:   HashMap::new(),
+        parent_idx: None,
+    });
+
+    let lines: Vec<&str> = source.lines().collect();
+
+    // Pass 1 — walk braces line-by-line. Track a stack of open scopes
+    // and close them when matching `}` is seen. The scope kind is set
+    // from the header token on the line that opens the brace.
+    use ::regex::Regex;
+    let header_fn_re   = Regex::new(r"\bfunction\s+([A-Za-z_][A-Za-z_0-9]*)\s*\(").unwrap();
+    let header_anon_re = Regex::new(r"\bfunction\s*\(").unwrap();
+    let header_arrow_re = Regex::new(r"=>\s*\{").unwrap();
+    let header_class_re = Regex::new(r"\bclass\s+([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+
+    struct Open { idx: usize, depth: usize }
+    let mut stack: Vec<Open> = Vec::new();
+    let mut depth = 0usize;
+
+    for (line_idx, raw) in lines.iter().enumerate() {
+        let line_no = line_idx + 1;
+        // Tokenise the line into '{' and '}' positions, ignoring those
+        // inside string literals — cheap heuristic, good enough for our
+        // current needs.
+        let bytes = raw.as_bytes();
+        let mut in_str: Option<u8> = None;
+        let mut prev_open_at: Option<usize> = None;
+        let mut i = 0usize;
+        while i < bytes.len() {
+            let c = bytes[i];
+            if let Some(q) = in_str {
+                if c == b'\\' { i += 2; continue }
+                if c == q { in_str = None; }
+                i += 1; continue;
+            }
+            match c {
+                b'"' | b'\'' | b'`' => { in_str = Some(c); }
+                b'{' => {
+                    depth += 1;
+                    // Determine scope kind from the line up to this point.
+                    let prefix = &raw[..i];
+                    let kind = if header_fn_re.is_match(prefix)
+                        || header_anon_re.is_match(prefix)
+                        || header_arrow_re.is_match(&raw[..=i])
+                    {
+                        ScopeKind::Function
+                    } else if header_class_re.is_match(prefix) {
+                        ScopeKind::Class
+                    } else {
+                        // Block scope (if/for/while/{...}). We still push it so
+                        // shadowing inside blocks works — but we tag it as
+                        // Function for resolution purposes (closest enclosing).
+                        ScopeKind::Function
+                    };
+                    let parent_idx = stack.last().map(|o| o.idx).or(Some(0));
+                    table.scopes.push(Scope {
+                        kind,
+                        start_line: line_no,
+                        end_line:   total_lines, // updated on close
+                        indent:     0,
+                        bindings:   HashMap::new(),
+                        parent_idx,
+                    });
+                    let new_idx = table.scopes.len() - 1;
+                    stack.push(Open { idx: new_idx, depth });
+                    prev_open_at = Some(i);
+                }
+                b'}' => {
+                    if let Some(top) = stack.last() {
+                        if top.depth == depth {
+                            table.scopes[top.idx].end_line = line_no;
+                            stack.pop();
+                        }
+                    }
+                    depth = depth.saturating_sub(1);
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+        let _ = prev_open_at;
+    }
+
+    // Pass 2 — extract bindings:
+    //   var/let/const NAME [= EXPR]
+    //   function NAME(
+    //   class NAME
+    //   import NAME from 'mod'
+    //   import { a, b as c } from 'mod'
+    //   import * as NS from 'mod'
+    //   const { a, b } = require('mod')
+    let var_re      = Regex::new(r"\b(?:var|let|const)\s+([A-Za-z_$][A-Za-z_0-9$]*)\s*(?:=\s*([A-Za-z_$][A-Za-z_0-9$.]*))?").unwrap();
+    let fn_decl_re  = Regex::new(r"\bfunction\s+([A-Za-z_$][A-Za-z_0-9$]*)").unwrap();
+    let class_re    = Regex::new(r"\bclass\s+([A-Za-z_$][A-Za-z_0-9$]*)").unwrap();
+    let import_default_re   = Regex::new(r#"\bimport\s+([A-Za-z_$][A-Za-z_0-9$]*)\s+from\s+['"]([^'"]+)['"]"#).unwrap();
+    let import_named_re     = Regex::new(r#"\bimport\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"]"#).unwrap();
+    let import_ns_re        = Regex::new(r#"\bimport\s+\*\s+as\s+([A-Za-z_$][A-Za-z_0-9$]*)\s+from\s+['"]([^'"]+)['"]"#).unwrap();
+    let require_re          = Regex::new(r#"\b(?:var|let|const)\s+([A-Za-z_$][A-Za-z_0-9$]*)\s*=\s*require\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
+    let require_destruc_re  = Regex::new(r#"\b(?:var|let|const)\s+\{([^}]+)\}\s*=\s*require\(\s*['"]([^'"]+)['"]\s*\)"#).unwrap();
+
+    for (idx, raw) in lines.iter().enumerate() {
+        let line_no = idx + 1;
+        let scope_idx = scope_for_line(&table, line_no);
+        let scope_end  = table.scopes[scope_idx].end_line;
+        let scope_kind = table.scopes[scope_idx].kind;
+
+        if let Some(c) = require_destruc_re.captures(raw) {
+            let names = c.get(1).unwrap().as_str();
+            let module = c.get(2).unwrap().as_str().to_string();
+            for n in names.split(',') {
+                let raw_n = n.trim();
+                let alias = raw_n.split(':').last().unwrap_or(raw_n).trim();
+                if alias.is_empty() { continue; }
+                table.scopes[scope_idx].bindings.insert(alias.to_string(), Symbol {
+                    name: alias.to_string(),
+                    kind: Some(format!("{module}.{alias}")),
+                    line: line_no,
+                    end_line: scope_end,
+                    scope_kind,
+                });
+            }
+            continue;
+        }
+
+        if let Some(c) = require_re.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            let module = c.get(2).unwrap().as_str().to_string();
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: Some(module), line: line_no, end_line: scope_end, scope_kind,
+            });
+            continue;
+        }
+
+        if let Some(c) = import_ns_re.captures(raw) {
+            let alias = c.get(1).unwrap().as_str().to_string();
+            let module = c.get(2).unwrap().as_str().to_string();
+            table.scopes[scope_idx].bindings.insert(alias.clone(), Symbol {
+                name: alias, kind: Some(module), line: line_no, end_line: scope_end, scope_kind,
+            });
+            continue;
+        }
+
+        if let Some(c) = import_named_re.captures(raw) {
+            let names = c.get(1).unwrap().as_str();
+            let module = c.get(2).unwrap().as_str().to_string();
+            for n in names.split(',') {
+                let raw_n = n.trim();
+                let parts: Vec<&str> = raw_n.split(" as ").collect();
+                let original = parts.first().copied().unwrap_or(raw_n).trim();
+                let alias    = parts.get(1).copied().unwrap_or(original).trim();
+                if alias.is_empty() { continue; }
+                table.scopes[scope_idx].bindings.insert(alias.to_string(), Symbol {
+                    name: alias.to_string(),
+                    kind: Some(format!("{module}.{original}")),
+                    line: line_no,
+                    end_line: scope_end,
+                    scope_kind,
+                });
+            }
+            continue;
+        }
+
+        if let Some(c) = import_default_re.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            let module = c.get(2).unwrap().as_str().to_string();
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: Some(module), line: line_no, end_line: scope_end, scope_kind,
+            });
+            continue;
+        }
+
+        if let Some(c) = var_re.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            let kind = c.get(2).map(|m| m.as_str()).and_then(guess_kind_from_rhs);
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind, line: line_no, end_line: scope_end, scope_kind,
+            });
+        }
+
+        if let Some(c) = fn_decl_re.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name: name.clone(),
+                kind: Some("function".to_string()),
+                line: line_no,
+                end_line: scope_end,
+                scope_kind,
+            });
+        }
+
+        if let Some(c) = class_re.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name: name.clone(),
+                kind: Some(name),
+                line: line_no,
+                end_line: scope_end,
+                scope_kind: ScopeKind::Class,
+            });
+        }
+    }
+
+    table
+}
+
 /// Build a scope-aware symbol table for a single Python source file.
 /// Indentation-based scope detection — Python's whitespace structure
 /// makes this tractable without a full AST.
@@ -295,5 +515,53 @@ def view():
         assert_eq!(t.resolve(1, "join").unwrap().kind.as_deref(), Some("os.path.join"));
         // `as`-aliased name uses the alias as the bound key
         assert!(t.resolve(1, "p_exists").is_some(), "alias from `import X as Y` should be bound");
+    }
+
+    // ── JavaScript / TypeScript ───────────────────────────────────
+
+    #[test]
+    fn js_resolves_import_default() {
+        let src = "import express from 'express';\nconst app = express();\n";
+        let t = build_javascript_symbol_table(src);
+        let s = t.resolve(2, "express").expect("express should be bound");
+        assert_eq!(s.kind.as_deref(), Some("express"));
+    }
+
+    #[test]
+    fn js_named_import_with_alias() {
+        let src = "import { readFile, writeFile as wf } from 'fs/promises';\n";
+        let t = build_javascript_symbol_table(src);
+        assert_eq!(
+            t.resolve(1, "readFile").unwrap().kind.as_deref(),
+            Some("fs/promises.readFile"),
+        );
+        assert!(t.resolve(1, "wf").is_some(), "alias `writeFile as wf` should bind to wf");
+    }
+
+    #[test]
+    fn js_function_scope_shadows_module_const() {
+        let src = "\
+const db = 'module-db';
+
+function view() {
+  const db = 'function-db';
+  return db;
+}
+";
+        let t = build_javascript_symbol_table(src);
+        let inside = t.resolve(4, "db").expect("function-scope binding");
+        assert_eq!(inside.scope_kind, ScopeKind::Function);
+        let outside = t.resolve(1, "db").expect("module-scope binding");
+        assert_eq!(outside.scope_kind, ScopeKind::Module);
+    }
+
+    #[test]
+    fn js_require_destructure() {
+        let src = "const { readFile, writeFile } = require('fs');\n";
+        let t = build_javascript_symbol_table(src);
+        assert_eq!(
+            t.resolve(1, "readFile").unwrap().kind.as_deref(),
+            Some("fs.readFile"),
+        );
     }
 }
