@@ -11,9 +11,9 @@ use tree_sitter::{Parser, Query, QueryCursor, Tree};
 use crate::{finding::Finding, lang::Lang, rule::Rule};
 
 use super::dsl::{
-    metavariable_comparisons_match, metavariable_pattern_match,
-    metavariable_regex_match, metavariable_types_match,
-    pattern_not_regex_passes, CaptureMeta,
+    metavariable_analysis_passes, metavariable_comparisons_match,
+    metavariable_pattern_match, metavariable_regex_match,
+    metavariable_types_match, pattern_not_regex_passes, CaptureMeta,
 };
 
 pub fn parse(lang: Lang, source: &str) -> Result<Tree> {
@@ -120,6 +120,11 @@ pub fn match_rule(
             continue;
         }
         if !metavariable_pattern_match(&rule.metavariable_pattern, &captures) {
+            continue;
+        }
+        // Per-capture analyzer (Semgrep Pro `metavariable-analysis`
+        // parity — redos / entropy).
+        if !metavariable_analysis_passes(&rule.metavariable_analysis, &captures) {
             continue;
         }
         let span_text = node.utf8_text(bytes).unwrap_or("");

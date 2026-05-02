@@ -118,6 +118,17 @@ pub struct Rule {
     /// for `pattern-not-regex`.
     #[serde(default)]
     pub pattern_not_regex:    Vec<String>,
+    /// Per-capture analyzers — `{ x: redos }`, `{ token: entropy }`,
+    /// or `{ regex: redos, secret: entropy }`. The capture must
+    /// satisfy the analyzer for the match to fire. Closes the
+    /// Semgrep Pro `metavariable-analysis` gap; Semgrep OSS doesn't
+    /// have this.
+    ///
+    /// Currently supported analyzer keys:
+    ///   * `redos`   — catastrophic-backtracking risk in a regex literal
+    ///   * `entropy` — high-entropy string (likely a secret / token)
+    #[serde(default)]
+    pub metavariable_analysis: HashMap<String, String>,
     pub message:   String,
     #[serde(default)]
     pub fix_recipe: Option<String>,

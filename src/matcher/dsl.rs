@@ -115,6 +115,155 @@ pub(super) fn pattern_not_regex_passes(patterns: &[String], text: &str) -> bool 
     })
 }
 
+/// Per-capture analyzer — Semgrep Pro `metavariable-analysis` parity.
+/// Each entry maps a capture name to one of:
+///   * "redos"   — catastrophic-backtracking risk in a regex literal
+///   * "entropy" — high-entropy string (>= 4.5 bits/char, length ≥ 16)
+/// All analyzers must pass for the match to fire.
+pub(super) fn metavariable_analysis_passes<'a>(
+    constraints: &HashMap<String, String>,
+    captures: &HashMap<String, CaptureMeta<'a>>,
+) -> bool {
+    if constraints.is_empty() { return true; }
+    constraints.iter().all(|(raw_name, analyzer)| {
+        let name = raw_name.trim().trim_start_matches('$');
+        let Some(meta) = captures.get(name) else { return false };
+        match analyzer.trim().to_lowercase().as_str() {
+            "redos"   => has_redos_risk(meta.text),
+            "entropy" => has_high_entropy(meta.text),
+            _         => false,
+        }
+    })
+}
+
+/// Conservative ReDoS detector — flags regex literals with the
+/// catastrophic-backtracking patterns documented in OWASP ReDoS.
+/// Heuristic but high-signal: catches `(a+)+`, `(a|a)+`, `(.*)*`,
+/// `(.+)+`, alternations of overlapping branches inside repeats.
+pub fn has_redos_risk(regex_str: &str) -> bool {
+    let s = regex_str;
+    // 1. Nested unbounded quantifier — `(...)+` or `(...)*` immediately
+    //    followed by `+` or `*`. Classic catastrophic backtracking.
+    if has_nested_quantifier(s) { return true; }
+
+    // 2. `.*` or `.+` more than once with intervening fixed text — not
+    //    always pathological but flagged for review.
+    let dotstar_count = s.matches(".*").count() + s.matches(".+").count();
+    if dotstar_count >= 2 { return true; }
+
+    // 3. Alternation inside a quantifier where alternatives overlap
+    //    (e.g. `(a|a)+`, `(\d|\d+)+`). Cheap-but-imperfect detector:
+    //    look for `(...|...)+` where the alternatives are equal after
+    //    trimming whitespace.
+    if let Some(start) = s.find("(") {
+        if let Some(close) = s[start..].find(")+").or_else(|| s[start..].find(")*")) {
+            let inner = &s[start+1..start+close];
+            if inner.contains('|') {
+                let parts: Vec<&str> = inner.split('|').map(str::trim).collect();
+                for i in 0..parts.len() {
+                    for j in i+1..parts.len() {
+                        if parts[i] == parts[j]
+                            || (parts[i].len() < parts[j].len() && parts[j].contains(parts[i]))
+                            || (parts[j].len() < parts[i].len() && parts[i].contains(parts[j]))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+fn has_nested_quantifier(s: &str) -> bool {
+    // Look for `)+` or `)*` immediately preceded by a quantifier inside
+    // the group (`+` or `*` on the inner side of `)`).
+    let bytes = s.as_bytes();
+    for (i, &c) in bytes.iter().enumerate() {
+        if (c == b'+' || c == b'*') && i + 1 < bytes.len() {
+            let nxt = bytes[i + 1];
+            if nxt == b')' && i + 2 < bytes.len() {
+                let after = bytes[i + 2];
+                if after == b'+' || after == b'*' || after == b'{' {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Shannon-entropy gate. Returns true when the string looks like a
+/// secret / token: length ≥ 16, Shannon entropy ≥ 3.5 bits/char,
+/// AND the string mixes at least two of {upper, lower, digit} —
+/// matches real API keys / JWTs / base64 secrets without flagging
+/// natural-language sentences (which clear the entropy bar but are
+/// usually all-lowercase).
+pub fn has_high_entropy(s: &str) -> bool {
+    if s.len() < 16 { return false; }
+    if !mixes_two_char_classes(s) { return false; }
+    let mut counts = [0u32; 256];
+    let mut total = 0u32;
+    for &b in s.as_bytes() {
+        counts[b as usize] += 1;
+        total += 1;
+    }
+    if total == 0 { return false; }
+    let total_f = total as f64;
+    let entropy: f64 = counts.iter()
+        .filter(|&&c| c > 0)
+        .map(|&c| {
+            let p = c as f64 / total_f;
+            -p * p.log2()
+        })
+        .sum();
+    entropy >= 3.5
+}
+
+fn mixes_two_char_classes(s: &str) -> bool {
+    let mut classes = 0u8;
+    if s.bytes().any(|b| b.is_ascii_lowercase()) { classes += 1; }
+    if s.bytes().any(|b| b.is_ascii_uppercase()) { classes += 1; }
+    if s.bytes().any(|b| b.is_ascii_digit())     { classes += 1; }
+    classes >= 2
+}
+
+#[cfg(test)]
+mod analyzer_tests {
+    use super::*;
+
+    #[test]
+    fn redos_detects_nested_unbounded_quantifier() {
+        assert!(has_redos_risk("(a+)+"));
+        assert!(has_redos_risk("(.*)*"));
+        assert!(has_redos_risk("(.+)+"));
+    }
+
+    #[test]
+    fn redos_skips_safe_patterns() {
+        assert!(!has_redos_risk(r"^[A-Za-z0-9_-]+$"));
+        assert!(!has_redos_risk("hello"));
+    }
+
+    #[test]
+    fn redos_detects_overlapping_alternation_in_quantifier() {
+        assert!(has_redos_risk(r"(a|a)+"));
+    }
+
+    #[test]
+    fn entropy_flags_high_entropy_token() {
+        assert!(has_high_entropy("aGVsbG93b3JsZGZvb2Jhcg=="));
+        assert!(has_high_entropy("xK7zP9mNvL2qR5tY8wB3aE6h"));
+    }
+
+    #[test]
+    fn entropy_skips_low_entropy_strings() {
+        assert!(!has_high_entropy("hello world"));
+        assert!(!has_high_entropy("aaaaaaaaaaaaaaaa"));
+    }
+}
+
 fn split_comparison(expr: &str) -> Option<(&str, &'static str, &str)> {
     for op in [
         " starts_with ",

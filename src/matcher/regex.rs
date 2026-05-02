@@ -10,9 +10,9 @@ use regex::Regex;
 use crate::{finding::Finding, rule::Rule};
 
 use super::dsl::{
-    metavariable_comparisons_match, metavariable_pattern_match,
-    metavariable_regex_match, metavariable_types_match,
-    pattern_not_regex_passes, CaptureMeta,
+    metavariable_analysis_passes, metavariable_comparisons_match,
+    metavariable_pattern_match, metavariable_regex_match,
+    metavariable_types_match, pattern_not_regex_passes, CaptureMeta,
 };
 
 /// Convert semgrep-style AST pattern to regex.
@@ -126,9 +126,22 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
     // ranges for the fixer. `source.lines()` strips newlines, so we walk
     // the source manually to keep offsets honest on \r\n and \n alike.
     let mut line_start = 0usize;
+    let has_group = re.captures_len() > 1;
     for (line_ix, line) in source.split_inclusive('\n').enumerate() {
         let trimmed = line.trim_end_matches(['\r', '\n']);
-        for m in re.find_iter(trimmed) {
+        // Walk captures so metavariable analyzers see group 1 (when
+        // present) rather than the full match. Falls back to the
+        // overall match when the regex has no groups.
+        let iter: Box<dyn Iterator<Item = (regex::Match, Option<regex::Match>)>> = if has_group {
+            Box::new(re.captures_iter(trimmed).map(|c| {
+                let whole = c.get(0).unwrap();
+                let group = c.get(1);
+                (whole, group)
+            }))
+        } else {
+            Box::new(re.find_iter(trimmed).map(|m| (m, None)))
+        };
+        for (m, group) in iter {
             let abs_start = line_start + m.start();
             let abs_end   = line_start + m.end();
             // pattern_not_inside: drop if absolute span lives inside a
@@ -145,7 +158,13 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
             }
             // metavariable_comparison(s) + metavariable_types — captures
             // are per-match snippet; for regex we expose only `text`.
-            let captures = single_match_captures(&m.as_str());
+            // Capture text for metavariable analyzers — group 1 if the
+            // rule's regex has a capturing group, otherwise the whole
+            // match. This lets `regex: TOKEN\s*=\s*['"]([^'"]+)['"]`
+            // feed just the literal value (not the surrounding TOKEN=
+            // wrapper) into entropy / redos / metavar checks.
+            let capture_text = group.map(|g| g.as_str()).unwrap_or(m.as_str());
+            let captures = single_match_captures(capture_text);
             if !metavariable_comparisons_match(metavar_multi, metavar_singular, &captures) {
                 continue;
             }
@@ -158,6 +177,11 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
                 continue;
             }
             if !metavariable_pattern_match(&rule.metavariable_pattern, &captures) {
+                continue;
+            }
+            // Per-capture analyzer (Semgrep Pro `metavariable-analysis`
+            // parity — redos / entropy).
+            if !metavariable_analysis_passes(&rule.metavariable_analysis, &captures) {
                 continue;
             }
             // pattern_not_regex matches against the whole line so a

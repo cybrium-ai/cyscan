@@ -169,6 +169,64 @@ message: "matched"
         .stdout(predicate::str::contains("TEST-PNR").not());
 }
 
+// ─── metavariable-analysis (v0.19.0 — Semgrep Pro parity) ──────────────────
+
+#[test]
+fn metavariable_analysis_redos_filters_safe_patterns() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("redos.yml"), r#"
+id: TEST-MV-REDOS
+title: "ReDoS regex"
+severity: high
+languages: [python]
+regex: "RE\\s*=\\s*r['\"]([^'\"]+)['\"]"
+metavariable_analysis:
+  match: redos
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+SAFE_RE = r'^[A-Za-z0-9_-]+$'
+RISKY_RE = r'(a+)+'
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("(a+)+"))
+        .stdout(predicate::str::contains("[A-Za-z0-9_-]+").not());
+}
+
+#[test]
+fn metavariable_analysis_entropy_filters_low_entropy_strings() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("entropy.yml"), r#"
+id: TEST-MV-ENTROPY
+title: "high-entropy literal"
+severity: medium
+languages: [python]
+regex: "TOKEN\\s*=\\s*['\"]([^'\"]+)['\"]"
+metavariable_analysis:
+  match: entropy
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+TOKEN = "hello world example"
+TOKEN = "xK7zP9mNvL2qR5tY8wB3aE6h"
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("xK7zP9mNvL2qR5tY8wB3aE6h"))
+        .stdout(predicate::str::contains("hello world example").not());
+}
+
 // ─── Cross-service evidence + aggregation + path prefix (v0.17.0) ──────────
 
 #[test]

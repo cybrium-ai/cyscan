@@ -2,6 +2,18 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.19.0] — 2026-05-02
+
+### Added
+- **`metavariable-analysis` (Semgrep Pro parity).** Rule YAML now accepts a `metavariable_analysis: { capture_name: analyzer }` block. Two analyzers ship: `redos` (catastrophic-backtracking detector — flags nested unbounded quantifiers `(...)+`/`(...)*`, multiple `.* / .+` repeats, overlapping-alternation-in-quantifier patterns) and `entropy` (Shannon-entropy gate ≥ 3.5 bits/char + ≥ 2 character classes + length ≥ 16 — matches real API keys / JWTs without flagging English sentences). Wired into both `regex::match_rule` and `treesitter::match_rule`.
+  - Semgrep OSS doesn't have `metavariable-analysis`; it's a Semgrep Pro feature. Shipping it puts cyscan **ahead of Semgrep OSS** on this surface.
+- **Capturing-group support in the regex matcher.** When a rule's `regex:` has a capturing group, all metavariable filters (regex / pattern / types / analysis / comparisons) see group 1 instead of the whole match. Lets rules like `regex: TOKEN\s*=\s*['\"]([^'\"]+)['\"]` feed only the literal value into entropy / redos checks.
+- 2 new integration tests + 5 unit tests covering ReDoS detection (positive + negative), entropy gating (positive + negative + char-class diversity), and end-to-end rule matching.
+
+### Notes
+- The metavariable-* family now shipped: `metavariable-comparison` (single + list), `metavariable-regex`, `metavariable-pattern` (regex flavor), `metavariable-types`, `metavariable-analysis` (redos + entropy), plus the `pattern-*` siblings (`pattern-either`, `pattern-either-groups`, `pattern-not`, `pattern-inside`, `pattern-not-inside`, `pattern-not-regex`).
+- Still deferred: nested-AST `metavariable-pattern` (needs sub-AST parser, complex) and cross-language `metavariable-pattern` with `language:` (rare; deferred to follow-up).
+
 ## [0.18.0] — 2026-05-02
 
 ### Added
