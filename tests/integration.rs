@@ -110,6 +110,112 @@ fn supply_no_advisories_flag_skips_osv() {
         .stdout(predicate::str::contains("GHSA-").not());
 }
 
+// ─── DSL semantics tests (Gap 3 / B1) ───────────────────────────────────────
+
+#[test]
+fn dsl_pattern_either_groups_match_complete_branch() {
+    // pattern_either_groups requires that at least one group fully matches
+    // (every entry in the group satisfied somewhere in the source).
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("either_groups.yml"), r#"
+id: TEST-DSL-EITHER-GROUPS
+title: "Either groups"
+severity: high
+languages: [python]
+regex: "TARGET"
+pattern_either_groups:
+  - ["AAA", "BBB"]
+  - ["XXX", "YYY"]
+message: "matched"
+"#).unwrap();
+
+    // Source where only group 1 fully matches
+    let src = tmp.path().join("a.py");
+    fs::write(&src, "TARGET\nAAA\nBBB\n").unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TEST-DSL-EITHER-GROUPS"));
+
+    // Source with neither group fully present — only AAA + XXX → no match
+    fs::write(&src, "TARGET\nAAA\nXXX\n").unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TEST-DSL-EITHER-GROUPS").not());
+}
+
+#[test]
+fn dsl_pattern_not_inside_excludes_enclosing_context() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("not_inside.yml"), r#"
+id: TEST-DSL-NOT-INSIDE
+title: "Not inside"
+severity: medium
+languages: [python]
+regex: "FORBIDDEN"
+pattern_not_inside:
+  - "def safe_zone"
+message: "matched"
+"#).unwrap();
+
+    // FORBIDDEN appears outside any safe_zone → should fire
+    let src = tmp.path().join("a.py");
+    fs::write(&src, "x = FORBIDDEN\n").unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TEST-DSL-NOT-INSIDE"));
+
+    // FORBIDDEN inside def safe_zone(): block → suppressed
+    fs::write(&src, "def safe_zone():\n    x = FORBIDDEN\n").unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TEST-DSL-NOT-INSIDE").not());
+}
+
+#[test]
+fn dsl_metavariable_comparisons_filter_capture() {
+    // Sanity: regex matcher invokes metavariable_comparisons. With a
+    // length comparison on the synthetic `match` capture we filter
+    // matches that don't satisfy `len > N`.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("metavar.yml"), r#"
+id: TEST-DSL-METAVAR
+title: "Long-token only"
+severity: low
+languages: [python]
+regex: "TOKEN_[A-Z0-9]+"
+metavariable_comparisons:
+  - "len($match) > 10"
+message: "matched"
+"#).unwrap();
+
+    let src = tmp.path().join("a.py");
+    // TOKEN_ABCDEFGHIJ is 16 chars (matches), TOKEN_X is 7 (filtered out)
+    fs::write(&src, "x = TOKEN_X\ny = TOKEN_ABCDEFGHIJ\n").unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TOKEN_ABCDEFGHIJ"))
+        .stdout(predicate::str::contains("TOKEN_X").not());
+}
+
 // ─── Triage workflow tests (Gap 1) ──────────────────────────────────────────
 
 #[test]
