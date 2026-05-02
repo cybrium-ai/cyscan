@@ -31,6 +31,7 @@ pub struct FileSemantics {
     pub js_named_imports: HashMap<String, String>,
     pub frameworks: HashSet<String>,
     pub tainted_identifiers: HashMap<String, String>,
+    pub sanitized_identifiers: HashMap<String, String>,
     /// Maps function names to the list of their parameter names.
     pub function_definitions: HashMap<String, Vec<String>>,
     /// List of (function_name, argument_index, source_kind) for calls in this file.
@@ -41,6 +42,10 @@ pub struct FileSemantics {
     pub return_param_indices: HashMap<String, Vec<usize>>,
     /// Functions that directly return a source kind without caller-controlled params.
     pub direct_return_sources: HashMap<String, Vec<String>>,
+    /// Functions that return sanitized versions of specific parameters.
+    pub return_param_sanitizers: HashMap<String, Vec<(usize, String)>>,
+    /// Functions that directly return sanitized source-derived values.
+    pub direct_sanitized_returns: HashMap<String, Vec<String>>,
     /// Local variables assigned from resolved function calls.
     pub call_assignments: Vec<CallAssignment>,
     /// Maps identifiers (e.g. "db") to their inferred type/module (e.g. "sqlite3").
@@ -140,16 +145,7 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                 }
                 if let Some(caps) = return_re.captures(line) {
                     let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim();
-                    if let Some(source_kind) = python_source_kind(expr) {
-                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
-                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
-                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
-                    } else if let Some(kind) = local_taint.get(expr) {
-                        match kind {
-                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
-                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
-                        }
-                    }
+                    record_return_semantics(&mut semantics, func_identity, expr, params, local_taint, Lang::Python, python_source_kind);
                 }
                 continue;
             }
@@ -385,6 +381,179 @@ fn push_unique_string(map: &mut HashMap<String, Vec<String>>, key: &str, value: 
     }
 }
 
+fn push_unique_param_sanitizer(
+    map: &mut HashMap<String, Vec<(usize, String)>>,
+    key: &str,
+    idx: usize,
+    sanitizer: &str,
+) {
+    let values = map.entry(key.to_string()).or_default();
+    if !values.iter().any(|(existing_idx, existing_sanitizer)| *existing_idx == idx && existing_sanitizer == sanitizer) {
+        values.push((idx, sanitizer.to_string()));
+    }
+}
+
+fn record_return_semantics(
+    semantics: &mut FileSemantics,
+    func_identity: &str,
+    expr: &str,
+    params: &[String],
+    local_taint: &HashMap<String, Result<usize, String>>,
+    lang: Lang,
+    source_kind: fn(&str) -> Option<&'static str>,
+) {
+    let expr = expr.trim();
+    if expr.is_empty() {
+        return;
+    }
+    if let Some(kind) = source_kind(expr) {
+        push_unique_string(&mut semantics.direct_return_sources, func_identity, kind);
+        return;
+    }
+    if let Some((idx, sanitizer)) = return_param_sanitizer(lang, expr, params, local_taint) {
+        push_unique_param_sanitizer(&mut semantics.return_param_sanitizers, func_identity, idx, &sanitizer);
+        return;
+    }
+    if let Some(sanitizer) = direct_return_sanitizer(lang, expr, local_taint) {
+        push_unique_string(&mut semantics.direct_sanitized_returns, func_identity, &sanitizer);
+        return;
+    }
+    if let Some(idx) = params.iter().position(|param| param == expr) {
+        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
+        return;
+    }
+    if let Some(kind) = local_taint.get(expr) {
+        match kind {
+            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
+            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
+        }
+    }
+}
+
+fn return_param_sanitizer(
+    lang: Lang,
+    expr: &str,
+    params: &[String],
+    local_taint: &HashMap<String, Result<usize, String>>,
+) -> Option<(usize, String)> {
+    let mut tainted = HashMap::<String, String>::new();
+    let mut param_by_ident = HashMap::<String, usize>::new();
+    for (idx, param) in params.iter().enumerate() {
+        tainted.insert(param.clone(), "param".into());
+        param_by_ident.insert(param.clone(), idx);
+    }
+    for (ident, kind) in local_taint {
+        if let Ok(idx) = kind {
+            tainted.insert(ident.clone(), "param".into());
+            param_by_ident.insert(ident.clone(), *idx);
+        }
+    }
+    let Some(sanitizer) = semantic_sanitizer_kind(lang, expr, &tainted) else {
+        return None;
+    };
+    for token in semantic_tokens(expr) {
+        if let Some(idx) = param_by_ident.get(token) {
+            return Some((*idx, sanitizer));
+        }
+    }
+    None
+}
+
+fn direct_return_sanitizer(
+    lang: Lang,
+    expr: &str,
+    local_taint: &HashMap<String, Result<usize, String>>,
+) -> Option<String> {
+    let mut tainted = HashMap::<String, String>::new();
+    for (ident, kind) in local_taint {
+        if let Err(source_kind) = kind {
+            tainted.insert(ident.clone(), source_kind.clone());
+        }
+    }
+    semantic_sanitizer_kind(lang, expr, &tainted)
+}
+
+fn semantic_sanitizer_kind(
+    lang: Lang,
+    text: &str,
+    tainted: &HashMap<String, String>,
+) -> Option<String> {
+    if !semantic_tokens(text).any(|token| tainted.contains_key(token)) {
+        return None;
+    }
+    let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+    match lang {
+        Lang::Python => {
+            if compact.contains("html.escape(") || compact.contains("django.utils.html.escape(") {
+                return Some("escaped_input".into());
+            }
+            if compact.contains("markupsafe.escape(") || compact.contains("flask.escape(") {
+                return Some("html_escaped".into());
+            }
+            if compact.contains("ast.literal_eval(") {
+                return Some("literal_eval_guard".into());
+            }
+        }
+        Lang::Javascript | Lang::Typescript => {
+            if compact.contains("DOMPurify.sanitize(") {
+                return Some("dompurify_sanitized".into());
+            }
+            if compact.contains("escapeHtml(") || compact.contains("he.encode(") {
+                return Some("html_escaped".into());
+            }
+        }
+        Lang::Csharp => {
+            if compact.contains("HttpUtility.HtmlEncode(")
+                || compact.contains("WebUtility.HtmlEncode(")
+                || compact.contains("HtmlEncoder.Default.Encode(")
+                || compact.contains("AntiXssEncoder.HtmlEncode(")
+            {
+                return Some("aspnet.html_encoded".into());
+            }
+            if compact.contains("Uri.EscapeDataString(")
+                || compact.contains("HttpUtility.UrlEncode(")
+                || compact.contains("WebUtility.UrlEncode(")
+            {
+                return Some("aspnet.url_encoded".into());
+            }
+        }
+        Lang::Java => {
+            if compact.contains("HtmlUtils.htmlEscape(") || compact.contains("ESAPI.encoder().encodeForHTML(") {
+                return Some("java_html_encoded".into());
+            }
+            if compact.contains("UriUtils.encode(") || compact.contains("URLEncoder.encode(") {
+                return Some("java_url_encoded".into());
+            }
+        }
+        Lang::Ruby => {
+            if compact.contains("sanitize(") {
+                return Some("rails.sanitize".into());
+            }
+            if compact.contains("strip_tags(") {
+                return Some("rails.strip_tags".into());
+            }
+            if compact.contains("ERB::Util.html_escape(") || compact.contains("html_escape(") {
+                return Some("rails.html_escape".into());
+            }
+        }
+        Lang::Go => {
+            if compact.contains("template.HTMLEscapeString(") {
+                return Some("go.html_escape".into());
+            }
+            if compact.contains("url.QueryEscape(") || compact.contains("template.URLQueryEscaper(") {
+                return Some("go.url_escape".into());
+            }
+        }
+        _ => {}
+    }
+    None
+}
+
+fn semantic_tokens(text: &str) -> impl Iterator<Item = &str> {
+    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.'))
+        .filter(|token| !token.is_empty())
+}
+
 fn record_param_call_edges(
     semantics: &mut FileSemantics,
     caller: &str,
@@ -531,16 +700,7 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
                 }
                 if let Some(caps) = return_re.captures(line) {
                     let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
-                    if let Some(source_kind) = js_source_kind(expr) {
-                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
-                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
-                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
-                    } else if let Some(kind) = local_taint.get(expr) {
-                        match kind {
-                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
-                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
-                        }
-                    }
+                    record_return_semantics(&mut semantics, func_identity, expr, params, local_taint, Lang::Javascript, js_source_kind);
                 }
             }
             *brace_depth += line.matches('{').count() as i32;
@@ -576,14 +736,20 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
                     ));
                 } else if let Some(arrow_pos) = line.find("=>") {
                     let expr = line[arrow_pos + 2..].trim().trim_end_matches(';');
-                    if let Some(source_kind) = js_source_kind(expr) {
-                        push_unique_string(&mut semantics.direct_return_sources, &func_identity, source_kind);
-                    } else if let Some(idx) = semantics.function_definitions[&func_identity]
-                        .iter()
-                        .position(|param| param == expr)
-                    {
-                        push_unique_usize(&mut semantics.return_param_indices, &func_identity, idx);
-                    }
+                    let params = semantics.function_definitions
+                        .get(&func_identity)
+                        .cloned()
+                        .unwrap_or_default();
+                    let empty_local_taint = HashMap::new();
+                    record_return_semantics(
+                        &mut semantics,
+                        &func_identity,
+                        expr,
+                        &params,
+                        &empty_local_taint,
+                        Lang::Javascript,
+                        js_source_kind,
+                    );
                 }
             }
         }
@@ -926,16 +1092,7 @@ fn extract_ruby(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
 
                 if let Some(caps) = return_re.captures(line) {
                     let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim();
-                    if let Some(source_kind) = ruby_source_kind(expr) {
-                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
-                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
-                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
-                    } else if let Some(kind) = local_taint.get(expr) {
-                        match kind {
-                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
-                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
-                        }
-                    }
+                    record_return_semantics(&mut semantics, func_identity, expr, params, local_taint, Lang::Ruby, ruby_source_kind);
                 }
             }
 
@@ -1180,16 +1337,7 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
 
                 if let Some(caps) = return_re.captures(line) {
                     let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
-                    if let Some(source_kind) = java_source_kind(expr) {
-                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
-                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
-                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
-                    } else if let Some(kind) = local_taint.get(expr) {
-                        match kind {
-                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
-                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
-                        }
-                    }
+                    record_return_semantics(&mut semantics, func_identity, expr, params, local_taint, Lang::Java, java_source_kind);
                 }
             }
             *brace_depth += line.matches('{').count() as i32;
@@ -1486,16 +1634,7 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
 
                 if let Some(caps) = return_re.captures(line) {
                     let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
-                    if let Some(source_kind) = csharp_source_kind(expr) {
-                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
-                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
-                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
-                    } else if let Some(kind) = local_taint.get(expr) {
-                        match kind {
-                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
-                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
-                        }
-                    }
+                    record_return_semantics(&mut semantics, func_identity, expr, params, local_taint, Lang::Csharp, csharp_source_kind);
                 }
             }
             *brace_depth += line.matches('{').count() as i32;
@@ -1754,16 +1893,7 @@ fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> Fi
 
                 if let Some(caps) = return_re.captures(line) {
                     let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim();
-                    if let Some(source_kind) = go_source_kind(expr) {
-                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
-                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
-                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
-                    } else if let Some(kind) = local_taint.get(expr) {
-                        match kind {
-                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
-                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
-                        }
-                    }
+                    record_return_semantics(&mut semantics, func_identity, expr, params, local_taint, Lang::Go, go_source_kind);
                 }
             }
             *brace_depth += line.matches('{').count() as i32;
@@ -1969,16 +2099,7 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
 
                 if let Some(caps) = return_re.captures(line) {
                     let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
-                    if let Some(source_kind) = rust_source_kind(expr) {
-                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
-                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
-                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
-                    } else if let Some(kind) = local_taint.get(expr) {
-                        match kind {
-                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
-                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
-                        }
-                    }
+                    record_return_semantics(&mut semantics, func_identity, expr, params, local_taint, Lang::Rust, rust_source_kind);
                 }
             }
             *brace_depth += line.matches('{').count() as i32;

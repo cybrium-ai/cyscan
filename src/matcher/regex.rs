@@ -693,7 +693,7 @@ fn regex_intra_file_flow(
 ) -> Option<(Option<String>, Option<String>, &'static str)> {
     let assign_re = regex_assignment_regex(lang)?;
     let mut tainted = semantics.tainted_identifiers.clone();
-    let mut sanitized = HashMap::<String, String>::new();
+    let mut sanitized = semantics.sanitized_identifiers.clone();
     let prefix = &source[..match_start.min(source.len())];
 
     for raw_line in prefix.lines() {
@@ -718,6 +718,14 @@ fn regex_intra_file_flow(
             tainted.remove(&ident);
             sanitized.insert(ident, sanitizer_kind);
             continue;
+        }
+
+        if rhs.contains('(') && rhs.contains(')') {
+            if let Some(sanitizer_kind) = semantics.sanitized_identifiers.get(&ident).cloned() {
+                tainted.remove(&ident);
+                sanitized.insert(ident, sanitizer_kind);
+                continue;
+            }
         }
 
         if let Some(source_kind) = regex_taint_from_tokens(rhs, &tainted) {

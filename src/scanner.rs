@@ -26,6 +26,8 @@ pub struct GlobalTaintMap {
     pub tainted_params: HashMap<String, Vec<(String, String)>>,
     /// Maps function names to source kinds that can flow out of the return value.
     pub tainted_returns: HashMap<String, Vec<String>>,
+    /// Maps function names to sanitizer kinds that can flow out of the return value.
+    pub sanitized_returns: HashMap<String, Vec<String>>,
 }
 
 impl GlobalTaintMap {
@@ -45,6 +47,20 @@ impl GlobalTaintMap {
             .values()
             .flat_map(|semantics| semantics.direct_return_sources.iter())
             .map(|(func_name, kinds)| (func_name.clone(), kinds.clone()))
+            .collect();
+        let return_param_sanitizers: HashMap<String, Vec<(usize, String)>> = file_semantics
+            .values()
+            .flat_map(|semantics| semantics.return_param_sanitizers.iter())
+            .map(|(func_name, entries)| (func_name.clone(), entries.clone()))
+            .collect();
+        let direct_sanitized_returns: HashMap<String, Vec<String>> = file_semantics
+            .values()
+            .flat_map(|semantics| semantics.direct_sanitized_returns.iter())
+            .map(|(func_name, kinds)| (func_name.clone(), kinds.clone()))
+            .collect();
+        let param_call_edges: Vec<crate::matcher::semantics::ParamCallEdge> = file_semantics
+            .values()
+            .flat_map(|semantics| semantics.param_call_edges.iter().cloned())
             .collect();
 
         let mut changed = true;
@@ -74,6 +90,16 @@ impl GlobalTaintMap {
                 }
             }
 
+            for (func_name, kinds) in &direct_sanitized_returns {
+                let values = gtm.sanitized_returns.entry(func_name.clone()).or_default();
+                for kind in kinds {
+                    if !values.iter().any(|existing| existing == kind) {
+                        values.push(kind.clone());
+                        changed = true;
+                    }
+                }
+            }
+
             for (func_name, indices) in &return_param_indices {
                 let Some(params) = global_definitions.get(func_name) else { continue };
                 let tainted_params = gtm.tainted_params.get(func_name).cloned().unwrap_or_default();
@@ -89,6 +115,43 @@ impl GlobalTaintMap {
                                 changed = true;
                             }
                         }
+                    }
+                }
+            }
+
+            for (func_name, entries) in &return_param_sanitizers {
+                let Some(params) = global_definitions.get(func_name) else { continue };
+                let tainted_params = gtm.tainted_params.get(func_name).cloned().unwrap_or_default();
+                for (idx, sanitizer_kind) in entries {
+                    if let Some(param_name) = params.get(*idx) {
+                        for (name, _) in &tainted_params {
+                            if name != param_name {
+                                continue;
+                            }
+                            let values = gtm.sanitized_returns.entry(func_name.clone()).or_default();
+                            if !values.iter().any(|existing| existing == sanitizer_kind) {
+                                values.push(sanitizer_kind.clone());
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            for edge in &param_call_edges {
+                let Some(caller_params) = global_definitions.get(&edge.caller) else { continue };
+                let Some(caller_param_name) = caller_params.get(edge.caller_param_idx) else { continue };
+                let caller_tainted = gtm.tainted_params.get(&edge.caller).cloned().unwrap_or_default();
+                for (name, source_kind) in caller_tainted {
+                    if name != *caller_param_name {
+                        continue;
+                    }
+                    let Some(callee_params) = global_definitions.get(&edge.callee) else { continue };
+                    let Some(callee_param_name) = callee_params.get(edge.callee_arg_idx) else { continue };
+                    let values = gtm.tainted_params.entry(edge.callee.clone()).or_default();
+                    if !values.iter().any(|(existing_name, existing_kind)| existing_name == callee_param_name && existing_kind == &source_kind) {
+                        values.push((callee_param_name.clone(), source_kind));
+                        changed = true;
                     }
                 }
             }
@@ -166,6 +229,13 @@ pub fn run_with_context(target: &Path, pack: &RulePack, cloud: Option<CloudConte
                 let Some(kinds) = gtm.tainted_returns.get(&call.target) else { continue };
                 for kind in kinds {
                     final_semantics.tainted_identifiers.entry(call.ident.clone()).or_insert(kind.clone());
+                }
+            }
+            for call in &semantics.call_assignments {
+                let Some(kinds) = gtm.sanitized_returns.get(&call.target) else { continue };
+                for kind in kinds {
+                    final_semantics.tainted_identifiers.remove(&call.ident);
+                    final_semantics.sanitized_identifiers.entry(call.ident.clone()).or_insert(kind.clone());
                 }
             }
 

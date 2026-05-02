@@ -448,7 +448,7 @@ fn intra_file_taint(
     let scope_prefix = scope_prefix(lang, source, node)?;
     let assign_re = assignment_regex(lang)?;
     let mut tainted = semantics.tainted_identifiers.clone();
-    let mut sanitized = HashMap::<String, String>::new();
+    let mut sanitized = semantics.sanitized_identifiers.clone();
 
     for raw_line in scope_prefix.lines() {
         let line = strip_comments(lang, raw_line).trim();
@@ -472,6 +472,14 @@ fn intra_file_taint(
             tainted.remove(&ident);
             sanitized.insert(ident, reason);
             continue;
+        }
+
+        if rhs.contains('(') && rhs.contains(')') {
+            if let Some(reason) = semantics.sanitized_identifiers.get(&ident).cloned() {
+                tainted.remove(&ident);
+                sanitized.insert(ident, reason);
+                continue;
+            }
         }
 
         if let Some(source_kind) = taint_from_tokens(rhs, &tainted) {

@@ -1422,6 +1422,30 @@ fn python_return_taint_from_imported_helper_reaches_sink() {
 }
 
 #[test]
+fn python_return_sanitizer_from_imported_helper_marks_sink_guarded() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("helper.py"),
+        "import html\n\ndef wrap(value):\n    return html.escape(value)\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("entry.py"),
+        "from flask import request\nfrom helper import wrap\nuser = request.args.get('code')\nwrapped = wrap(user)\neval(wrapped)\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-PY-CODE-EVAL\""))
+        .stdout(predicate::str::contains("\"sanitizer_kind\": \"escaped_input\""))
+        .stdout(predicate::str::contains("\"path_sensitivity\": \"guarded\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""));
+}
+
+#[test]
 fn python_multihop_interprocedural_taint_reaches_sink() {
     use std::fs;
     let manifest = env!("CARGO_MANIFEST_DIR");
@@ -1555,6 +1579,30 @@ fn javascript_return_taint_from_imported_helper_reaches_sink() {
         .stdout(predicate::str::contains("\"rule_id\": \"CBR-JS-XSS-INNER-HTML\""))
         .stdout(predicate::str::contains("\"source_kind\": \"express.req.query\""))
         .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn javascript_return_sanitizer_from_imported_helper_marks_sink_guarded() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("helper.js"),
+        "export function clean(value) {\n  return DOMPurify.sanitize(value);\n}\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("entry.js"),
+        "import { clean } from './helper';\nconst user = req.query.code;\nconst wrapped = clean(user);\nel.innerHTML = wrapped;\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-JS-XSS-INNER-HTML\""))
+        .stdout(predicate::str::contains("\"sanitizer_kind\": \"dompurify_sanitized\""))
+        .stdout(predicate::str::contains("\"path_sensitivity\": \"guarded\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""));
 }
 
 #[test]
