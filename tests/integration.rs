@@ -110,6 +110,144 @@ fn supply_no_advisories_flag_skips_osv() {
         .stdout(predicate::str::contains("GHSA-").not());
 }
 
+// ─── Inter-procedural dataflow tests (Gap A4) ───────────────────────────────
+
+#[test]
+fn dataflow_require_reachable_suppresses_when_no_source_reaches_sink() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    let src   = tmp.path().join("src");
+    fs::create_dir(&rules).unwrap();
+    fs::create_dir(&src).unwrap();
+
+    fs::write(rules.join("sqli.yml"), r#"
+id: TEST-DF-SQLI
+title: "SQL string-format"
+severity: high
+languages: [python]
+regex: "SELECT \\* FROM users WHERE"
+dataflow:
+  require_reachable: true
+message: "matched"
+"#).unwrap();
+
+    // Variant A — tainted source (request.GET) reaches format_query → fire
+    fs::write(src.join("util.py"), r#"
+def format_query(name):
+    return f"SELECT * FROM users WHERE name = '{name}'"
+"#).unwrap();
+    fs::write(src.join("handler.py"), r#"
+from util import format_query
+
+def handle_request(request):
+    user = request.GET.get("name")
+    return format_query(user)
+"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", src.to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let arr  = json.as_array().unwrap();
+    let hits: Vec<&serde_json::Value> = arr.iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-DF-SQLI"))
+        .collect();
+    assert_eq!(hits.len(), 1, "tainted source should make the rule fire, got {} hits", hits.len());
+    let ev = &hits[0]["evidence"];
+    assert_eq!(
+        ev["dataflow_reachable"].as_bool(),
+        Some(true),
+        "evidence.dataflow_reachable should be true",
+    );
+    assert!(
+        ev["dataflow_path"].is_array(),
+        "evidence.dataflow_path should be a list, got {:?}",
+        ev["dataflow_path"],
+    );
+
+    // Variant B — replace handler with a hardcoded call (no source) →
+    // the same rule should NOT fire because require_reachable: true.
+    fs::write(src.join("handler.py"), r#"
+from util import format_query
+
+def boot():
+    return format_query("admin")
+"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", src.to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-DF-SQLI"))
+        .collect();
+    assert_eq!(
+        hits.len(),
+        0,
+        "require_reachable: true should suppress findings when no source reaches the sink",
+    );
+}
+
+#[test]
+fn dataflow_path_carries_source_kind_when_caller_chain_unavailable() {
+    // Variant where the source is a built-in (request.GET.get) — the
+    // caller chain ends at the source's host function, not at another
+    // user-defined function. dataflow_path should still surface the
+    // source kind so reviewers see WHERE the taint comes from.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    let src   = tmp.path().join("src");
+    fs::create_dir(&rules).unwrap();
+    fs::create_dir(&src).unwrap();
+
+    fs::write(rules.join("sqli.yml"), r#"
+id: TEST-DF-PATH
+title: "df-path"
+severity: medium
+languages: [python]
+regex: "SELECT \\*"
+dataflow: { require_reachable: true }
+message: "matched"
+"#).unwrap();
+    fs::write(src.join("util.py"), r#"
+def format_query(name):
+    return f"SELECT * FROM users WHERE name = '{name}'"
+"#).unwrap();
+    fs::write(src.join("h.py"), r#"
+from util import format_query
+def handle(request):
+    return format_query(request.GET.get("name"))
+"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", src.to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout.clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let h = json.as_array().unwrap().iter()
+        .find(|f| f["rule_id"].as_str() == Some("TEST-DF-PATH"))
+        .expect("rule should fire");
+    let path = h["evidence"]["dataflow_path"].as_array().expect("dataflow_path array");
+    let path_strs: Vec<&str> = path.iter().filter_map(|v| v.as_str()).collect();
+    assert!(
+        path_strs.iter().any(|p| p.starts_with("source:")),
+        "dataflow_path should contain a source: entry, got {:?}",
+        path_strs,
+    );
+}
+
 // ─── Type-resolution + framework-propagation tests (Gap 2 + 5 / A5 + B2) ──
 
 #[test]
