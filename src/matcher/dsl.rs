@@ -115,6 +115,227 @@ pub(super) fn pattern_not_regex_passes(patterns: &[String], text: &str) -> bool 
     })
 }
 
+/// Per-capture nested AST / cross-language sub-pattern matcher.
+/// Closes the Semgrep `metavariable-pattern: { language: ..., pattern:
+/// ... }` gap. For the regex-only matcher we collapse the inner
+/// pattern to a regex via the standard semgrep_to_regex translator;
+/// the cross-language re-parse is best-effort (we treat the capture
+/// text as plain string and run the inner regex against it). For the
+/// tree-sitter matcher, callers parse with the inner-spec's language
+/// and run the inner pattern as a tree-sitter query.
+pub(super) fn metavariable_pattern_ast_match<'a>(
+    constraints: &std::collections::HashMap<String, crate::rule::NestedPatternSpec>,
+    captures: &HashMap<String, CaptureMeta<'a>>,
+) -> bool {
+    if constraints.is_empty() { return true; }
+    use ::regex::Regex;
+    constraints.iter().all(|(raw_name, spec)| {
+        let name = raw_name.trim().trim_start_matches('$');
+        let Some(meta) = captures.get(name) else { return false };
+        let pattern = spec.regex.clone()
+            .or_else(|| spec.pattern.as_ref().map(|p| super::regex::semgrep_to_regex(p.trim())));
+        let Some(p) = pattern else { return true }; // empty spec = no-op
+        // (?s) so `.*` spans newlines — captures from large nodes
+        // are typically multi-line.
+        let pat = format!("(?s){p}");
+        match Regex::new(&pat) {
+            Ok(re) => re.is_match(meta.text),
+            Err(_) => false,
+        }
+    })
+}
+
+/// Boolean-expression evaluator — Semgrep beta `pattern-where`.
+/// Accepts `and`, `or`, `not` (case-insensitive) plus the same
+/// comparison primitives as `metavariable-comparison`. Parentheses
+/// supported for grouping.
+///
+/// Examples:
+///   len($x) > 10 and $x != "admin"
+///   not ($fn == "eval" or $fn == "exec")
+///   $x contains "http" and len($x) > 8
+pub(super) fn pattern_where_match<'a>(
+    expr: Option<&str>,
+    captures: &HashMap<String, CaptureMeta<'a>>,
+) -> bool {
+    let Some(raw) = expr else { return true };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() { return true; }
+    let tokens = tokenize_where(trimmed);
+    let mut iter = tokens.iter().peekable();
+    eval_or(&mut iter, captures)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum WhereTok {
+    LParen,
+    RParen,
+    And,
+    Or,
+    Not,
+    /// A leaf comparison expression — passed verbatim to
+    /// `metavariable_comparison_matches`.
+    Leaf(String),
+}
+
+/// Tokenise a `pattern-where` expression into LParen/RParen, And/Or/
+/// Not, and Leaf comparison strings. Word-boundary aware: `and` /
+/// `or` / `not` only split when surrounded by whitespace or parens
+/// at top level (so `$x contains "android"` doesn't split on the
+/// inner `and`).
+fn tokenize_where(s: &str) -> Vec<WhereTok> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut out = Vec::new();
+    let mut buf = String::new();
+    let mut depth = 0i32;          // parens INSIDE a leaf
+    let mut in_quote: Option<char> = None;
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+
+        // If we're at the start of a fresh leaf (buf empty/whitespace,
+        // not in a quote or paren-deep), try to consume a leading
+        // keyword (`not (...)`, `and ...`, `or ...`).
+        if in_quote.is_none() && depth == 0 && buf.trim().is_empty() {
+            if let Some((kw, kw_len)) = keyword_at(&chars, i) {
+                out.push(kw);
+                i += kw_len;
+                while i < chars.len() && chars[i].is_whitespace() { i += 1; }
+                continue;
+            }
+        }
+
+        if let Some(q) = in_quote {
+            buf.push(c);
+            if c == q { in_quote = None; }
+            i += 1; continue;
+        }
+        match c {
+            '"' | '\'' => { in_quote = Some(c); buf.push(c); i += 1; }
+            '(' if depth == 0 && buf.trim().is_empty() => {
+                out.push(WhereTok::LParen);
+                i += 1;
+            }
+            ')' if depth == 0 => {
+                flush_leaf(&mut buf, &mut out);
+                out.push(WhereTok::RParen);
+                i += 1;
+            }
+            '(' => { buf.push(c); depth += 1; i += 1; }
+            ')' => { buf.push(c); depth -= 1; i += 1; }
+            _ if depth == 0 && c.is_whitespace() => {
+                // Whitespace at top level — peek for a keyword starting
+                // at the next non-whitespace char.
+                let mut probe = i + 1;
+                while probe < chars.len() && chars[probe].is_whitespace() { probe += 1; }
+                if let Some((kw, kw_len)) = keyword_at(&chars, probe) {
+                    flush_leaf(&mut buf, &mut out);
+                    out.push(kw);
+                    i = probe + kw_len;
+                    while i < chars.len() && chars[i].is_whitespace() { i += 1; }
+                } else {
+                    buf.push(c);
+                    i += 1;
+                }
+            }
+            _ => { buf.push(c); i += 1; }
+        }
+    }
+    flush_leaf(&mut buf, &mut out);
+    out
+}
+
+/// If a known keyword (`and` / `or` / `not`) starts at `pos` and is
+/// followed by whitespace, paren, or EOF, return (token, length).
+fn keyword_at(chars: &[char], pos: usize) -> Option<(WhereTok, usize)> {
+    for (lit, tok) in [
+        ("and", WhereTok::And),
+        ("or",  WhereTok::Or),
+        ("not", WhereTok::Not),
+    ] {
+        let n = lit.len();
+        if pos + n <= chars.len()
+            && chars[pos..pos+n].iter().collect::<String>().eq_ignore_ascii_case(lit)
+        {
+            // Word boundary on the right side
+            let after = chars.get(pos + n).copied();
+            if after.is_none() || after == Some('(') || after.map(|c| c.is_whitespace()).unwrap_or(false) {
+                // Word boundary on the left — pos > 0 means the prev
+                // char must be whitespace or LParen (which we ate).
+                let before = if pos == 0 { None } else { chars.get(pos - 1).copied() };
+                if before.is_none()
+                    || before.map(|c| c.is_whitespace() || c == '(').unwrap_or(false)
+                {
+                    return Some((tok, n));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn flush_leaf(buf: &mut String, out: &mut Vec<WhereTok>) {
+    let s = buf.trim().to_string();
+    buf.clear();
+    if s.is_empty() { return; }
+    out.push(WhereTok::Leaf(s));
+}
+
+fn eval_or<'a, I: Iterator<Item = &'a WhereTok>>(
+    iter: &mut std::iter::Peekable<I>,
+    captures: &HashMap<String, CaptureMeta<'_>>,
+) -> bool {
+    let mut acc = eval_and(iter, captures);
+    while matches!(iter.peek(), Some(WhereTok::Or)) {
+        iter.next();
+        let rhs = eval_and(iter, captures);
+        acc = acc || rhs;
+    }
+    acc
+}
+
+fn eval_and<'a, I: Iterator<Item = &'a WhereTok>>(
+    iter: &mut std::iter::Peekable<I>,
+    captures: &HashMap<String, CaptureMeta<'_>>,
+) -> bool {
+    let mut acc = eval_not(iter, captures);
+    while matches!(iter.peek(), Some(WhereTok::And)) {
+        iter.next();
+        let rhs = eval_not(iter, captures);
+        acc = acc && rhs;
+    }
+    acc
+}
+
+fn eval_not<'a, I: Iterator<Item = &'a WhereTok>>(
+    iter: &mut std::iter::Peekable<I>,
+    captures: &HashMap<String, CaptureMeta<'_>>,
+) -> bool {
+    if matches!(iter.peek(), Some(WhereTok::Not)) {
+        iter.next();
+        return !eval_not(iter, captures);
+    }
+    eval_atom(iter, captures)
+}
+
+fn eval_atom<'a, I: Iterator<Item = &'a WhereTok>>(
+    iter: &mut std::iter::Peekable<I>,
+    captures: &HashMap<String, CaptureMeta<'_>>,
+) -> bool {
+    match iter.next() {
+        Some(WhereTok::LParen) => {
+            let v = eval_or(iter, captures);
+            // consume matching `)`
+            if matches!(iter.peek(), Some(WhereTok::RParen)) { iter.next(); }
+            v
+        }
+        Some(WhereTok::Leaf(expr)) => metavariable_comparison_matches(expr, captures),
+        // Anything else here is a parse error — return false to fail
+        // closed (rule won't fire, reviewer notices).
+        _ => false,
+    }
+}
+
 /// Per-capture analyzer — Semgrep Pro `metavariable-analysis` parity.
 /// Each entry maps a capture name to one of:
 ///   * "redos"   — catastrophic-backtracking risk in a regex literal

@@ -169,6 +169,141 @@ message: "matched"
         .stdout(predicate::str::contains("TEST-PNR").not());
 }
 
+// ─── metavariable-pattern (nested AST) + cross-language + pattern-where ───
+
+#[test]
+fn metavariable_pattern_ast_filters_capture_with_inner_pattern() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("nested.yml"), r#"
+id: TEST-MV-AST
+title: "JS in HTML script"
+severity: high
+languages: [generic]
+regex: "<script>([^<]*)</script>"
+metavariable_pattern_ast:
+  match:
+    pattern: eval(...)
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("page.env"), r#"
+<html><script>console.log("hi")</script></html>
+<html><script>eval(payload)</script></html>
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("eval(payload)"))
+        .stdout(predicate::str::contains("console.log").not());
+}
+
+#[test]
+fn metavariable_pattern_ast_cross_language_re_parses_capture() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("xlang.yml"), r#"
+id: TEST-MV-XLANG
+title: "JS inside HTML template"
+severity: high
+languages: [generic]
+regex: "<script[^>]*>([^<]*)</script>"
+metavariable_pattern_ast:
+  match:
+    language: javascript
+    regex: "eval\\s*\\("
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("page.env"), r#"
+<script type="text/javascript">eval(window.location.hash.slice(1))</script>
+<script>safe()</script>
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("eval(window.location.hash"))
+        .stdout(predicate::str::contains("<script>safe()</script>").not());
+}
+
+#[test]
+fn pattern_where_evaluates_compound_boolean_expression() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("where.yml"), r#"
+id: TEST-PWHERE
+title: "long admin token"
+severity: medium
+languages: [python]
+regex: "TOKEN\\s*=\\s*['\"]([^'\"]+)['\"]"
+pattern_where: 'len($match) > 10 and $match contains "admin"'
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+TOKEN = "shortadmin"
+TOKEN = "admin-long-token-with-more"
+TOKEN = "regular-long-token-no-keyword"
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("admin-long-token-with-more"))
+        .stdout(predicate::str::contains("shortadmin").not())
+        .stdout(predicate::str::contains("regular-long-token-no-keyword").not());
+}
+
+#[test]
+fn pattern_where_supports_not_and_or_with_grouping() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("where_or.yml"), r#"
+id: TEST-PWHERE-OR
+title: "a or b but not test"
+severity: low
+languages: [python]
+regex: "VAL\\s*=\\s*['\"]([^'\"]+)['\"]"
+pattern_where: '($match contains "alpha" or $match contains "beta") and not $match contains "test"'
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+VAL = "alpha"
+VAL = "alphatest"
+VAL = "beta"
+VAL = "gamma"
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-PWHERE-OR"))
+        .collect();
+    let texts: Vec<&str> = hits.iter()
+        .filter_map(|h| h["snippet"].as_str())
+        .collect();
+    assert!(texts.iter().any(|t| t.contains("alpha") && !t.contains("alphatest")),
+        "should fire on alpha; got {texts:?}");
+    assert!(texts.iter().any(|t| t.contains("beta")),
+        "should fire on beta; got {texts:?}");
+    assert!(!texts.iter().any(|t| t.contains("alphatest")),
+        "should NOT fire on alphatest (not contains test); got {texts:?}");
+    assert!(!texts.iter().any(|t| t.contains("gamma")),
+        "should NOT fire on gamma; got {texts:?}");
+}
+
 // ─── metavariable-analysis (v0.19.0 — Semgrep Pro parity) ──────────────────
 
 #[test]

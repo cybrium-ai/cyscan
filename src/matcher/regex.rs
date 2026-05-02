@@ -11,8 +11,9 @@ use crate::{finding::Finding, rule::Rule};
 
 use super::dsl::{
     metavariable_analysis_passes, metavariable_comparisons_match,
-    metavariable_pattern_match, metavariable_regex_match,
-    metavariable_types_match, pattern_not_regex_passes, CaptureMeta,
+    metavariable_pattern_ast_match, metavariable_pattern_match,
+    metavariable_regex_match, metavariable_types_match,
+    pattern_not_regex_passes, pattern_where_match, CaptureMeta,
 };
 
 /// Convert semgrep-style AST pattern to regex.
@@ -20,7 +21,7 @@ use super::dsl::{
 /// Semgrep uses `$VAR` for metavariables and `...` for wildcards.
 /// We convert these to regex equivalents so imported rules work
 /// without a full semgrep engine.
-fn semgrep_to_regex(pattern: &str) -> String {
+pub(super) fn semgrep_to_regex(pattern: &str) -> String {
     // If pattern already looks like valid regex (no $VAR or ...), return as-is
     if !pattern.contains('$') && !pattern.contains("...") {
         return pattern.to_string();
@@ -182,6 +183,15 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
             // Per-capture analyzer (Semgrep Pro `metavariable-analysis`
             // parity — redos / entropy).
             if !metavariable_analysis_passes(&rule.metavariable_analysis, &captures) {
+                continue;
+            }
+            // Nested AST / cross-language sub-pattern (Semgrep
+            // `metavariable-pattern: { language: ..., pattern: ... }`).
+            if !metavariable_pattern_ast_match(&rule.metavariable_pattern_ast, &captures) {
+                continue;
+            }
+            // Compound boolean — Semgrep beta `pattern-where`.
+            if !pattern_where_match(rule.pattern_where.as_deref(), &captures) {
                 continue;
             }
             // pattern_not_regex matches against the whole line so a

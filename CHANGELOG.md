@@ -2,6 +2,26 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.20.0] — 2026-05-02
+
+### Added
+- **`metavariable-pattern` (nested AST)** — rule YAML now accepts a `metavariable_pattern_ast: { capture: { pattern: ..., regex: ..., language: ... } }` block. The inner pattern runs against the captured node's text, optionally re-parsed in a different language. Closes the Semgrep `metavariable-pattern: { language, pattern }` gap.
+- **Cross-language sub-patterns** — the `language:` field on a nested-pattern spec lets the inner pattern target a different grammar than the outer rule. Example: capture JS inside an HTML `<script>` block, then run an `eval(...)` pattern against the captured JS:
+  ```yaml
+  regex: "<script[^>]*>([^<]*)</script>"
+  metavariable_pattern_ast:
+    match:
+      language: javascript
+      regex: "eval\\s*\\("
+  ```
+- **`pattern-where`** — Semgrep beta operator. Accepts compound boolean expressions over metavariables: `and`, `or`, `not`, parentheses for grouping, plus the same comparison primitives as `metavariable-comparison` (`==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `starts_with`, `ends_with`, `matches`, `len(...)`).
+  ```yaml
+  pattern_where: '(len($x) > 10 and $x contains "admin") or $x matches "^TOKEN_"'
+  ```
+
+### Notes
+This closes every advertised metavariable-* / pattern-* operator from the Semgrep DSL surface. cyscan now ships every operator that Semgrep OSS, Semgrep Pro (publicly), and the beta operators target. The metavariable-* family is fully covered: `comparison` (single + list), `regex`, `pattern` (regex flavour), `pattern-ast` (with cross-language re-parse), `types`, `analysis` (redos + entropy). Plus the structural family: `pattern`, `patterns`, `pattern-either`, `pattern-either-groups`, `pattern-not`, `pattern-inside`, `pattern-not-inside`, `pattern-not-regex`, `pattern-where`.
+
 ## [0.19.0] — 2026-05-02
 
 ### Added

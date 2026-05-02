@@ -129,6 +129,31 @@ pub struct Rule {
     ///   * `entropy` — high-entropy string (likely a secret / token)
     #[serde(default)]
     pub metavariable_analysis: HashMap<String, String>,
+    /// Nested AST / cross-language sub-patterns. Each entry runs an
+    /// inner pattern against the captured node's text, optionally
+    /// re-parsing it as a different language. Closes the Semgrep
+    /// `metavariable-pattern: { language: ..., pattern: ... }` gap.
+    ///
+    /// Example — match JS inside an HTML <script> block:
+    ///
+    /// ```yaml
+    /// query: |
+    ///   (script_element (raw_text) @js)
+    /// metavariable_pattern_ast:
+    ///   js:
+    ///     language: javascript
+    ///     pattern: eval(...)
+    /// ```
+    #[serde(default)]
+    pub metavariable_pattern_ast: HashMap<String, NestedPatternSpec>,
+    /// Compound boolean expression over metavariables — Semgrep beta
+    /// `pattern-where`. Supports `and`, `or`, `not`, and the same
+    /// comparison primitives as `metavariable-comparison`. Empty =
+    /// no constraint.
+    ///
+    /// Example: `len($x) > 10 and $fn != "eval" and not $x contains "test"`
+    #[serde(default)]
+    pub pattern_where: Option<String>,
     pub message:   String,
     #[serde(default)]
     pub fix_recipe: Option<String>,
@@ -160,6 +185,28 @@ pub struct Rule {
     /// finding accordingly.
     #[serde(default)]
     pub dataflow:  Option<DataflowSpec>,
+}
+
+/// Nested-pattern spec used by `metavariable_pattern_ast`. Mirrors
+/// Semgrep's `metavariable-pattern` shape: an inner pattern (regex or
+/// AST query) optionally re-parsed in a different language.
+///
+///   pattern  — inner Semgrep-style pattern (lowered to regex by our
+///              regex matcher; passed as a tree-sitter query string
+///              when `language` resolves to a tier-1 grammar).
+///   regex    — explicit regex; takes precedence over `pattern`.
+///   language — language to re-parse the captured text as. Required
+///              for cross-language nesting (`<script>` JS-in-HTML);
+///              optional otherwise (defaults to the host rule's
+///              language).
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct NestedPatternSpec {
+    #[serde(default)]
+    pub pattern:  Option<String>,
+    #[serde(default)]
+    pub regex:    Option<String>,
+    #[serde(default)]
+    pub language: Option<Lang>,
 }
 
 /// Dataflow gating block on a rule.
