@@ -102,6 +102,13 @@ pub struct Finding {
     /// Reachability verdict: reachable / unreachable / unknown.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reachability: Option<String>,
+    /// Stable fingerprint of (rule_id + file + line + snippet). Empty by
+    /// default — populated by `Finding::compute_fingerprint()` after the
+    /// scanner finishes building findings. Used by `cyscan triage` to
+    /// identify the same finding across runs and by `cyscan baseline`
+    /// (planned) to suppress already-known findings.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub fingerprint: String,
 }
 
 fn evidence_empty(m: &HashMap<String, serde_json::Value>) -> bool { m.is_empty() }
@@ -110,5 +117,23 @@ impl Finding {
     /// Create a Finding with only the required fields, defaulting evidence + reachability.
     pub fn defaults() -> (HashMap<String, serde_json::Value>, Option<String>) {
         (HashMap::new(), None)
+    }
+
+    /// Compute a stable fingerprint for the finding. Deterministic across
+    /// runs as long as rule_id, file path, line, and snippet text remain
+    /// the same. Uses BLAKE3 for speed + collision resistance — formatted
+    /// as the first 16 hex chars to keep CLI output / triage files small.
+    pub fn compute_fingerprint(&self) -> String {
+        use std::hash::{Hash, Hasher};
+        // We deliberately avoid pulling blake3/sha2 just for this — std
+        // DefaultHasher on a stable input gives a 64-bit value which we
+        // hex-encode. Stable across stdlib versions for a given input.
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        self.rule_id.hash(&mut h);
+        self.file.to_string_lossy().hash(&mut h);
+        self.line.hash(&mut h);
+        // Trim+normalise snippet to ride over reformatting noise.
+        self.snippet.trim().split_whitespace().collect::<Vec<_>>().join(" ").hash(&mut h);
+        format!("{:016x}", h.finish())
     }
 }

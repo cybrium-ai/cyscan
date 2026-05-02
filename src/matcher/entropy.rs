@@ -352,6 +352,7 @@ pub fn scan_file(path: &Path, source: &str) -> Vec<Finding> {
                     m
                 },
                 reachability: None,
+                fingerprint: String::new(),
             });
         }
     }

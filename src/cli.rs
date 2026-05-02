@@ -52,6 +52,19 @@ enum Cmd {
         /// Show CIA triad posture summary (Confidentiality, Integrity, Availability scores).
         #[arg(long, default_value_t = false)]
         cia: bool,
+
+        /// Path to a triage file. Findings are enriched with their stored
+        /// triage status (new / confirmed / false_positive / accepted_risk
+        /// / fixed) and triage history length. Use `cyscan triage` to
+        /// curate this file.
+        #[arg(long)]
+        triage: Option<PathBuf>,
+
+        /// Hide findings whose triage status is `false_positive`,
+        /// `accepted_risk`, or `fixed`. Hidden findings still don't count
+        /// toward `--fail-on`. Has no effect without `--triage`.
+        #[arg(long, default_value_t = false)]
+        hide_triaged: bool,
     },
 
     /// Scan dependency lockfiles against advisories + typosquat + policy.
@@ -200,6 +213,57 @@ enum Cmd {
 
     /// Show version and check for updates.
     Version,
+
+    /// Manage the triage file — annotate findings as confirmed,
+    /// false_positive, accepted_risk, or fixed so future scans can hide
+    /// them and exclude them from `--fail-on`.
+    Triage {
+        #[command(subcommand)]
+        cmd: TriageCmd,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+enum TriageCmd {
+    /// Initialise an empty triage file (no-op if it already exists).
+    Init {
+        #[arg(long, short = 'o', default_value = "cyscan-triage.json")]
+        path: PathBuf,
+    },
+    /// Set the triage status for a finding by fingerprint. Get the
+    /// fingerprint from `cyscan scan -f json` output (the `fingerprint`
+    /// field on each finding).
+    Set {
+        /// Finding fingerprint (hex string).
+        fingerprint: String,
+
+        /// New status.
+        #[arg(value_enum)]
+        status: crate::triage::TriageStatus,
+
+        /// Triage file path.
+        #[arg(long, default_value = "cyscan-triage.json")]
+        path: PathBuf,
+
+        /// Reviewer note.
+        #[arg(long)]
+        note: Option<String>,
+
+        /// Reviewer identifier (email or name).
+        #[arg(long)]
+        author: Option<String>,
+    },
+    /// List all triaged findings in the file.
+    List {
+        #[arg(long, default_value = "cyscan-triage.json")]
+        path: PathBuf,
+    },
+    /// Show the audit trail for a single fingerprint.
+    History {
+        fingerprint: String,
+        #[arg(long, default_value = "cyscan-triage.json")]
+        path: PathBuf,
+    },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
@@ -253,7 +317,7 @@ pub fn run() -> Result<ExitCode> {
         _ => {}
     }
     match cli.cmd {
-        Cmd::Scan { target, rules, format, fail_on, jobs, verify, cia: show_cia } => {
+        Cmd::Scan { target, rules, format, fail_on, jobs, verify, cia: show_cia, triage, hide_triaged } => {
             if let Some(n) = jobs {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(n)
@@ -263,6 +327,12 @@ pub fn run() -> Result<ExitCode> {
             let pack = load_pack(rules.as_deref())?;
             let mut findings = scanner::run(&target, &pack)?;
 
+            // Populate fingerprints — required for triage matching, baseline
+            // suppression, and any cross-run dedup.
+            for f in findings.iter_mut() {
+                f.fingerprint = f.compute_fingerprint();
+            }
+
             if verify {
                 eprintln!("Verifying detected secrets...");
                 crate::matcher::verify::enrich_findings(&mut findings);
@@ -270,6 +340,18 @@ pub fn run() -> Result<ExitCode> {
                     .filter(|f| f.evidence.get("verified").and_then(|v| v.as_bool()) == Some(true))
                     .count();
                 eprintln!("  {} live secrets confirmed", live_count);
+            }
+
+            // Apply triage overlay (status enrichment + optional hide).
+            let triage_store = triage
+                .as_deref()
+                .map(crate::triage::TriageStore::load_or_default)
+                .transpose()?;
+            if let Some(store) = triage_store.as_ref() {
+                let hidden = crate::triage::overlay_and_filter(&mut findings, store, hide_triaged);
+                if hide_triaged && hidden > 0 {
+                    eprintln!("triage: hid {} finding(s) marked false_positive / accepted_risk / fixed", hidden);
+                }
             }
 
             match format {
@@ -291,9 +373,14 @@ pub fn run() -> Result<ExitCode> {
                 }
             }
 
+            // `--fail-on` honours triage: findings marked false_positive,
+            // accepted_risk, or fixed are excluded from the threshold check.
             let fail_hit = match fail_on {
-                Some(min) => findings.iter().any(|f| f.severity >= min),
-                None      => false,
+                Some(min) => findings.iter().any(|f| {
+                    f.severity >= min
+                        && crate::triage::is_actionable_for_fail_on(f, triage_store.as_ref())
+                }),
+                None => false,
             };
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
         }
@@ -586,6 +673,78 @@ pub fn run() -> Result<ExitCode> {
             self_update::version("cybrium-ai/cyscan");
             Ok(ExitCode::from(0))
         }
+
+        Cmd::Triage { cmd } => match cmd {
+            TriageCmd::Init { path } => {
+                if path.exists() {
+                    eprintln!("triage: {} already exists, leaving as-is", path.display());
+                } else {
+                    crate::triage::TriageStore::default().save(&path)?;
+                    eprintln!("triage: initialised empty store at {}", path.display());
+                }
+                Ok(ExitCode::from(0))
+            }
+            TriageCmd::Set { fingerprint, status, path, note, author } => {
+                let mut store = crate::triage::TriageStore::load_or_default(&path)?;
+                let opts = crate::triage::TriageSetOptions {
+                    note,
+                    author,
+                    ..Default::default()
+                };
+                let entry = store.set(fingerprint.clone(), status, opts);
+                let updated_at = entry.updated_at.clone();
+                store.save(&path)?;
+                eprintln!(
+                    "triage: {} → {} (at {})",
+                    fingerprint,
+                    status.as_str(),
+                    updated_at,
+                );
+                Ok(ExitCode::from(0))
+            }
+            TriageCmd::List { path } => {
+                let store = crate::triage::TriageStore::load_or_default(&path)?;
+                if store.entries.is_empty() {
+                    eprintln!("triage: empty (no entries in {})", path.display());
+                } else {
+                    println!("FINGERPRINT       STATUS           UPDATED_AT      NOTE");
+                    for (fp, e) in store.entries.iter() {
+                        println!(
+                            "{}  {:14}   {:14}  {}",
+                            fp,
+                            e.status.as_str(),
+                            e.updated_at,
+                            e.note.as_deref().unwrap_or(""),
+                        );
+                    }
+                }
+                Ok(ExitCode::from(0))
+            }
+            TriageCmd::History { fingerprint, path } => {
+                let store = crate::triage::TriageStore::load_or_default(&path)?;
+                let Some(entry) = store.entries.get(&fingerprint) else {
+                    eprintln!("triage: no entry for {}", fingerprint);
+                    return Ok(ExitCode::from(1));
+                };
+                println!(
+                    "fingerprint  : {}\nstatus       : {}\nupdated_at   : {}\n",
+                    entry.fingerprint, entry.status.as_str(), entry.updated_at,
+                );
+                println!("history ({} event{}):",
+                    entry.history.len(),
+                    if entry.history.len() == 1 { "" } else { "s" });
+                for ev in entry.history.iter() {
+                    println!(
+                        "  - {:14}  at {}   by {}   note: {}",
+                        ev.status.as_str(),
+                        ev.timestamp,
+                        ev.author.as_deref().unwrap_or("-"),
+                        ev.note.as_deref().unwrap_or("-"),
+                    );
+                }
+                Ok(ExitCode::from(0))
+            }
+        },
     }
 }
 

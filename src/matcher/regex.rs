@@ -123,6 +123,7 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
                 cwe:        rule.cwe.clone(),
                 evidence: HashMap::new(),
                 reachability: None,
+                fingerprint: String::new(),
             });
         }
         line_start += line.len();

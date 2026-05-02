@@ -464,6 +464,7 @@ fn lookup_vulns(packages: &[OsPackage], image: &str) -> Result<Vec<Finding>> {
                                 fix_recipe: None, fix: None, cwe: vec![],
                                 evidence,
                                 reachability: None,
+                                fingerprint: String::new(),
                             });
                         }
                     }
@@ -542,6 +543,7 @@ fn vuln_to_finding(vuln: &serde_json::Value, pkg: &OsPackage, image: &str, sourc
         fix_recipe: None, fix: None, cwe: vec![],
         evidence,
         reachability: None,
+        fingerprint: String::new(),
     })
 }
 
@@ -649,6 +651,7 @@ fn scan_with_grype(image: &str) -> Result<Vec<Finding>> {
                 snippet: format!("{}@{}", pkg, ver),
                 fix_recipe: None, fix: None, cwe: vec![],
                 evidence, reachability: None,
+                fingerprint: String::new(),
             });
         }
     }
@@ -700,6 +703,7 @@ fn scan_with_trivy(image: &str) -> Result<Vec<Finding>> {
                         snippet: format!("{}@{}", pkg, ver),
                         fix_recipe: None, fix: None, cwe: vec![],
                         evidence, reachability: None,
+                        fingerprint: String::new(),
                     });
                 }
             }

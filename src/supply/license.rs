@@ -208,6 +208,7 @@ pub fn scan(deps: &[Dependency]) -> Vec<Finding> {
             cwe:        vec!["CWE-1357".to_string()], // Reliance on insufficiently trustworthy component
             evidence,
             reachability: None,
+            fingerprint: String::new(),
         });
     }
 
