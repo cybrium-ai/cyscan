@@ -3,7 +3,7 @@
 //! All checks use native macOS commands — no MDM required.
 //! Runs as the current user; some checks may need sudo for full results.
 
-use super::{EndpointCheck, cmd_output, cmd_contains};
+use super::{EndpointCheck, cmd_output};
 
 pub fn run_checks() -> Vec<EndpointCheck> {
     vec![

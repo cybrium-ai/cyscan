@@ -366,10 +366,10 @@ pub fn run() -> Result<ExitCode> {
                     Format::Json => {
                         println!("{}", serde_json::to_string_pretty(&cia_scores).unwrap_or_default());
                     }
+                    Format::Sarif => {}
                     _ => {
                         crate::cia::print_summary(&cia_scores, &findings, &pack);
                     }
-                    Format::Sarif => {}
                 }
             }
 
@@ -534,7 +534,7 @@ pub fn run() -> Result<ExitCode> {
             let report = crate::appscan::scan(&target)?;
 
             match format {
-                Format::Json => {
+                Format::Json | Format::Sarif => {
                     println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
                 }
                 _ => {
@@ -593,9 +593,6 @@ pub fn run() -> Result<ExitCode> {
                     }
                     println!();
                 }
-                Format::Sarif => {
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
-                }
             }
 
             let fail_hit = match fail_below {
@@ -610,7 +607,7 @@ pub fn run() -> Result<ExitCode> {
             let report = crate::endpoint::scan();
 
             match format {
-                Format::Json => {
+                Format::Json | Format::Sarif => {
                     println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
                 }
                 _ => {
@@ -650,10 +647,6 @@ pub fn run() -> Result<ExitCode> {
                         }
                     }
                     println!();
-                }
-                Format::Sarif => {
-                    // Convert to findings for SARIF output
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
                 }
             }
 
