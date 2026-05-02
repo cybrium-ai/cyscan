@@ -93,7 +93,7 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
         r"^\s*from\s+([A-Za-z_][A-Za-z0-9_\.]*)\s+import\s+(.+?)\s*$"
     ).unwrap();
     let assign_re = Regex::new(
-        r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$"
+        r"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*$"
     ).unwrap();
     let def_re = Regex::new(r#"^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\):"#).unwrap();
     let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*$"#).unwrap();
@@ -641,7 +641,7 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
         r#"^\s*(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*require\(\s*['"]([^'"]+)['"]\s*\)"#
     ).unwrap();
     let assign_re = Regex::new(
-        r#"^\s*(?:const|let|var)?\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(.+?)\s*;?\s*$"#
+        r#"^\s*(?:const|let|var)?\s*([A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*)\s*=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
     let fn_re = Regex::new(
         r#"^\s*(?:export\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\((.*?)\)"#
@@ -1016,7 +1016,7 @@ fn extract_ruby(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
     let require_re = Regex::new(r#"^\s*require(?:_relative)?\s+['"]([^'"]+)['"]"#).unwrap();
     let require_relative_re = Regex::new(r#"^\s*require_relative\s+['"]([^'"]+)['"]"#).unwrap();
     let assign_re = Regex::new(
-        r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$"#
+        r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*$"#
     ).unwrap();
     let def_re = Regex::new(
         r#"^\s*def\s+(?:self\.)?([A-Za-z_][A-Za-z0-9_!?=]*)\s*(?:\((.*?)\))?"#
@@ -1243,7 +1243,7 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
     let import_re = Regex::new(r#"^\s*import\s+([\w\.]+);"#).unwrap();
     let static_import_re = Regex::new(r#"^\s*import\s+static\s+([\w\.]+)\.([A-Za-z_][A-Za-z0-9_]*)\s*;"#).unwrap();
     let assign_re = Regex::new(
-        r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#
+        r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
     let method_re = Regex::new(
         r#"^\s*(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)\s*\{"#
@@ -1565,7 +1565,7 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
     let using_re = Regex::new(r"^\s*using\s+([A-Za-z_][A-Za-z0-9_\.]*)\s*;").unwrap();
     let using_static_re = Regex::new(r#"^\s*using\s+static\s+([A-Za-z_][A-Za-z0-9_\.]*)\s*;"#).unwrap();
     let using_alias_re = Regex::new(r#"^\s*using\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([A-Za-z_][A-Za-z0-9_\.]*)\s*;"#).unwrap();
-    let assign_re = Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap();
+    let assign_re = Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap();
     let explicit_decl_re = Regex::new(
         r#"^\s*([A-Za-z_][A-Za-z0-9_<>\.\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
@@ -1828,7 +1828,7 @@ fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> Fi
     let single_import_re = Regex::new(r#"^\s*import\s+(?:(\w+)\s+)?"([^"]+)""#).unwrap();
     let block_import_re = Regex::new(r#"^\s*(?:(\w+)\s+)?"([^"]+)""#).unwrap();
     let assign_re = Regex::new(
-        r#"^\s*(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+?)\s*$"#
+        r#"^\s*(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*(?::=|=)\s*(.+?)\s*$"#
     ).unwrap();
     let func_re = Regex::new(r#"^\s*func\s+(?:\([^)]+\)\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*$"#).unwrap();
@@ -2023,7 +2023,7 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
         .unwrap_or_else(|| "local".to_string());
     let use_re = Regex::new(r#"^\s*use\s+([^;]+);"#).unwrap();
     let assign_re = Regex::new(
-        r#"^\s*let\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=]+)?=\s*(.+?)\s*;?\s*$"#
+        r#"^\s*(?:let\s+(?:mut\s+)?)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*(?::[^=]+)?=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
     let fn_re = Regex::new(r#"^\s*fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*;?\s*$"#).unwrap();

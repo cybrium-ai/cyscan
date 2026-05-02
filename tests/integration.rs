@@ -257,6 +257,46 @@ fn python_eval_later_assignment_does_not_backpropagate_taint() {
 }
 
 #[test]
+fn python_object_field_taint_reaches_eval() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules  = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("field_eval.py");
+    fs::write(
+        &src,
+        "from flask import request\nclass Box:\n    pass\n\ndef run():\n    box = Box()\n    user = request.args.get('code')\n    box.value = user\n    eval(box.value)\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-PY-CODE-EVAL\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"flask.request.args\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn python_object_field_sanitized_assignment_is_marked_guarded() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules  = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("field_sanitized_eval.py");
+    fs::write(
+        &src,
+        "from flask import request\nimport html\nclass Box:\n    pass\n\ndef run():\n    box = Box()\n    user = request.args.get('code')\n    box.value = html.escape(user)\n    eval(box.value)\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-PY-CODE-EVAL\""))
+        .stdout(predicate::str::contains("\"sanitizer_kind\": \"escaped_input\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""));
+}
+
+#[test]
 fn python_eval_sanitized_assignment_is_marked_guarded() {
     use std::fs;
     let manifest = env!("CARGO_MANIFEST_DIR");
@@ -333,6 +373,46 @@ query: |
         .stdout(predicate::str::contains("\"rule_id\": \"CBR-JS-CODE-EVAL\""))
         .stdout(predicate::str::contains("\"reachability\": \"unknown\""))
         .stdout(predicate::str::contains("\"path_sensitivity_reason\": \"javascript_intra_function_no_source\""));
+}
+
+#[test]
+fn js_object_field_taint_reaches_innerhtml() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules  = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("field_innerhtml.js");
+    fs::write(
+        &src,
+        "function render() {\n  const state = {};\n  const html = req.query.html;\n  state.value = html;\n  el.innerHTML = state.value;\n}\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-JS-XSS-INNER-HTML\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"express.req.query\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn js_object_field_sanitized_assignment_is_marked_guarded() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules  = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    let src = tmp.path().join("field_sanitized_innerhtml.js");
+    fs::write(
+        &src,
+        "function render() {\n  const state = {};\n  const html = req.query.html;\n  state.value = DOMPurify.sanitize(html);\n  el.innerHTML = state.value;\n}\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-JS-XSS-INNER-HTML\""))
+        .stdout(predicate::str::contains("\"sanitizer_kind\": \"dompurify_sanitized\""))
+        .stdout(predicate::str::contains("\"reachability\": \"unknown\""));
 }
 
 #[test]

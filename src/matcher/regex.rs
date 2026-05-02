@@ -962,9 +962,9 @@ fn direct_regex_source_kind(lang: Lang, snippet: &str) -> Option<&'static str> {
 
 fn regex_assignment_regex(lang: Lang) -> Option<Regex> {
     match lang {
-        Lang::Ruby => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$"#).unwrap()),
-        Lang::Java => Some(Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]\.?]*\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
-        Lang::Go => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+?)\s*$"#).unwrap()),
+        Lang::Ruby => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*$"#).unwrap()),
+        Lang::Java => Some(Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]\.?]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Go => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*(?::=|=)\s*(.+?)\s*$"#).unwrap()),
         _ => None,
     }
 }

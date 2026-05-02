@@ -708,12 +708,12 @@ fn is_ignored_identifier(lang: Lang, token: &str) -> bool {
 
 fn assignment_regex(lang: Lang) -> Option<Regex> {
     match lang {
-        Lang::Python => Some(Regex::new(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$").unwrap()),
-        Lang::Javascript | Lang::Typescript => Some(Regex::new(r#"^\s*(?:const|let|var)?\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
-        Lang::Csharp | Lang::Java => Some(Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]\.?]*\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
-        Lang::Ruby => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$"#).unwrap()),
-        Lang::Go => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+?)\s*$"#).unwrap()),
-        Lang::Rust => Some(Regex::new(r#"^\s*let\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=]+)?=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Python => Some(Regex::new(r"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*$").unwrap()),
+        Lang::Javascript | Lang::Typescript => Some(Regex::new(r#"^\s*(?:const|let|var)?\s*([A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Csharp | Lang::Java => Some(Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]\.?]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Ruby => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*$"#).unwrap()),
+        Lang::Go => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*(?::=|=)\s*(.+?)\s*$"#).unwrap()),
+        Lang::Rust => Some(Regex::new(r#"^\s*(?:let\s+(?:mut\s+)?)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*(?::[^=]+)?=\s*(.+?)\s*;?\s*$"#).unwrap()),
         _ => None,
     }
 }
