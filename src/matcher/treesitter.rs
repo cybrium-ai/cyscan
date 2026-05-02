@@ -456,16 +456,24 @@ fn intra_file_taint(
             continue;
         }
         let Some(caps) = assign_re.captures(line) else { continue };
-        let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+        let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
         let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
         if ident.is_empty() || rhs.is_empty() {
             continue;
         }
 
-        if let Some(source_kind) = direct_source_kind(lang, rhs) {
-            tainted.insert(ident.clone(), source_kind.to_string());
-            sanitized.remove(&ident);
-            continue;
+        let uses_call_summary = semantics.call_assignments.iter().any(|call| call.ident == ident);
+        if uses_call_summary && rhs.contains('(') && rhs.contains(')') {
+            if let Some(reason) = semantics.sanitized_identifiers.get(&ident).cloned() {
+                tainted.remove(&ident);
+                sanitized.insert(ident, reason);
+                continue;
+            }
+            if let Some(source_kind) = semantics.tainted_identifiers.get(&ident).cloned() {
+                tainted.insert(ident.clone(), source_kind);
+                sanitized.remove(&ident);
+                continue;
+            }
         }
 
         if let Some(reason) = sanitizer_kind(lang, rhs, &tainted) {
@@ -474,12 +482,10 @@ fn intra_file_taint(
             continue;
         }
 
-        if rhs.contains('(') && rhs.contains(')') {
-            if let Some(reason) = semantics.sanitized_identifiers.get(&ident).cloned() {
-                tainted.remove(&ident);
-                sanitized.insert(ident, reason);
-                continue;
-            }
+        if let Some(source_kind) = direct_source_kind(lang, rhs) {
+            tainted.insert(ident.clone(), source_kind.to_string());
+            sanitized.remove(&ident);
+            continue;
         }
 
         if let Some(source_kind) = taint_from_tokens(rhs, &tainted) {
@@ -594,7 +600,8 @@ fn leading_indent(line: &str) -> usize {
 
 fn sanitizer_kind(lang: Lang, text: &str, tainted: &HashMap<String, String>) -> Option<String> {
     let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
-    let has_tainted_input = contains_identifier(&compact, tainted);
+    let has_tainted_input =
+        contains_identifier(&compact, tainted) || direct_source_kind(lang, text).is_some();
     if !has_tainted_input {
         return None;
     }
@@ -666,31 +673,117 @@ fn sanitizer_kind(lang: Lang, text: &str, tainted: &HashMap<String, String>) -> 
 }
 
 fn taint_from_tokens(text: &str, tainted: &HashMap<String, String>) -> Option<String> {
-    for token in text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
-        if let Some(kind) = tainted.get(token) {
-            return Some(kind.clone());
+    for token in semantic_candidates(text) {
+        for candidate in hierarchical_path_candidates(&token) {
+            if let Some(kind) = tainted.get(&candidate) {
+                return Some(kind.clone());
+            }
         }
     }
     None
 }
 
 fn contains_identifier(text: &str, values: &HashMap<String, String>) -> bool {
-    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.'))
-        .any(|token| values.contains_key(token))
+    semantic_candidates(text).into_iter().any(|token| {
+        hierarchical_path_candidates(&token).into_iter().any(|candidate| values.contains_key(&candidate))
+    })
 }
 
 fn identifier_reason(text: &str, values: &HashMap<String, String>) -> Option<String> {
-    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.'))
-        .find_map(|token| values.get(token).cloned())
+    for token in semantic_candidates(text) {
+        for candidate in hierarchical_path_candidates(&token) {
+            if let Some(reason) = values.get(&candidate) {
+                return Some(reason.clone());
+            }
+        }
+    }
+    None
 }
 
 fn contains_nonliteral_identifier(lang: Lang, text: &str) -> bool {
-    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.'))
-        .any(|token| {
-            !token.is_empty()
-                && token.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-                && !is_ignored_identifier(lang, token)
-        })
+    semantic_candidates(text).into_iter().any(|token| {
+        !token.is_empty()
+        && token.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+            && !is_ignored_identifier(lang, &token)
+    })
+}
+
+fn normalize_access_path(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        match chars[i] {
+            '[' if i + 2 < chars.len() && (chars[i + 1] == '"' || chars[i + 1] == '\'') => {
+                let quote = chars[i + 1];
+                i += 2;
+                let start = i;
+                while i < chars.len() && chars[i] != quote {
+                    i += 1;
+                }
+                if i < chars.len() {
+                    let key: String = chars[start..i].iter().collect();
+                    if !out.ends_with('.') && !out.is_empty() {
+                        out.push('.');
+                    }
+                    out.push_str(&key);
+                    i += 1;
+                    if i < chars.len() && chars[i] == ']' {
+                        i += 1;
+                    }
+                }
+            }
+            '[' if i + 1 < chars.len() => {
+                i += 1;
+                let start = i;
+                while i < chars.len() && chars[i] != ']' {
+                    i += 1;
+                }
+                let key: String = chars[start..i].iter().collect();
+                if !key.is_empty() {
+                    if !out.ends_with('.') && !out.is_empty() {
+                        out.push('.');
+                    }
+                    out.push_str(&key);
+                }
+                if i < chars.len() && chars[i] == ']' {
+                    i += 1;
+                }
+            }
+            c => {
+                out.push(c);
+                i += 1;
+            }
+        }
+    }
+    while out.contains("..") {
+        out = out.replace("..", ".");
+    }
+    out.trim_matches('.').to_string()
+}
+
+fn semantic_candidates(text: &str) -> Vec<String> {
+    let normalized = normalize_access_path(text);
+    normalized
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$'))
+        .filter(|token| !token.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+fn hierarchical_path_candidates(token: &str) -> Vec<String> {
+    let normalized = normalize_access_path(token);
+    if normalized.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut current = normalized.as_str();
+    loop {
+        out.push(current.to_string());
+        let Some((parent, _)) = current.rsplit_once('.') else { break };
+        current = parent;
+    }
+    out
 }
 
 fn is_ignored_identifier(lang: Lang, token: &str) -> bool {
@@ -708,12 +801,12 @@ fn is_ignored_identifier(lang: Lang, token: &str) -> bool {
 
 fn assignment_regex(lang: Lang) -> Option<Regex> {
     match lang {
-        Lang::Python => Some(Regex::new(r"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*$").unwrap()),
-        Lang::Javascript | Lang::Typescript => Some(Regex::new(r#"^\s*(?:const|let|var)?\s*([A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
-        Lang::Csharp | Lang::Java => Some(Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]\.?]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
-        Lang::Ruby => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*$"#).unwrap()),
-        Lang::Go => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*(?::=|=)\s*(.+?)\s*$"#).unwrap()),
-        Lang::Rust => Some(Regex::new(r#"^\s*(?:let\s+(?:mut\s+)?)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*(?::[^=]+)?=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Python => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*$"#).unwrap()),
+        Lang::Javascript | Lang::Typescript => Some(Regex::new(r#"^\s*(?:const|let|var)?\s*([A-Za-z_$][A-Za-z0-9_$]*(?:(?:\.[A-Za-z_$][A-Za-z0-9_$]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Csharp | Lang::Java => Some(Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]\.?]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Ruby => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*$"#).unwrap()),
+        Lang::Go => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*(?::=|=)\s*(.+?)\s*$"#).unwrap()),
+        Lang::Rust => Some(Regex::new(r#"^\s*(?:let\s+(?:mut\s+)?)?([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*(?::[^=]+)?=\s*(.+?)\s*;?\s*$"#).unwrap()),
         _ => None,
     }
 }
@@ -858,8 +951,8 @@ fn taint_reason(
         if let Some(kind) = direct_source_kind(lang, candidate) {
             return Some((kind.to_string(), pick_framework(semantics, &kind)));
         }
-        for token in candidate.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '$')) {
-            if let Some(kind) = semantics.tainted_identifiers.get(token) {
+        for token in semantic_candidates(candidate) {
+            if let Some(kind) = semantics.tainted_identifiers.get(&token) {
                 return Some((kind.clone(), pick_framework(semantics, kind)));
             }
         }

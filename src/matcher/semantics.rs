@@ -92,31 +92,46 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
     let from_re = Regex::new(
         r"^\s*from\s+([A-Za-z_][A-Za-z0-9_\.]*)\s+import\s+(.+?)\s*$"
     ).unwrap();
+    let class_re = Regex::new(r#"^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)\b"#).unwrap();
     let assign_re = Regex::new(
-        r"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*$"
+        r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*$"#
     ).unwrap();
     let def_re = Regex::new(r#"^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\):"#).unwrap();
+    let ctor_re = Regex::new(r#"^([A-Z][A-Za-z0-9_]*)\s*\("#).unwrap();
     let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let member_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let lines: Vec<&str> = source.lines().collect();
     let mut current_fn: Option<(String, usize, Vec<String>, HashMap<String, Result<usize, String>>)> = None;
+    let mut current_class: Option<(String, usize)> = None;
 
     for raw_line in &lines {
         let indent = raw_line.chars().take_while(|c| c.is_whitespace()).count();
         let line = raw_line.split('#').next().unwrap_or("").trim();
+        if let Some((_, class_indent)) = current_class.as_ref() {
+            if !line.is_empty() && indent <= *class_indent && !line.starts_with('@') {
+                current_class = None;
+            }
+        }
         if let Some((func_identity, fn_indent, params, local_taint)) = current_fn.as_mut() {
             if !line.is_empty() && indent > *fn_indent {
                 if let Some(caps) = assign_re.captures(line) {
-                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
                     let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
                     if !ident.is_empty() && !rhs.is_empty() {
+                        if let Some(caps) = ctor_re.captures(rhs) {
+                            if let Some(class_name) = caps.get(1).map(|m| m.as_str()) {
+                                semantics.variable_types.insert(ident.clone(), class_name.to_string());
+                            }
+                        } else if let Some(ty) = semantics.variable_types.get(rhs).cloned() {
+                            semantics.variable_types.insert(ident.clone(), ty);
+                        }
                         if let Some(source_kind) = python_source_kind(rhs) {
                             semantics.tainted_identifiers.insert(ident.clone(), source_kind.to_string());
                             local_taint.insert(ident, Err(source_kind.to_string()));
                         } else if let Some(idx) = params.iter().position(|param| param == rhs) {
                             local_taint.insert(ident, Ok(idx));
-                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
                             if let Err(source_kind) = &kind {
                                 semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
                             }
@@ -156,6 +171,14 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
             continue;
         }
 
+        if let Some(caps) = class_re.captures(line) {
+            let class_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !class_name.is_empty() {
+                current_class = Some((class_name, indent));
+            }
+            continue;
+        }
+
         if let Some(caps) = def_re.captures(line) {
             let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
             let params_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
@@ -163,14 +186,17 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                 .map(|s| s.trim().split('=').next().unwrap_or("").trim().to_string())
                 .filter(|s| !s.is_empty() && s != "self" && s != "cls")
                 .collect();
-            semantics.function_definitions.insert(
-                format!("{module_identity}::{func_name}"),
-                params,
-            );
+            let func_identity = match current_class.as_ref() {
+                Some((class_name, class_indent)) if indent > *class_indent => {
+                    format!("{module_identity}::{class_name}::{func_name}")
+                }
+                _ => format!("{module_identity}::{func_name}"),
+            };
+            semantics.function_definitions.insert(func_identity.clone(), params);
             current_fn = Some((
-                format!("{module_identity}::{func_name}"),
+                func_identity.clone(),
                 indent,
-                semantics.function_definitions.get(&format!("{module_identity}::{func_name}")).cloned().unwrap_or_default(),
+                semantics.function_definitions.get(&func_identity).cloned().unwrap_or_default(),
                 HashMap::new(),
             ));
         }
@@ -219,7 +245,7 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
         }
 
         if let Some(caps) = assign_re.captures(line) {
-            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
             let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
             if ident.is_empty() || rhs.is_empty() {
                 continue;
@@ -257,17 +283,16 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                     let resolved = semantics.alias_to_module.get(module).cloned().unwrap_or_else(|| module.to_string());
                     semantics.variable_types.insert(ident.clone(), resolved);
                 }
+            } else if let Some(caps) = ctor_re.captures(rhs) {
+                if let Some(class_name) = caps.get(1).map(|m| m.as_str()) {
+                    semantics.variable_types.insert(ident.clone(), class_name.to_string());
+                }
             }
 
             if let Some(source_kind) = python_source_kind(rhs) {
                 semantics.tainted_identifiers.insert(ident, source_kind.to_string());
-            } else {
-                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
-                    if let Some(source_kind) = semantics.tainted_identifiers.get(token) {
-                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                        break;
-                    }
-                }
+            } else if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, rhs) {
+                semantics.tainted_identifiers.insert(ident.clone(), source_kind);
             }
         }
     }
@@ -331,6 +356,12 @@ fn resolve_python_call_target(
 ) -> Option<String> {
     match member {
         Some(method) => {
+            if let Some(ty) = semantics.variable_types.get(head) {
+                let candidate = format!("{module_identity}::{ty}::{method}");
+                if semantics.function_definitions.contains_key(&candidate) {
+                    return Some(candidate);
+                }
+            }
             let module = semantics.alias_to_module.get(head)?;
             Some(format!("{module}::{method}"))
         }
@@ -354,8 +385,10 @@ fn record_python_tainted_call(
 ) {
     for (idx, arg) in args_raw.split(',').enumerate() {
         let arg = arg.trim();
-        if let Some(source_kind) = semantics.tainted_identifiers.get(arg) {
-            semantics.tainted_calls.push((target.to_string(), idx, source_kind.clone()));
+        if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, arg)
+            .or_else(|| python_source_kind(arg).map(str::to_string))
+        {
+            semantics.tainted_calls.push((target.to_string(), idx, source_kind));
         }
     }
 }
@@ -451,8 +484,8 @@ fn return_param_sanitizer(
     let Some(sanitizer) = semantic_sanitizer_kind(lang, expr, &tainted) else {
         return None;
     };
-    for token in semantic_tokens(expr) {
-        if let Some(idx) = param_by_ident.get(token) {
+    for token in semantic_lookup_candidates(expr) {
+        if let Some(idx) = param_by_ident.get(&token) {
             return Some((*idx, sanitizer));
         }
     }
@@ -478,7 +511,7 @@ fn semantic_sanitizer_kind(
     text: &str,
     tainted: &HashMap<String, String>,
 ) -> Option<String> {
-    if !semantic_tokens(text).any(|token| tainted.contains_key(token)) {
+    if !semantic_lookup_candidates(text).iter().any(|token| tainted.contains_key(token)) {
         return None;
     }
     let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
@@ -549,9 +582,118 @@ fn semantic_sanitizer_kind(
     None
 }
 
+fn normalize_access_path(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0usize;
+    while i < chars.len() {
+        match chars[i] {
+            '[' => {
+                i += 1;
+                while i < chars.len() && chars[i].is_whitespace() {
+                    i += 1;
+                }
+                let quote = if i < chars.len() && (chars[i] == '"' || chars[i] == '\'') {
+                    let q = chars[i];
+                    i += 1;
+                    Some(q)
+                } else {
+                    None
+                };
+                let mut inner = String::new();
+                while i < chars.len() {
+                    if let Some(q) = quote {
+                        if chars[i] == q {
+                            i += 1;
+                            break;
+                        }
+                    } else if chars[i] == ']' {
+                        break;
+                    }
+                    if !chars[i].is_whitespace() {
+                        inner.push(chars[i]);
+                    }
+                    i += 1;
+                }
+                while i < chars.len() && chars[i] != ']' {
+                    i += 1;
+                }
+                if i < chars.len() && chars[i] == ']' {
+                    i += 1;
+                }
+                let inner = inner.trim_matches(|c| c == '"' || c == '\'');
+                if !inner.is_empty() {
+                    if !out.ends_with('.') {
+                        out.push('.');
+                    }
+                    out.push_str(inner);
+                }
+            }
+            c if c.is_whitespace() => i += 1,
+            c => {
+                out.push(c);
+                i += 1;
+            }
+        }
+    }
+    while out.contains("..") {
+        out = out.replace("..", ".");
+    }
+    out.trim_matches('.').to_string()
+}
+
+fn semantic_lookup_candidates(text: &str) -> Vec<String> {
+    let normalized = normalize_access_path(text);
+    normalized
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$'))
+        .filter(|token| !token.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+fn hierarchical_path_candidates(token: &str) -> Vec<String> {
+    let normalized = normalize_access_path(token);
+    if normalized.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut current = normalized.as_str();
+    loop {
+        out.push(current.to_string());
+        let Some((parent, _)) = current.rsplit_once('.') else { break };
+        current = parent;
+    }
+    out
+}
+
 fn semantic_tokens(text: &str) -> impl Iterator<Item = &str> {
     text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.'))
         .filter(|token| !token.is_empty())
+}
+
+fn lookup_string_map(map: &HashMap<String, String>, text: &str) -> Option<String> {
+    for token in semantic_lookup_candidates(text) {
+        for candidate in hierarchical_path_candidates(&token) {
+            if let Some(value) = map.get(&candidate) {
+                return Some(value.clone());
+            }
+        }
+    }
+    None
+}
+
+fn lookup_local_taint(
+    map: &HashMap<String, Result<usize, String>>,
+    text: &str,
+) -> Option<Result<usize, String>> {
+    for token in semantic_lookup_candidates(text) {
+        for candidate in hierarchical_path_candidates(&token) {
+            if let Some(value) = map.get(&candidate) {
+                return Some(value.clone());
+            }
+        }
+    }
+    None
 }
 
 fn record_param_call_edges(
@@ -567,8 +709,8 @@ fn record_param_call_edges(
         let caller_param_idx = if let Some(idx) = params.iter().position(|param| param == arg) {
             Some(idx)
         } else {
-            match local_taint.get(arg) {
-                Some(Ok(idx)) => Some(*idx),
+            match lookup_local_taint(local_taint, arg) {
+                Some(Ok(idx)) => Some(idx),
                 _ => None,
             }
         };
@@ -640,8 +782,9 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
     let require_re = Regex::new(
         r#"^\s*(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*require\(\s*['"]([^'"]+)['"]\s*\)"#
     ).unwrap();
+    let class_re = Regex::new(r#"^\s*class\s+([A-Za-z_$][A-Za-z0-9_$]*)\b"#).unwrap();
     let assign_re = Regex::new(
-        r#"^\s*(?:const|let|var)?\s*([A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*)\s*=\s*(.+?)\s*;?\s*$"#
+        r#"^\s*(?:const|let|var)?\s*([A-Za-z_$][A-Za-z0-9_$]*(?:(?:\.[A-Za-z_$][A-Za-z0-9_$]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
     let fn_re = Regex::new(
         r#"^\s*(?:export\s+)?function\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\((.*?)\)"#
@@ -652,18 +795,28 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
     let function_expr_re = Regex::new(
         r#"^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*function\s*\((.*?)\)"#
     ).unwrap();
+    let method_re = Regex::new(r#"^\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\((.*?)\)\s*\{"#).unwrap();
+    let ctor_re = Regex::new(r#"^new\s+([A-Z][A-Za-z0-9_$]*)\s*\("#).unwrap();
     let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*;?\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_$][A-Za-z0-9_$]*)\s*\((.*?)\)"#).unwrap();
     let member_call_re = Regex::new(r#"([A-Za-z_$][A-Za-z0-9_$]*)\.([A-Za-z_$][A-Za-z0-9_$]*)\s*\((.*?)\)"#).unwrap();
     let lines: Vec<&str> = source.lines().collect();
     let mut current_fn: Option<(String, Vec<String>, i32, HashMap<String, Result<usize, String>>)> = None;
+    let mut current_class: Option<(String, i32)> = None;
 
     for raw_line in &lines {
         let line = raw_line.split("//").next().unwrap_or("").trim();
+        if let Some((_, depth)) = current_class.as_mut() {
+            *depth += line.matches('{').count() as i32;
+            *depth -= line.matches('}').count() as i32;
+            if *depth <= 0 {
+                current_class = None;
+            }
+        }
         if let Some((func_identity, params, brace_depth, local_taint)) = current_fn.as_mut() {
             if !line.is_empty() {
                 if let Some(caps) = assign_re.captures(line) {
-                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
                     let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
                     if !ident.is_empty() && !rhs.is_empty() {
                         if let Some(source_kind) = js_source_kind(rhs) {
@@ -671,7 +824,7 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
                             local_taint.insert(ident, Err(source_kind.to_string()));
                         } else if let Some(idx) = params.iter().position(|param| param == rhs) {
                             local_taint.insert(ident, Ok(idx));
-                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
                             if let Err(source_kind) = &kind {
                                 semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
                             }
@@ -714,6 +867,17 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
             continue;
         }
 
+        if let Some(caps) = class_re.captures(line) {
+            let class_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !class_name.is_empty() {
+                current_class = Some((
+                    class_name,
+                    line.matches('{').count() as i32 - line.matches('}').count() as i32,
+                ));
+            }
+            continue;
+        }
+
         if let Some(caps) = fn_re.captures(line)
             .or_else(|| arrow_re.captures(line))
             .or_else(|| function_expr_re.captures(line))
@@ -750,6 +914,27 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
                         Lang::Javascript,
                         js_source_kind,
                     );
+                }
+            }
+        } else if let Some((class_name, _)) = current_class.as_ref() {
+            if let Some(caps) = method_re.captures(line) {
+                let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                if !matches!(func_name.as_str(), "if" | "for" | "while" | "switch" | "catch" | "constructor")
+                    && !line.starts_with("static ")
+                {
+                    let params_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let params: Vec<String> = params_raw.split(',')
+                        .map(|s| s.trim().split('=').next().unwrap_or("").trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    let func_identity = format!("{module_identity}::{class_name}::{func_name}");
+                    semantics.function_definitions.insert(func_identity.clone(), params.clone());
+                    current_fn = Some((
+                        func_identity,
+                        params,
+                        line.matches('{').count() as i32 - line.matches('}').count() as i32,
+                        HashMap::new(),
+                    ));
                 }
             }
         }
@@ -846,10 +1031,17 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
         }
 
         if let Some(caps) = assign_re.captures(line) {
-            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
             let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
             if ident.is_empty() || rhs.is_empty() {
                 continue;
+            }
+            if let Some(caps) = ctor_re.captures(rhs) {
+                if let Some(class_name) = caps.get(1).map(|m| m.as_str()) {
+                    semantics.variable_types.insert(ident.clone(), class_name.to_string());
+                }
+            } else if let Some(ty) = semantics.variable_types.get(rhs).cloned() {
+                semantics.variable_types.insert(ident.clone(), ty);
             }
             if let Some(call_caps) = member_call_re.captures(rhs) {
                 let object = call_caps.get(1).map(|m| m.as_str()).unwrap_or("");
@@ -875,13 +1067,8 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
             }
             if let Some(source_kind) = js_source_kind(rhs) {
                 semantics.tainted_identifiers.insert(ident, source_kind.to_string());
-            } else {
-                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '$')) {
-                    if let Some(source_kind) = semantics.tainted_identifiers.get(token) {
-                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                        break;
-                    }
-                }
+            } else if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, rhs) {
+                semantics.tainted_identifiers.insert(ident.clone(), source_kind);
             }
         }
     }
@@ -974,6 +1161,12 @@ fn resolve_js_call_target(
 ) -> Option<String> {
     match member {
         Some(method) => {
+            if let Some(ty) = semantics.variable_types.get(head) {
+                let candidate = format!("{module_identity}::{ty}::{method}");
+                if semantics.function_definitions.contains_key(&candidate) {
+                    return Some(candidate);
+                }
+            }
             let module = semantics.js_namespace_imports.get(head)
                 .or_else(|| semantics.alias_to_module.get(head))?;
             Some(format!("{module}::{method}"))
@@ -1001,8 +1194,10 @@ fn record_js_tainted_call(
 ) {
     for (idx, arg) in args_raw.split(',').enumerate() {
         let arg = arg.trim();
-        if let Some(source_kind) = semantics.tainted_identifiers.get(arg) {
-            semantics.tainted_calls.push((target.to_string(), idx, source_kind.clone()));
+        if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, arg)
+            .or_else(|| js_source_kind(arg).map(str::to_string))
+        {
+            semantics.tainted_calls.push((target.to_string(), idx, source_kind));
         }
     }
 }
@@ -1015,17 +1210,20 @@ fn extract_ruby(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
         .unwrap_or_else(|| "local".to_string());
     let require_re = Regex::new(r#"^\s*require(?:_relative)?\s+['"]([^'"]+)['"]"#).unwrap();
     let require_relative_re = Regex::new(r#"^\s*require_relative\s+['"]([^'"]+)['"]"#).unwrap();
+    let class_re = Regex::new(r#"^\s*class\s+([A-Z][A-Za-z0-9_:]*)\b"#).unwrap();
     let assign_re = Regex::new(
-        r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*$"#
+        r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*$"#
     ).unwrap();
     let def_re = Regex::new(
-        r#"^\s*def\s+(?:self\.)?([A-Za-z_][A-Za-z0-9_!?=]*)\s*(?:\((.*?)\))?"#
+        r#"^\s*def\s+(?:(self)\.)?([A-Za-z_][A-Za-z0-9_!?=]*)\s*(?:\((.*?)\))?"#
     ).unwrap();
+    let ctor_re = Regex::new(r#"^([A-Z][A-Za-z0-9_:]*)\.new(?:\s*\(.*\))?\s*$"#).unwrap();
     let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_!?=]*)\s*\((.*?)\)"#).unwrap();
-    let member_call_re = Regex::new(r#"([A-Z][A-Za-z0-9_:]*)\s*[\.:]{1,2}\s*([A-Za-z_][A-Za-z0-9_!?=]*)\s*\((.*?)\)"#).unwrap();
+    let member_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_:]*)\s*[\.:]{1,2}\s*([A-Za-z_][A-Za-z0-9_!?=]*)\s*\((.*?)\)"#).unwrap();
     let lines: Vec<&str> = source.lines().collect();
-    let mut current_fn: Option<(String, Vec<String>, i32, HashMap<String, Result<usize, String>>)> = None;
+    let mut current_fn: Option<(String, Vec<String>, i32, HashMap<String, Result<usize, String>>, Option<String>)> = None;
+    let mut current_class: Option<(String, i32)> = None;
 
     if source.contains("params[")
         || source.contains("params.")
@@ -1039,31 +1237,58 @@ fn extract_ruby(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
 
     for raw_line in &lines {
         let line = raw_line.split('#').next().unwrap_or("").trim();
-        if let Some((func_identity, params, depth, local_taint)) = current_fn.as_mut() {
+        if let Some((func_identity, params, depth, local_taint, last_expr)) = current_fn.as_mut() {
             if !line.is_empty() {
                 if let Some(caps) = assign_re.captures(line) {
-                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
                     let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
                     if !ident.is_empty() && !rhs.is_empty() {
                         if let Some(source_kind) = ruby_source_kind(rhs) {
                             semantics.tainted_identifiers.insert(ident.clone(), source_kind.to_string());
-                            local_taint.insert(ident, Err(source_kind.to_string()));
+                            local_taint.insert(ident.clone(), Err(source_kind.to_string()));
                         } else if let Some(idx) = params.iter().position(|param| param == rhs) {
-                            local_taint.insert(ident, Ok(idx));
-                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                            local_taint.insert(ident.clone(), Ok(idx));
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
                             if let Err(source_kind) = &kind {
                                 semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
                             }
-                            local_taint.insert(ident, kind);
-                        } else {
-                            for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == ':' )) {
-                                if let Some(kind) = local_taint.get(token).cloned() {
-                                    if let Err(source_kind) = &kind {
-                                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                                    }
-                                    local_taint.insert(ident.clone(), kind);
-                                    break;
-                                }
+                            local_taint.insert(ident.clone(), kind);
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                            }
+                            local_taint.insert(ident.clone(), kind);
+                        }
+
+                        if let Some(class_name) = ctor_re.captures(rhs)
+                            .and_then(|caps| caps.get(1).map(|m| m.as_str()))
+                            .and_then(|class_name| resolve_ruby_receiver_type(&semantics, &module_identity, class_name))
+                        {
+                            semantics.variable_types.insert(ident.clone(), class_name);
+                        } else if let Some(ty) = semantics.variable_types.get(rhs).cloned() {
+                            semantics.variable_types.insert(ident.clone(), ty);
+                        }
+
+                        if let Some(call_caps) = member_call_re.captures(rhs) {
+                            let object = call_caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                            let method = call_caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                            let args_raw = call_caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                            if let Some(target) = resolve_ruby_call_target(&semantics, &module_identity, object, Some(method)) {
+                                semantics.call_assignments.push(CallAssignment {
+                                    ident: ident.clone(),
+                                    target,
+                                    args: args_raw.split(',').map(|arg| arg.trim().to_string()).collect(),
+                                });
+                            }
+                        } else if let Some(call_caps) = direct_call_re.captures(rhs) {
+                            let func_name = call_caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                            let args_raw = call_caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                            if let Some(target) = resolve_ruby_call_target(&semantics, &module_identity, func_name, None) {
+                                semantics.call_assignments.push(CallAssignment {
+                                    ident: ident.clone(),
+                                    target,
+                                    args: args_raw.split(',').map(|arg| arg.trim().to_string()).collect(),
+                                });
                             }
                         }
                     }
@@ -1093,6 +1318,15 @@ fn extract_ruby(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
                 if let Some(caps) = return_re.captures(line) {
                     let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim();
                     record_return_semantics(&mut semantics, func_identity, expr, params, local_taint, Lang::Ruby, ruby_source_kind);
+                    *last_expr = None;
+                } else if *depth == 1
+                    && !line.starts_with("def ")
+                    && line != "end"
+                    && !line.starts_with("class ")
+                    && !line.starts_with("module ")
+                    && !assign_re.is_match(line)
+                {
+                    *last_expr = Some(line.to_string());
                 }
             }
 
@@ -1102,6 +1336,9 @@ fn extract_ruby(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
             if line == "end" {
                 *depth -= 1;
                 if *depth <= 0 {
+                    if let Some(expr) = last_expr.take() {
+                        record_return_semantics(&mut semantics, func_identity, &expr, params, local_taint, Lang::Ruby, ruby_source_kind);
+                    }
                     current_fn = None;
                 }
             }
@@ -1109,23 +1346,53 @@ fn extract_ruby(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
         }
 
         if line.is_empty() {
+            if line == "end" {
+                if let Some((_, depth)) = current_class.as_mut() {
+                    *depth -= 1;
+                    if *depth <= 0 {
+                        current_class = None;
+                    }
+                }
+            }
+            continue;
+        }
+
+        if let Some(caps) = class_re.captures(line) {
+            let class_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !class_name.is_empty() {
+                current_class = Some((class_name, 1));
+            }
             continue;
         }
 
         if let Some(caps) = def_re.captures(line) {
-            let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
-            let params_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+            let is_class_method = caps.get(1).is_some();
+            let func_name = caps.get(2).map(|m| m.as_str()).unwrap_or("").to_string();
+            let params_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
             let params: Vec<String> = params_raw.split(',')
                 .map(|s| s.trim().split('=').next().unwrap_or("").trim().trim_start_matches('*').to_string())
                 .filter(|s| !s.is_empty())
                 .collect();
             if !func_name.is_empty() {
-                let func_identity = format!("{module_identity}::{func_name}");
+                let func_identity = if !is_class_method {
+                    if let Some((class_name, _)) = current_class.as_ref() {
+                        format!(
+                            "{}::{}",
+                            resolve_ruby_receiver_type(&semantics, &module_identity, class_name)
+                                .unwrap_or_else(|| format!("{module_identity}::{class_name}")),
+                            func_name
+                        )
+                    } else {
+                        format!("{module_identity}::{func_name}")
+                    }
+                } else {
+                    format!("{module_identity}::{func_name}")
+                };
                 semantics.function_definitions.insert(
                     func_identity.clone(),
                     params.clone(),
                 );
-                current_fn = Some((func_identity, params, 1, HashMap::new()));
+                current_fn = Some((func_identity, params, 1, HashMap::new(), None));
             }
         }
 
@@ -1147,19 +1414,53 @@ fn extract_ruby(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
         }
 
         if let Some(caps) = assign_re.captures(line) {
-            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
             let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
             if ident.is_empty() || rhs.is_empty() {
                 continue;
             }
+            if let Some(class_name) = ctor_re.captures(rhs)
+                .and_then(|caps| caps.get(1).map(|m| m.as_str()))
+                .and_then(|class_name| resolve_ruby_receiver_type(&semantics, &module_identity, class_name))
+            {
+                semantics.variable_types.insert(ident.clone(), class_name);
+            } else if let Some(ty) = semantics.variable_types.get(rhs).cloned() {
+                semantics.variable_types.insert(ident.clone(), ty);
+            }
+            if let Some(call_caps) = member_call_re.captures(rhs) {
+                let object = call_caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                let method = call_caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                let args_raw = call_caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                if let Some(target) = resolve_ruby_call_target(&semantics, &module_identity, object, Some(method)) {
+                    semantics.call_assignments.push(CallAssignment {
+                        ident: ident.clone(),
+                        target,
+                        args: args_raw.split(',').map(|arg| arg.trim().to_string()).collect(),
+                    });
+                }
+            } else if let Some(call_caps) = direct_call_re.captures(rhs) {
+                let func_name = call_caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                let args_raw = call_caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                if let Some(target) = resolve_ruby_call_target(&semantics, &module_identity, func_name, None) {
+                    semantics.call_assignments.push(CallAssignment {
+                        ident: ident.clone(),
+                        target,
+                        args: args_raw.split(',').map(|arg| arg.trim().to_string()).collect(),
+                    });
+                }
+            }
             if let Some(source_kind) = ruby_source_kind(rhs) {
                 semantics.tainted_identifiers.insert(ident, source_kind.to_string());
-            } else {
-                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == ':' )) {
-                    if let Some(source_kind) = semantics.tainted_identifiers.get(token) {
-                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                        break;
-                    }
+            } else if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, rhs) {
+                semantics.tainted_identifiers.insert(ident.clone(), source_kind);
+            }
+        }
+
+        if line == "end" {
+            if let Some((_, depth)) = current_class.as_mut() {
+                *depth -= 1;
+                if *depth <= 0 {
+                    current_class = None;
                 }
             }
         }
@@ -1221,6 +1522,12 @@ fn resolve_ruby_call_target(
 ) -> Option<String> {
     match member {
         Some(method) => {
+            if let Some(ty) = semantics.variable_types.get(head) {
+                let candidate = format!("{ty}::{method}");
+                if semantics.function_definitions.contains_key(&candidate) || is_project_local_type(module_identity, ty) {
+                    return Some(candidate);
+                }
+            }
             let module = semantics.alias_to_module.get(head)?;
             Some(format!("{module}::{method}"))
         }
@@ -1234,6 +1541,21 @@ fn resolve_ruby_call_target(
     }
 }
 
+fn resolve_ruby_receiver_type(
+    semantics: &FileSemantics,
+    module_identity: &str,
+    class_name: &str,
+) -> Option<String> {
+    let base = class_name.rsplit("::").next().unwrap_or(class_name);
+    if class_name.contains("::") {
+        return Some(class_name.to_string());
+    }
+    if let Some(module) = semantics.alias_to_module.get(base) {
+        return Some(format!("{module}::{base}"));
+    }
+    Some(format!("{module_identity}::{base}"))
+}
+
 fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {
     let mut semantics = FileSemantics::default();
     semantics.module_identity = java_module_identity(source, path, base_path);
@@ -1243,7 +1565,7 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
     let import_re = Regex::new(r#"^\s*import\s+([\w\.]+);"#).unwrap();
     let static_import_re = Regex::new(r#"^\s*import\s+static\s+([\w\.]+)\.([A-Za-z_][A-Za-z0-9_]*)\s*;"#).unwrap();
     let assign_re = Regex::new(
-        r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*;?\s*$"#
+        r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
     let explicit_decl_re = Regex::new(
         r#"^\s*(?:private|public|protected)?\s*(?:static\s+)?(?:final\s+)?([A-Za-z_][A-Za-z0-9_<>\.\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#
@@ -1291,7 +1613,7 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
         if let Some((func_identity, params, brace_depth, local_taint)) = current_fn.as_mut() {
             if !line.is_empty() {
                 if let Some(caps) = assign_re.captures(line) {
-                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
                     let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
                     if !ident.is_empty() && !rhs.is_empty() {
                         if let Some(source_kind) = java_source_kind(rhs) {
@@ -1299,21 +1621,16 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
                             local_taint.insert(ident, Err(source_kind.to_string()));
                         } else if let Some(idx) = params.iter().position(|param| param == rhs) {
                             local_taint.insert(ident, Ok(idx));
-                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
                             if let Err(source_kind) = &kind {
                                 semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
                             }
                             local_taint.insert(ident, kind);
-                        } else {
-                            for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
-                                if let Some(kind) = local_taint.get(token).cloned() {
-                                    if let Err(source_kind) = &kind {
-                                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                                    }
-                                    local_taint.insert(ident.clone(), kind);
-                                    break;
-                                }
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
                             }
+                            local_taint.insert(ident.clone(), kind);
                         }
                     }
                 }
@@ -1411,7 +1728,7 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
                 }
             }
         } else if let Some(caps) = assign_re.captures(line) {
-            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
             let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
             if !ident.is_empty() {
                 if let Some(new_type) = new_type_re.captures(rhs)
@@ -1431,13 +1748,8 @@ fn extract_java(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
             }
             if let Some(source_kind) = java_source_kind(rhs) {
                 semantics.tainted_identifiers.insert(ident, source_kind.to_string());
-            } else {
-                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
-                    if let Some(source_kind) = semantics.tainted_identifiers.get(token) {
-                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                        break;
-                    }
-                }
+            } else if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, rhs) {
+                semantics.tainted_identifiers.insert(ident.clone(), source_kind);
             }
         }
     }
@@ -1504,7 +1816,10 @@ fn resolve_java_call_target(
                 if semantics.function_definitions.contains_key(&candidate) {
                     return Some(candidate);
                 }
-                return Some(candidate);
+                if is_project_local_type(module_identity, ty) {
+                    return Some(candidate);
+                }
+                return None;
             }
             if let Some(imported) = semantics.imported_symbols.get(head) {
                 return Some(format!("{imported}::{method}"));
@@ -1630,7 +1945,7 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
     let using_re = Regex::new(r"^\s*using\s+([A-Za-z_][A-Za-z0-9_\.]*)\s*;").unwrap();
     let using_static_re = Regex::new(r#"^\s*using\s+static\s+([A-Za-z_][A-Za-z0-9_\.]*)\s*;"#).unwrap();
     let using_alias_re = Regex::new(r#"^\s*using\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([A-Za-z_][A-Za-z0-9_\.]*)\s*;"#).unwrap();
-    let assign_re = Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap();
+    let assign_re = Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap();
     let explicit_decl_re = Regex::new(
         r#"^\s*([A-Za-z_][A-Za-z0-9_<>\.\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
@@ -1649,7 +1964,7 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
         if let Some((func_identity, params, brace_depth, local_taint)) = current_fn.as_mut() {
             if !line.is_empty() {
                 if let Some(caps) = assign_re.captures(line) {
-                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
                     let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
                     if !ident.is_empty() && !rhs.is_empty() {
                         if let Some(source_kind) = csharp_source_kind(rhs) {
@@ -1657,21 +1972,16 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                             local_taint.insert(ident, Err(source_kind.to_string()));
                         } else if let Some(idx) = params.iter().position(|param| param == rhs) {
                             local_taint.insert(ident, Ok(idx));
-                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
                             if let Err(source_kind) = &kind {
                                 semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
                             }
                             local_taint.insert(ident, kind);
-                        } else {
-                            for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
-                                if let Some(kind) = local_taint.get(token).cloned() {
-                                    if let Err(source_kind) = &kind {
-                                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                                    }
-                                    local_taint.insert(ident.clone(), kind);
-                                    break;
-                                }
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
                             }
+                            local_taint.insert(ident.clone(), kind);
                         }
                     }
                 }
@@ -1774,7 +2084,7 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                 }
             }
         } else if let Some(caps) = assign_re.captures(line) {
-            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
             let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
             if !ident.is_empty() {
                 if let Some(command_type) = csharp_db_command_type_from_rhs(rhs) {
@@ -1799,13 +2109,8 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
             }
             if let Some(source_kind) = csharp_source_kind(rhs) {
                 semantics.tainted_identifiers.insert(ident, source_kind.to_string());
-            } else {
-                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
-                    if let Some(source_kind) = semantics.tainted_identifiers.get(token) {
-                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                        break;
-                    }
-                }
+            } else if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, rhs) {
+                semantics.tainted_identifiers.insert(ident.clone(), source_kind);
             }
         }
     }
@@ -1876,7 +2181,10 @@ fn resolve_csharp_call_target(
                 if semantics.function_definitions.contains_key(&candidate) {
                     return Some(candidate);
                 }
-                return Some(candidate);
+                if is_project_local_type(module_identity, ty) {
+                    return Some(candidate);
+                }
+                return None;
             }
             if let Some(module) = semantics.alias_to_module.get(head) {
                 return Some(format!("{module}::{method}"));
@@ -1920,8 +2228,21 @@ fn resolve_csharp_type_name(
     if let Some(imported) = semantics.alias_to_module.get(base) {
         return Some(imported.clone());
     }
+    if let Some(namespace_match) = semantics.imported_modules.iter()
+        .filter(|ns| !ns.contains("::"))
+        .map(|ns| format!("{ns}.{base}"))
+        .next()
+    {
+        return Some(namespace_match);
+    }
     let namespace = module_identity.rsplit_once('.').map(|(ns, _)| ns).unwrap_or(module_identity);
     Some(format!("{namespace}.{base}"))
+}
+
+fn is_project_local_type(module_identity: &str, qualified_type: &str) -> bool {
+    let Some(module_root) = module_identity.split('.').next() else { return false };
+    let Some(type_root) = qualified_type.split('.').next() else { return false };
+    !module_root.is_empty() && module_root == type_root
 }
 
 fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {
@@ -1933,9 +2254,11 @@ fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> Fi
     let single_import_re = Regex::new(r#"^\s*import\s+(?:(\w+)\s+)?"([^"]+)""#).unwrap();
     let block_import_re = Regex::new(r#"^\s*(?:(\w+)\s+)?"([^"]+)""#).unwrap();
     let assign_re = Regex::new(
-        r#"^\s*(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*(?::=|=)\s*(.+?)\s*$"#
+        r#"^\s*(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*(?::=|=)\s*(.+?)\s*$"#
     ).unwrap();
-    let func_re = Regex::new(r#"^\s*func\s+(?:\([^)]+\)\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let method_re = Regex::new(r#"^\s*func\s*\(\s*[A-Za-z_][A-Za-z0-9_]*\s+\*?([A-Za-z_][A-Za-z0-9_]*)\s*\)\s*([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let func_re = Regex::new(r#"^\s*func\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
+    let var_decl_re = Regex::new(r#"^\s*var\s+([A-Za-z_][A-Za-z0-9_]*)\s+\*?([A-Za-z_][A-Za-z0-9_]*)\s*$"#).unwrap();
     let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let member_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
@@ -1948,7 +2271,7 @@ fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> Fi
         if let Some((func_identity, params, brace_depth, local_taint)) = current_fn.as_mut() {
             if !line.is_empty() {
                 if let Some(caps) = assign_re.captures(line) {
-                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
                     let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
                     if !ident.is_empty() && !rhs.is_empty() {
                         if let Some(source_kind) = go_source_kind(rhs) {
@@ -1956,21 +2279,16 @@ fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> Fi
                             local_taint.insert(ident, Err(source_kind.to_string()));
                         } else if let Some(idx) = params.iter().position(|param| param == rhs) {
                             local_taint.insert(ident, Ok(idx));
-                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
                             if let Err(source_kind) = &kind {
                                 semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
                             }
                             local_taint.insert(ident, kind);
-                        } else {
-                            for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
-                                if let Some(kind) = local_taint.get(token).cloned() {
-                                    if let Err(source_kind) = &kind {
-                                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                                    }
-                                    local_taint.insert(ident.clone(), kind);
-                                    break;
-                                }
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
                             }
+                            local_taint.insert(ident.clone(), kind);
                         }
                     }
                 }
@@ -2012,7 +2330,26 @@ fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> Fi
             continue;
         }
 
-        if let Some(caps) = func_re.captures(line) {
+        if let Some(caps) = method_re.captures(line) {
+            let recv_type = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let func_name = caps.get(2).map(|m| m.as_str()).unwrap_or("").to_string();
+            let params_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+            let params: Vec<String> = params_raw.split(',')
+                .map(|param| param.trim())
+                .filter(|param| !param.is_empty())
+                .filter_map(go_param_name)
+                .collect();
+            if !recv_type.is_empty() && !func_name.is_empty() {
+                let func_identity = format!("{module_identity}::{recv_type}::{func_name}");
+                semantics.function_definitions.insert(func_identity.clone(), params.clone());
+                current_fn = Some((
+                    func_identity,
+                    params,
+                    line.matches('{').count() as i32 - line.matches('}').count() as i32,
+                    HashMap::new(),
+                ));
+            }
+        } else if let Some(caps) = func_re.captures(line) {
             let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
             let params_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
             let params: Vec<String> = params_raw.split(',')
@@ -2072,21 +2409,29 @@ fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> Fi
             continue;
         }
 
-        if let Some(caps) = assign_re.captures(line) {
+        if let Some(caps) = var_decl_re.captures(line) {
             let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let ty = caps.get(2).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !ident.is_empty() && !ty.is_empty() {
+                semantics.variable_types.insert(ident, ty);
+            }
+        }
+
+        if let Some(caps) = assign_re.captures(line) {
+            let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
             let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
             if ident.is_empty() || rhs.is_empty() {
                 continue;
             }
+            if let Some(ty) = go_receiver_type_from_rhs(rhs) {
+                semantics.variable_types.insert(ident.clone(), ty);
+            } else if let Some(ty) = semantics.variable_types.get(rhs).cloned() {
+                semantics.variable_types.insert(ident.clone(), ty);
+            }
             if let Some(source_kind) = go_source_kind(rhs) {
                 semantics.tainted_identifiers.insert(ident, source_kind.to_string());
-            } else {
-                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.')) {
-                    if let Some(source_kind) = semantics.tainted_identifiers.get(token) {
-                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                        break;
-                    }
-                }
+            } else if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, rhs) {
+                semantics.tainted_identifiers.insert(ident.clone(), source_kind);
             }
         }
     }
@@ -2128,8 +2473,9 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
         .unwrap_or_else(|| "local".to_string());
     let use_re = Regex::new(r#"^\s*use\s+([^;]+);"#).unwrap();
     let assign_re = Regex::new(
-        r#"^\s*(?:let\s+(?:mut\s+)?)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*(?::[^=]+)?=\s*(.+?)\s*;?\s*$"#
+        r#"^\s*(?:let\s+(?:mut\s+)?)?([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*(?::[^=]+)?=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
+    let impl_re = Regex::new(r#"^\s*impl(?:<[^>]+>\s*)?\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{"#).unwrap();
     let fn_re = Regex::new(r#"^\s*fn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*;?\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
@@ -2137,13 +2483,14 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
     let method_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let lines: Vec<&str> = source.lines().collect();
     let mut current_fn: Option<(String, Vec<String>, i32, HashMap<String, Result<usize, String>>)> = None;
+    let mut current_impl: Option<(String, i32)> = None;
 
     for raw_line in &lines {
         let line = raw_line.split("//").next().unwrap_or("").trim();
         if let Some((func_identity, params, brace_depth, local_taint)) = current_fn.as_mut() {
             if !line.is_empty() {
                 if let Some(caps) = assign_re.captures(line) {
-                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
                     let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
                     if !ident.is_empty() && !rhs.is_empty() {
                         if let Some(source_kind) = rust_source_kind(rhs) {
@@ -2151,21 +2498,16 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
                             local_taint.insert(ident, Err(source_kind.to_string()));
                         } else if let Some(idx) = params.iter().position(|param| param == rhs) {
                             local_taint.insert(ident, Ok(idx));
-                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
                             if let Err(source_kind) = &kind {
                                 semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
                             }
                             local_taint.insert(ident, kind);
-                        } else {
-                            for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == ':' || c == '.')) {
-                                if let Some(kind) = local_taint.get(token).cloned() {
-                                    if let Err(source_kind) = &kind {
-                                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                                    }
-                                    local_taint.insert(ident.clone(), kind);
-                                    break;
-                                }
+                        } else if let Some(kind) = lookup_local_taint(local_taint, rhs) {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
                             }
+                            local_taint.insert(ident.clone(), kind);
                         }
                     }
                 }
@@ -2218,6 +2560,25 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
             continue;
         }
 
+        if let Some((_, depth)) = current_impl.as_mut() {
+            *depth += line.matches('{').count() as i32;
+            *depth -= line.matches('}').count() as i32;
+            if *depth <= 0 {
+                current_impl = None;
+            }
+        }
+
+        if let Some(caps) = impl_re.captures(line) {
+            let ty = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            if !ty.is_empty() {
+                current_impl = Some((
+                    ty,
+                    line.matches('{').count() as i32 - line.matches('}').count() as i32,
+                ));
+            }
+            continue;
+        }
+
         if let Some(caps) = fn_re.captures(line) {
             let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
             let params_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
@@ -2227,7 +2588,10 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
                 .filter_map(rust_param_name)
                 .collect();
             if !func_name.is_empty() {
-                let func_identity = format!("{module_identity}::{func_name}");
+                let func_identity = match current_impl.as_ref() {
+                    Some((ty, _)) => format!("{module_identity}::{ty}::{func_name}"),
+                    None => format!("{module_identity}::{func_name}"),
+                };
                 semantics.function_definitions.insert(func_identity.clone(), params.clone());
                 current_fn = Some((
                     func_identity,
@@ -2245,20 +2609,20 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
         }
 
         if let Some(caps) = assign_re.captures(line) {
-            let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let ident = normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
             let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
             if ident.is_empty() || rhs.is_empty() {
                 continue;
             }
+            if let Some(ty) = rust_receiver_type_from_rhs(rhs) {
+                semantics.variable_types.insert(ident.clone(), ty);
+            } else if let Some(ty) = semantics.variable_types.get(rhs).cloned() {
+                semantics.variable_types.insert(ident.clone(), ty);
+            }
             if let Some(source_kind) = rust_source_kind(rhs) {
                 semantics.tainted_identifiers.insert(ident, source_kind.to_string());
-            } else {
-                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == ':' || c == '.')) {
-                    if let Some(source_kind) = semantics.tainted_identifiers.get(token) {
-                        semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
-                        break;
-                    }
-                }
+            } else if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, rhs) {
+                semantics.tainted_identifiers.insert(ident.clone(), source_kind);
             }
         }
     }
@@ -2350,14 +2714,9 @@ fn extract_php(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> F
             if let Some(source_kind) = php_source_kind(rhs) {
                 semantics.tainted_identifiers.insert(format!("${ident}"), source_kind.to_string());
                 semantics.tainted_identifiers.insert(ident, source_kind.to_string());
-            } else {
-                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$' || c == '>' || c == '[' || c == ']')) {
-                    if let Some(source_kind) = semantics.tainted_identifiers.get(token).cloned() {
-                        semantics.tainted_identifiers.insert(format!("${ident}"), source_kind.clone());
-                        semantics.tainted_identifiers.insert(ident.clone(), source_kind);
-                        break;
-                    }
-                }
+            } else if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, rhs) {
+                semantics.tainted_identifiers.insert(format!("${ident}"), source_kind.clone());
+                semantics.tainted_identifiers.insert(ident.clone(), source_kind);
             }
         }
     }
@@ -2471,14 +2830,9 @@ fn extract_bash(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
             if let Some(source_kind) = bash_source_kind(rhs) {
                 semantics.tainted_identifiers.insert(format!("${ident}"), source_kind.to_string());
                 semantics.tainted_identifiers.insert(ident, source_kind.to_string());
-            } else {
-                for token in rhs.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '$')) {
-                    if let Some(source_kind) = semantics.tainted_identifiers.get(token).cloned() {
-                        semantics.tainted_identifiers.insert(format!("${ident}"), source_kind.clone());
-                        semantics.tainted_identifiers.insert(ident.clone(), source_kind);
-                        break;
-                    }
-                }
+            } else if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, rhs) {
+                semantics.tainted_identifiers.insert(format!("${ident}"), source_kind.clone());
+                semantics.tainted_identifiers.insert(ident.clone(), source_kind);
             }
         }
     }
@@ -2536,6 +2890,12 @@ fn resolve_go_call_target(
 ) -> Option<String> {
     match member {
         Some(method) => {
+            if let Some(ty) = semantics.variable_types.get(head) {
+                let candidate = format!("{module_identity}::{ty}::{method}");
+                if semantics.function_definitions.contains_key(&candidate) {
+                    return Some(candidate);
+                }
+            }
             let module = semantics.alias_to_module.get(head)?;
             Some(format!("{module}::{method}"))
         }
@@ -2661,6 +3021,12 @@ fn resolve_rust_call_target(
 ) -> Option<String> {
     match member {
         Some(method) => {
+            if let Some(ty) = semantics.variable_types.get(head) {
+                let candidate = format!("{module_identity}::{ty}::{method}");
+                if semantics.function_definitions.contains_key(&candidate) {
+                    return Some(candidate);
+                }
+            }
             if let Some(imported) = semantics.imported_symbols.get(head) {
                 return Some(format!("{}::{method}", imported.replace('.', "::")));
             }
@@ -2715,10 +3081,30 @@ fn record_tainted_call(
 ) {
     for (idx, arg) in args_raw.split(',').enumerate() {
         let arg = arg.trim();
-        if let Some(source_kind) = semantics.tainted_identifiers.get(arg) {
-            semantics.tainted_calls.push((target.to_string(), idx, source_kind.clone()));
+        if let Some(source_kind) = lookup_string_map(&semantics.tainted_identifiers, arg)
+            .or_else(|| ruby_source_kind(arg).map(str::to_string))
+        {
+            semantics.tainted_calls.push((target.to_string(), idx, source_kind));
         }
     }
+}
+
+fn go_receiver_type_from_rhs(rhs: &str) -> Option<String> {
+    let rhs = rhs.trim();
+    let struct_lit_re = Regex::new(r#"^&?([A-Z][A-Za-z0-9_]*)\s*\{"#).unwrap();
+    let ctor_re = Regex::new(r#"^&?([A-Z][A-Za-z0-9_]*)\s*\("#).unwrap();
+    struct_lit_re.captures(rhs)
+        .or_else(|| ctor_re.captures(rhs))
+        .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+}
+
+fn rust_receiver_type_from_rhs(rhs: &str) -> Option<String> {
+    let rhs = rhs.trim();
+    let struct_lit_re = Regex::new(r#"^&?([A-Z][A-Za-z0-9_]*)\s*(?:\{|$)"#).unwrap();
+    let assoc_ctor_re = Regex::new(r#"^&?([A-Z][A-Za-z0-9_]*)::[A-Za-z_][A-Za-z0-9_]*\s*\("#).unwrap();
+    assoc_ctor_re.captures(rhs)
+        .or_else(|| struct_lit_re.captures(rhs))
+        .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
 }
 
 fn csharp_db_command_type_from_decl(declared_type: &str, rhs: &str) -> Option<String> {
@@ -2932,6 +3318,30 @@ mod tests {
     }
 
     #[test]
+    fn java_unresolved_typed_receiver_does_not_create_speculative_target() {
+        use std::path::Path;
+        let source = r#"
+            package app;
+            import com.safe.Runner;
+            class Entry {
+                void handle(HttpServletRequest request) {
+                    String user = request.getParameter("user");
+                    Runner svc = factory();
+                    svc.run(user);
+                }
+            }
+        "#;
+        let semantics = extract_with_context(
+            Lang::Java,
+            source,
+            Some(Path::new("/repo/src/app/Entry.java")),
+            Some(Path::new("/repo/src")),
+        );
+        assert_eq!(semantics.variable_types.get("svc").map(String::as_str), Some("com.safe.Runner"));
+        assert!(!semantics.tainted_calls.iter().any(|(target, _, _)| target == "com.safe.Runner::run"));
+    }
+
+    #[test]
     fn ruby_module_function_identities_and_tainted_calls_are_resolved() {
         use std::path::Path;
         let source = "require_relative './helper'\nvalue = params[:name]\nHelper.run(value)\n";
@@ -2974,6 +3384,31 @@ mod tests {
         assert!(semantics.tainted_calls.iter().any(|(target, idx, kind)|
             target == "Demo.Web.Entry::Run" && *idx == 0 && kind == "aspnet.request_query"
         ));
+    }
+
+    #[test]
+    fn csharp_unresolved_typed_receiver_does_not_create_speculative_target() {
+        use std::path::Path;
+        let source = r#"
+            using External.Safe;
+            namespace Demo.Web;
+            class Entry {
+                void Handle() {
+                    var value = Request.Query["id"];
+                    Runner svc = Factory();
+                    svc.Run(value);
+                }
+            }
+        "#;
+        let semantics = extract_with_context(
+            Lang::Csharp,
+            source,
+            Some(Path::new("/repo/src/Entry.cs")),
+            Some(Path::new("/repo")),
+        );
+        assert!(semantics.variable_types.get("svc").map(String::as_str).is_some());
+        assert!(!semantics.tainted_calls.iter().any(|(target, _, _)| target == "External.Safe.Runner::Run"));
+        assert!(!semantics.tainted_calls.iter().any(|(target, _, _)| target.ends_with("::Run")));
     }
 
     #[test]

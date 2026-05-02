@@ -16,7 +16,7 @@ pub enum Lang {
     Php, C, Kotlin, Swift, Scala, Bash,
     // Tier 3 — regex-only, niche languages
     Perl, Lua, R, Dart, Elixir, Erlang, Haskell, Clojure, Groovy,
-    Objective_c, Powershell, Vb, Fsharp, Julia, Zig, Nim, Crystal,
+    ObjectiveC, Powershell, Vb, Fsharp, Julia, Zig, Nim, Crystal,
     Ocaml, Cobol, Fortran, Ada, Prolog, Lisp, Scheme, Tcl,
     Solidity, Vyper, Move, Cairo,  // blockchain
     Sql, Plsql, Tsql,             // database
@@ -60,7 +60,7 @@ impl Lang {
             "hs" | "lhs" => Self::Haskell,
             "clj" | "cljs" | "cljc" | "edn" => Self::Clojure,
             "groovy" | "gvy" | "gy" => Self::Groovy,
-            "m" | "mm" => Self::Objective_c,
+            "m" | "mm" => Self::ObjectiveC,
             "ps1" | "psm1" | "psd1" => Self::Powershell,
             "vb" | "vbs" | "bas" => Self::Vb,
             "fs" | "fsi" | "fsx" => Self::Fsharp,
@@ -227,7 +227,7 @@ impl Lang {
             Self::Haskell    => "haskell",
             Self::Clojure    => "clojure",
             Self::Groovy     => "groovy",
-            Self::Objective_c => "objective_c",
+            Self::ObjectiveC => "objective_c",
             Self::Powershell => "powershell",
             Self::Vb         => "vb",
             Self::Fsharp     => "fsharp",

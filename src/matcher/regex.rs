@@ -567,6 +567,24 @@ fn annotate_regex_finding(
                 evidence.insert("sanitizer_kind".into(), serde_json::json!(sanitizer_kind));
                 return (evidence, Some("unknown".into()));
             }
+            if let Some((source_kind, guarded_kind, reason)) =
+                regex_intra_file_flow(rule.id.as_str(), lang, source, match_start, snippet, semantics)
+            {
+                evidence.insert("path_sensitivity".into(), serde_json::json!(reason));
+                match (source_kind, guarded_kind) {
+                    (Some(source_kind), None) => {
+                        evidence.insert("source_kind".into(), serde_json::json!(source_kind));
+                        return (evidence, Some("reachable".into()));
+                    }
+                    (None, Some(sanitizer_kind)) => {
+                        evidence.insert("sanitizer_kind".into(), serde_json::json!(sanitizer_kind));
+                        return (evidence, Some("unknown".into()));
+                    }
+                    _ => {
+                        return (evidence, Some("unknown".into()));
+                    }
+                }
+            }
             if let Some(source_kind) = regex_source_kind(lang, snippet, semantics) {
                 evidence.insert("path_sensitivity".into(), serde_json::json!("tainted"));
                 evidence.insert("source_kind".into(), serde_json::json!(source_kind));
@@ -702,16 +720,24 @@ fn regex_intra_file_flow(
             continue;
         }
         let Some(caps) = assign_re.captures(line) else { continue };
-        let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+        let ident = regex_normalize_access_path(caps.get(1).map(|m| m.as_str()).unwrap_or(""));
         let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
         if ident.is_empty() || rhs.is_empty() {
             continue;
         }
 
-        if let Some(source_kind) = direct_regex_source_kind(lang, rhs) {
-            tainted.insert(ident.clone(), source_kind.to_string());
-            sanitized.remove(&ident);
-            continue;
+        let uses_call_summary = semantics.call_assignments.iter().any(|call| call.ident == ident);
+        if uses_call_summary && rhs.contains('(') && rhs.contains(')') {
+            if let Some(sanitizer_kind) = semantics.sanitized_identifiers.get(&ident).cloned() {
+                tainted.remove(&ident);
+                sanitized.insert(ident, sanitizer_kind);
+                continue;
+            }
+            if let Some(source_kind) = semantics.tainted_identifiers.get(&ident).cloned() {
+                tainted.insert(ident.clone(), source_kind);
+                sanitized.remove(&ident);
+                continue;
+            }
         }
 
         if let Some(sanitizer_kind) = regex_local_sanitizer_kind(rule_id, lang, rhs, &tainted) {
@@ -720,12 +746,10 @@ fn regex_intra_file_flow(
             continue;
         }
 
-        if rhs.contains('(') && rhs.contains(')') {
-            if let Some(sanitizer_kind) = semantics.sanitized_identifiers.get(&ident).cloned() {
-                tainted.remove(&ident);
-                sanitized.insert(ident, sanitizer_kind);
-                continue;
-            }
+        if let Some(source_kind) = direct_regex_source_kind(lang, rhs) {
+            tainted.insert(ident.clone(), source_kind.to_string());
+            sanitized.remove(&ident);
+            continue;
         }
 
         if let Some(source_kind) = regex_taint_from_tokens(rhs, &tainted) {
@@ -738,14 +762,14 @@ fn regex_intra_file_flow(
         sanitized.remove(&ident);
     }
 
-    if let Some(source_kind) = direct_regex_source_kind(lang, snippet) {
-        return Some((Some(source_kind.into()), None, "tainted"));
-    }
     if let Some(sanitizer_kind) = regex_local_sanitizer_kind(rule_id, lang, snippet, &tainted) {
         return Some((None, Some(sanitizer_kind), "guarded"));
     }
     if let Some(sanitizer_kind) = regex_identifier_reason(snippet, &sanitized) {
         return Some((None, Some(sanitizer_kind), "guarded"));
+    }
+    if let Some(source_kind) = direct_regex_source_kind(lang, snippet) {
+        return Some((Some(source_kind.into()), None, "tainted"));
     }
     if let Some(source_kind) = regex_taint_from_tokens(snippet, &tainted) {
         return Some((Some(source_kind), None, "tainted"));
@@ -839,8 +863,8 @@ fn regex_source_kind(
         return Some(kind.into());
     }
 
-    for token in snippet.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$')) {
-        if let Some(kind) = semantics.tainted_identifiers.get(token) {
+    for token in regex_semantic_candidates(snippet) {
+        if let Some(kind) = semantics.tainted_identifiers.get(&token) {
             return Some(kind.clone());
         }
     }
@@ -962,9 +986,10 @@ fn direct_regex_source_kind(lang: Lang, snippet: &str) -> Option<&'static str> {
 
 fn regex_assignment_regex(lang: Lang) -> Option<Regex> {
     match lang {
-        Lang::Ruby => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*$"#).unwrap()),
-        Lang::Java => Some(Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]\.?]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
-        Lang::Go => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*(?::=|=)\s*(.+?)\s*$"#).unwrap()),
+        Lang::Javascript | Lang::Typescript => Some(Regex::new(r#"^\s*(?:const|let|var)?\s*([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Ruby => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*$"#).unwrap()),
+        Lang::Java => Some(Regex::new(r#"^\s*(?:[A-Za-z_][A-Za-z0-9_<>\[\]\.?]*\s+)?([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*=\s*(.+?)\s*;?\s*$"#).unwrap()),
+        Lang::Go => Some(Regex::new(r#"^\s*([A-Za-z_][A-Za-z0-9_]*(?:(?:\.[A-Za-z_][A-Za-z0-9_]*)|\[(?:"[^"]+"|'[^']+'|\d+)\])*)\s*(?::=|=)\s*(.+?)\s*$"#).unwrap()),
         _ => None,
     }
 }
@@ -982,7 +1007,7 @@ fn regex_local_sanitizer_kind(
     text: &str,
     tainted: &HashMap<String, String>,
 ) -> Option<String> {
-    if !regex_contains_identifier(text, tainted) {
+    if !regex_contains_identifier(text, tainted) && direct_regex_source_kind(lang, text).is_none() {
         return None;
     }
     if let Some(kind) = regex_sanitizer_kind(rule_id, text) {
@@ -1014,31 +1039,117 @@ fn regex_local_sanitizer_kind(
 }
 
 fn regex_taint_from_tokens(text: &str, tainted: &HashMap<String, String>) -> Option<String> {
-    for token in text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$')) {
-        if let Some(kind) = tainted.get(token) {
-            return Some(kind.clone());
+    for token in regex_semantic_candidates(text) {
+        for candidate in regex_hierarchical_path_candidates(&token) {
+            if let Some(kind) = tainted.get(&candidate) {
+                return Some(kind.clone());
+            }
         }
     }
     None
 }
 
 fn regex_contains_identifier(text: &str, values: &HashMap<String, String>) -> bool {
-    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$'))
-        .any(|token| values.contains_key(token))
+    regex_semantic_candidates(text).into_iter().any(|token| {
+        regex_hierarchical_path_candidates(&token).into_iter().any(|candidate| values.contains_key(&candidate))
+    })
 }
 
 fn regex_identifier_reason(text: &str, values: &HashMap<String, String>) -> Option<String> {
-    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$'))
-        .find_map(|token| values.get(token).cloned())
+    for token in regex_semantic_candidates(text) {
+        for candidate in regex_hierarchical_path_candidates(&token) {
+            if let Some(reason) = values.get(&candidate) {
+                return Some(reason.clone());
+            }
+        }
+    }
+    None
 }
 
 fn regex_contains_nonliteral_identifier(lang: Lang, text: &str) -> bool {
-    text.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$'))
-        .any(|token| {
-            !token.is_empty()
-                && token.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-                && !regex_ignored_identifier(lang, token)
-        })
+    regex_semantic_candidates(text).into_iter().any(|token| {
+        !token.is_empty()
+            && token.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+            && !regex_ignored_identifier(lang, &token)
+    })
+}
+
+fn regex_normalize_access_path(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        match chars[i] {
+            '[' if i + 2 < chars.len() && (chars[i + 1] == '"' || chars[i + 1] == '\'') => {
+                let quote = chars[i + 1];
+                i += 2;
+                let start = i;
+                while i < chars.len() && chars[i] != quote {
+                    i += 1;
+                }
+                if i < chars.len() {
+                    let key: String = chars[start..i].iter().collect();
+                    if !out.ends_with('.') && !out.is_empty() {
+                        out.push('.');
+                    }
+                    out.push_str(&key);
+                    i += 1;
+                    if i < chars.len() && chars[i] == ']' {
+                        i += 1;
+                    }
+                }
+            }
+            '[' if i + 1 < chars.len() => {
+                i += 1;
+                let start = i;
+                while i < chars.len() && chars[i] != ']' {
+                    i += 1;
+                }
+                let key: String = chars[start..i].iter().collect();
+                if !key.is_empty() {
+                    if !out.ends_with('.') && !out.is_empty() {
+                        out.push('.');
+                    }
+                    out.push_str(&key);
+                }
+                if i < chars.len() && chars[i] == ']' {
+                    i += 1;
+                }
+            }
+            c => {
+                out.push(c);
+                i += 1;
+            }
+        }
+    }
+    while out.contains("..") {
+        out = out.replace("..", ".");
+    }
+    out.trim_matches('.').to_string()
+}
+
+fn regex_hierarchical_path_candidates(token: &str) -> Vec<String> {
+    let normalized = regex_normalize_access_path(token);
+    if normalized.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut current = normalized.as_str();
+    loop {
+        out.push(current.to_string());
+        let Some((parent, _)) = current.rsplit_once('.') else { break };
+        current = parent;
+    }
+    out
+}
+
+fn regex_semantic_candidates(text: &str) -> Vec<String> {
+    let normalized = regex_normalize_access_path(text);
+    normalized
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == ':' || c == '$'))
+        .filter(|token| !token.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 fn regex_ignored_identifier(lang: Lang, token: &str) -> bool {
