@@ -1787,6 +1787,46 @@ query: |
 }
 
 #[test]
+fn python_django_imported_service_method_call_propagates_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("py-eval.yml"),
+        r#"
+id:         CBR-PY-CODE-EVAL
+title:      "eval() usage"
+severity:   critical
+languages:  [python]
+message: |
+  Passing dynamic input to eval is unsafe.
+query: |
+  (call
+    function: (identifier) @fn
+    arguments: (argument_list (_) @arg)
+    (#eq? @fn "eval")) @call
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("app.py"),
+        "from service import RunnerService\n\ndef handle(request):\n    service = RunnerService()\n    user = request.GET.get(\"code\")\n    service.run(user)\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("service.py"),
+        "class RunnerService:\n    def run(self, data):\n        eval(data)\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("service.py")))
+        .stdout(predicate::str::contains("\"source_kind\": \"django.request.GET\""))
+        .stdout(predicate::str::contains("\"framework\": \"django\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
 fn javascript_interprocedural_taint_uses_resolved_import_targets() {
     use std::fs;
     use serde_json::Value;
@@ -2029,6 +2069,32 @@ query: |
         .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("service.js")))
         .stdout(predicate::str::contains("\"source_kind\": \"express.req.query\""))
         .stdout(predicate::str::contains("\"framework\": \"express\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn javascript_react_imported_helper_propagates_taint() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+
+    fs::write(
+        tmp.path().join("entry.jsx"),
+        "import React from 'react';\nimport { renderDanger } from './view';\nexport function Card(req) {\n  const html = req.query.html;\n  return renderDanger(html);\n}\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("view.jsx"),
+        "import React from 'react';\nexport function renderDanger(data) {\n  return <div dangerouslySetInnerHTML={{ __html: data }} />;\n}\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-JS-REACT-DANGEROUS-HTML\""))
+        .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("view.jsx")))
+        .stdout(predicate::str::contains("\"framework\": \"react\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"express.req.query\""))
         .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
 }
 
