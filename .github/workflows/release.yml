@@ -75,6 +75,66 @@ jobs:
       - name: Cargo build
         run: cargo build --release --target ${{ matrix.target }}
 
+      # ── macOS: import Developer ID Application cert into an ephemeral
+      #            keychain. Codesign + notarize+staple in the next step.
+      - name: Import Apple cert (macOS)
+        if: ${{ startsWith(matrix.os, 'macos') && env.CERT != '' }}
+        env:
+          CERT:         ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
+          CERT_PWD:     ${{ secrets.APPLE_DEVELOPER_ID_CERT_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.APPLE_KEYCHAIN_PWD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+          echo -n "$CERT" | base64 --decode -o $RUNNER_TEMP/cert.p12
+          security import $RUNNER_TEMP/cert.p12 -k "$KEYCHAIN_PATH" -P "$CERT_PWD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+
+      - name: Codesign + notarize (macOS)
+        if: ${{ startsWith(matrix.os, 'macos') && env.CERT != '' }}
+        env:
+          CERT:               ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
+          APPLE_ID:           ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID:      ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          BIN="target/${{ matrix.target }}/release/cyscan"
+          IDENT=$(security find-identity -v -p codesigning $RUNNER_TEMP/build.keychain-db | awk -F'"' '/Developer ID Application/ {print $2; exit}')
+          codesign --force --options runtime --timestamp --sign "$IDENT" "$BIN"
+          codesign --verify --strict --verbose=2 "$BIN"
+          # notarytool requires a zip (or a signed pkg/dmg) for plain Mach-O
+          (cd target/${{ matrix.target }}/release && zip -q cyscan-notarize.zip cyscan)
+          xcrun notarytool submit target/${{ matrix.target }}/release/cyscan-notarize.zip \
+            --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+          # Plain Mach-O binaries can't be stapled — notarisation acceptance is
+          # cached by Gatekeeper from the ticket Apple posts back. Skip stapler.
+
+      # ── Windows: Authenticode-sign the release binary using the EV/OV
+      #            cert in WINDOWS_CERT (.pfx, base64). Skipped if secret
+      #            isn't configured (cert-less PRs / forks still build).
+      - name: Codesign (Windows)
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        shell: pwsh
+        env:
+          WIN_CERT:     ${{ secrets.WINDOWS_CERT }}
+          WIN_CERT_PWD: ${{ secrets.WINDOWS_CERT_PWD }}
+        run: |
+          if (-not $env:WIN_CERT) {
+            Write-Host "WINDOWS_CERT not set — skipping Authenticode signing."
+            exit 0
+          }
+          $bin = "target\${{ matrix.target }}\release\cyscan.exe"
+          $cert = "$env:RUNNER_TEMP\cert.pfx"
+          [System.IO.File]::WriteAllBytes($cert, [System.Convert]::FromBase64String($env:WIN_CERT))
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign `
+            /f $cert /p $env:WIN_CERT_PWD `
+            /tr http://timestamp.digicert.com /td sha256 /fd sha256 `
+            $bin
+          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" verify /pa $bin
+
       - name: Package archive
         shell: bash
         run: |
