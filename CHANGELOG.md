@@ -2,6 +2,14 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.14.0] — 2026-05-02
+
+### Added
+- **Scope-aware JavaScript / TypeScript symbol table** — extends the Python work in v0.13.0. `build_javascript_symbol_table(source) -> SymbolTable` walks curly braces (string-literal-aware) to track lexical scopes, recognises `var`/`let`/`const`/`function`/`class` bindings plus all four ES module import forms (`import X from`, `import { a, b as c } from`, `import * as`, CommonJS `require` + destructure). Same `resolve(line, name)` API as Python — narrowest enclosing scope wins. 4 unit tests cover default-import, named-import-with-alias, function-scope-shadows-module, require-destructure.
+
+### Security
+- **Switched HTTP TLS backend from rustls (ring) to native-tls** — closes the GHSA-4p46-pwfr-66x6 advisory (`ring < 0.17.12` AES panic on overflow check) by removing `ring` from the dep tree entirely. `reqwest` now uses the system crypto stack: SecureTransport on macOS, SChannel on Windows, OpenSSL on Linux. `cargo audit`: no vulnerabilities found.
+
 ## [0.13.0] — 2026-05-02
 
 ### Added
