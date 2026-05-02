@@ -48,6 +48,7 @@ pub struct ReachabilityResult {
     pub package: String,
     pub import_candidates: Vec<String>,
     pub vulnerable_symbols: Vec<String>,
+    pub dependency_path: Vec<String>,
     pub matched_symbol: Option<String>,
     pub matched_import: Option<String>,
     pub verdict: Verdict,
@@ -61,10 +62,7 @@ pub struct ReachabilityResult {
 ///
 /// Looks at each finding's vulnerable symbols and traces whether
 /// the application code imports the package and calls those symbols.
-pub fn analyze(
-    target: &Path,
-    findings: &[Finding],
-) -> Vec<ReachabilityResult> {
+pub fn analyze(target: &Path, findings: &[Finding]) -> Vec<ReachabilityResult> {
     let mut results = Vec::new();
 
     // Build import index for the entire codebase once
@@ -84,11 +82,16 @@ pub fn analyze(
 
         let vulnerable_symbols = extract_vulnerable_symbols(finding);
         let import_candidates = extract_import_candidates(finding, &package, &vulnerable_symbols);
+        let dependency_path = extract_dependency_path(finding, &package);
 
         let (verdict, confidence, call_chain) = if vulnerable_symbols.is_empty() {
             // No specific symbols — check if package is imported at all
             if import_index.is_any_package_imported(&import_candidates) {
-                (Verdict::Reachable, 0.5, import_index.get_import_sites_any(&import_candidates))
+                (
+                    Verdict::Reachable,
+                    0.5,
+                    import_index.get_import_sites_any(&import_candidates),
+                )
             } else {
                 (Verdict::Unreachable, 0.9, Vec::new())
             }
@@ -115,6 +118,7 @@ pub fn analyze(
                         package: package.clone(),
                         import_candidates: import_candidates.clone(),
                         vulnerable_symbols: vulnerable_symbols.clone(),
+                        dependency_path: dependency_path.clone(),
                         matched_symbol,
                         matched_import,
                         verdict: Verdict::Reachable,
@@ -129,7 +133,11 @@ pub fn analyze(
                 continue;
             } else if import_index.is_any_package_imported(&import_candidates) {
                 // Package is imported but vulnerable function not called
-                (Verdict::Unreachable, 0.8, import_index.get_import_sites_any(&import_candidates))
+                (
+                    Verdict::Unreachable,
+                    0.8,
+                    import_index.get_import_sites_any(&import_candidates),
+                )
             } else {
                 // Package not even imported
                 (Verdict::Unreachable, 0.95, Vec::new())
@@ -141,6 +149,7 @@ pub fn analyze(
             package: package.clone(),
             import_candidates: import_candidates.clone(),
             vulnerable_symbols: vulnerable_symbols.clone(),
+            dependency_path,
             matched_symbol: None,
             matched_import: None,
             verdict,
@@ -149,13 +158,25 @@ pub fn analyze(
         });
     }
 
-    let reachable = results.iter().filter(|r| r.verdict == Verdict::Reachable).count();
-    let unreachable = results.iter().filter(|r| r.verdict == Verdict::Unreachable).count();
-    let unknown = results.iter().filter(|r| r.verdict == Verdict::Unknown).count();
+    let reachable = results
+        .iter()
+        .filter(|r| r.verdict == Verdict::Reachable)
+        .count();
+    let unreachable = results
+        .iter()
+        .filter(|r| r.verdict == Verdict::Unreachable)
+        .count();
+    let unknown = results
+        .iter()
+        .filter(|r| r.verdict == Verdict::Unknown)
+        .count();
 
     log::info!(
         "reachability: {} reachable, {} unreachable, {} unknown out of {} findings",
-        reachable, unreachable, unknown, results.len(),
+        reachable,
+        unreachable,
+        unknown,
+        results.len(),
     );
 
     results
@@ -179,23 +200,60 @@ pub fn enrich_findings(target: &Path, findings: &mut [Finding]) {
             continue;
         }
         let key = (finding.rule_id.clone(), package.clone());
-        let Some(result) = result_map.get(&key) else { continue };
-        finding.evidence.insert("reachable_package".into(), serde_json::json!(result.package));
+        let Some(result) = result_map.get(&key) else {
+            continue;
+        };
+        finding.evidence.insert(
+            "reachable_package".into(),
+            serde_json::json!(result.package),
+        );
+        finding.evidence.insert(
+            "reachable_dependency_path".into(),
+            serde_json::json!(result.dependency_path),
+        );
+        finding.evidence.insert(
+            "reachable_dependency_path_length".into(),
+            serde_json::json!(result.dependency_path.len()),
+        );
+        finding.evidence.insert(
+            "reachable_dependency_path_string".into(),
+            serde_json::json!(result.dependency_path.join(" > ")),
+        );
         if let Some(import_name) = &result.matched_import {
-            finding.evidence.insert("reachable_import_name".into(), serde_json::json!(import_name));
+            finding.evidence.insert(
+                "reachable_import_name".into(),
+                serde_json::json!(import_name),
+            );
         }
         finding.evidence.insert(
             "reachable_callsite_count".into(),
             serde_json::json!(result.call_chain.len()),
         );
+        finding.evidence.insert(
+            "reachable_callsites".into(),
+            serde_json::json!(result
+                .call_chain
+                .iter()
+                .map(|(loc, snippet)| serde_json::json!({"location": loc, "snippet": snippet}))
+                .collect::<Vec<_>>()),
+        );
         if let Some(symbol) = result.matched_symbol.as_ref() {
-            finding.evidence.insert("reachable_symbol".into(), serde_json::json!(symbol));
+            finding
+                .evidence
+                .insert("reachable_symbol".into(), serde_json::json!(symbol));
         } else if let Some(symbol) = result.vulnerable_symbols.iter().find(|sym| {
-            result.call_chain.iter().any(|(_, snippet)| snippet.contains(last_symbol_segment(sym)))
+            result
+                .call_chain
+                .iter()
+                .any(|(_, snippet)| snippet.contains(last_symbol_segment(sym)))
         }) {
-            finding.evidence.insert("reachable_symbol".into(), serde_json::json!(symbol));
+            finding
+                .evidence
+                .insert("reachable_symbol".into(), serde_json::json!(symbol));
         } else if let Some(symbol) = result.vulnerable_symbols.first() {
-            finding.evidence.insert("reachable_symbol".into(), serde_json::json!(symbol));
+            finding
+                .evidence
+                .insert("reachable_symbol".into(), serde_json::json!(symbol));
         }
         finding.evidence.insert(
             "reachability_confidence".into(),
@@ -234,12 +292,30 @@ fn extract_package_name(finding: &Finding) -> String {
 fn extract_vulnerable_symbols(finding: &Finding) -> Vec<String> {
     if let Some(syms) = finding.evidence.get("vulnerable_symbols") {
         if let Some(arr) = syms.as_array() {
-            return arr.iter()
+            return arr
+                .iter()
                 .filter_map(|v| v.as_str().map(String::from))
                 .collect();
         }
     }
     Vec::new()
+}
+
+fn extract_dependency_path(finding: &Finding, package: &str) -> Vec<String> {
+    if let Some(path) = finding
+        .evidence
+        .get("dependency_path")
+        .and_then(|v| v.as_array())
+    {
+        let parsed: Vec<String> = path
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect();
+        if !parsed.is_empty() {
+            return parsed;
+        }
+    }
+    vec![package.to_string()]
 }
 
 fn extract_import_candidates(
@@ -248,7 +324,11 @@ fn extract_import_candidates(
     vulnerable_symbols: &[String],
 ) -> Vec<String> {
     let mut candidates = Vec::new();
-    if let Some(imports) = finding.evidence.get("normalized_import_names").and_then(|v| v.as_array()) {
+    if let Some(imports) = finding
+        .evidence
+        .get("normalized_import_names")
+        .and_then(|v| v.as_array())
+    {
         for value in imports {
             if let Some(name) = value.as_str() {
                 candidates.push(name.to_string());
@@ -277,10 +357,7 @@ fn extract_import_candidates(
 }
 
 fn last_symbol_segment(symbol: &str) -> &str {
-    symbol
-        .rsplit(['.', ':', '/'])
-        .next()
-        .unwrap_or(symbol)
+    symbol.rsplit(['.', ':', '/']).next().unwrap_or(symbol)
 }
 
 #[cfg(test)]
@@ -294,6 +371,10 @@ mod tests {
         let mut evidence = HashMap::new();
         evidence.insert("package".into(), serde_json::json!(package));
         evidence.insert("vulnerable_symbols".into(), serde_json::json!(symbols));
+        evidence.insert(
+            "dependency_path".into(),
+            serde_json::json!(["root-app", package]),
+        );
         Finding {
             rule_id: "CBR-SUPPLY-GHSA-TEST".into(),
             title: "Test advisory".into(),
@@ -319,7 +400,11 @@ mod tests {
     #[test]
     fn python_direct_import_symbol_is_marked_reachable() {
         let tmp = tempfile::tempdir().unwrap();
-        std::fs::write(tmp.path().join("app.py"), "from yaml import load\nload(data)\n").unwrap();
+        std::fs::write(
+            tmp.path().join("app.py"),
+            "from yaml import load\nload(data)\n",
+        )
+        .unwrap();
         let findings = vec![sca_finding("yaml", &["yaml.load"])];
         let results = analyze(tmp.path(), &findings);
         assert_eq!(results.len(), 1);
@@ -330,19 +415,60 @@ mod tests {
     #[test]
     fn reachability_enrichment_adds_symbol_evidence() {
         let tmp = tempfile::tempdir().unwrap();
-        std::fs::write(tmp.path().join("app.py"), "from yaml import load\nload(data)\n").unwrap();
+        std::fs::write(
+            tmp.path().join("app.py"),
+            "from yaml import load\nload(data)\n",
+        )
+        .unwrap();
         let mut findings = vec![sca_finding("yaml", &["yaml.load"])];
         enrich_findings(tmp.path(), &mut findings);
         assert_eq!(findings[0].reachability.as_deref(), Some("reachable"));
-        assert_eq!(findings[0].evidence.get("reachable_package").and_then(|v| v.as_str()), Some("yaml"));
-        assert_eq!(findings[0].evidence.get("reachable_symbol").and_then(|v| v.as_str()), Some("yaml.load"));
-        assert_eq!(findings[0].evidence.get("reachable_callsite_count").and_then(|v| v.as_u64()), Some(1));
+        assert_eq!(
+            findings[0]
+                .evidence
+                .get("reachable_package")
+                .and_then(|v| v.as_str()),
+            Some("yaml")
+        );
+        assert_eq!(
+            findings[0]
+                .evidence
+                .get("reachable_symbol")
+                .and_then(|v| v.as_str()),
+            Some("yaml.load")
+        );
+        assert_eq!(
+            findings[0]
+                .evidence
+                .get("reachable_callsite_count")
+                .and_then(|v| v.as_u64()),
+            Some(1)
+        );
+        assert_eq!(
+            findings[0]
+                .evidence
+                .get("reachable_dependency_path_string")
+                .and_then(|v| v.as_str()),
+            Some("root-app > yaml")
+        );
+        assert_eq!(
+            findings[0]
+                .evidence
+                .get("reachable_callsites")
+                .and_then(|v| v.as_array())
+                .map(|v| v.len()),
+            Some(1)
+        );
     }
 
     #[test]
     fn javascript_direct_import_symbol_is_marked_reachable() {
         let tmp = tempfile::tempdir().unwrap();
-        std::fs::write(tmp.path().join("app.js"), "import { template } from 'lodash'\ntemplate(input)\n").unwrap();
+        std::fs::write(
+            tmp.path().join("app.js"),
+            "import { template } from 'lodash'\ntemplate(input)\n",
+        )
+        .unwrap();
         let mut findings = vec![sca_finding("lodash", &["lodash.template"])];
         findings[0].evidence.insert(
             "normalized_import_names".into(),
@@ -350,8 +476,20 @@ mod tests {
         );
         enrich_findings(tmp.path(), &mut findings);
         assert_eq!(findings[0].reachability.as_deref(), Some("reachable"));
-        assert_eq!(findings[0].evidence.get("reachable_import_name").and_then(|v| v.as_str()), Some("lodash"));
-        assert_eq!(findings[0].evidence.get("reachable_symbol").and_then(|v| v.as_str()), Some("lodash.template"));
+        assert_eq!(
+            findings[0]
+                .evidence
+                .get("reachable_import_name")
+                .and_then(|v| v.as_str()),
+            Some("lodash")
+        );
+        assert_eq!(
+            findings[0]
+                .evidence
+                .get("reachable_symbol")
+                .and_then(|v| v.as_str()),
+            Some("lodash.template")
+        );
     }
 
     #[test]
@@ -360,8 +498,12 @@ mod tests {
         std::fs::write(
             tmp.path().join("main.go"),
             "import helper \"github.com/acme/helper\"\nfunc run(){ helper.Run(x) }\n",
-        ).unwrap();
-        let mut findings = vec![sca_finding("github.com/acme/helper", &["github.com/acme/helper.Run"])];
+        )
+        .unwrap();
+        let mut findings = vec![sca_finding(
+            "github.com/acme/helper",
+            &["github.com/acme/helper.Run"],
+        )];
         findings[0].evidence.insert(
             "normalized_import_names".into(),
             serde_json::json!(["github.com/acme/helper", "helper"]),
@@ -369,7 +511,10 @@ mod tests {
         enrich_findings(tmp.path(), &mut findings);
         assert_eq!(findings[0].reachability.as_deref(), Some("reachable"));
         assert_eq!(
-            findings[0].evidence.get("reachable_import_name").and_then(|v| v.as_str()),
+            findings[0]
+                .evidence
+                .get("reachable_import_name")
+                .and_then(|v| v.as_str()),
             Some("github.com/acme/helper"),
         );
     }
@@ -380,7 +525,8 @@ mod tests {
         std::fs::write(
             tmp.path().join("App.java"),
             "import static app.helper.Runner.run;\nclass X { void x(){ run(data); } }\n",
-        ).unwrap();
+        )
+        .unwrap();
         let mut findings = vec![sca_finding("app.helper.Runner", &["app.helper.Runner.run"])];
         findings[0].evidence.insert(
             "normalized_import_names".into(),
@@ -388,6 +534,12 @@ mod tests {
         );
         enrich_findings(tmp.path(), &mut findings);
         assert_eq!(findings[0].reachability.as_deref(), Some("reachable"));
-        assert_eq!(findings[0].evidence.get("reachable_symbol").and_then(|v| v.as_str()), Some("app.helper.Runner.run"));
+        assert_eq!(
+            findings[0]
+                .evidence
+                .get("reachable_symbol")
+                .and_then(|v| v.as_str()),
+            Some("app.helper.Runner.run")
+        );
     }
 }

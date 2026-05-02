@@ -8,6 +8,7 @@
 //! user will see a "no dependencies found" line and can commit the lock.
 
 use std::{
+    collections::{HashMap, HashSet, VecDeque},
     fs,
     path::{Path, PathBuf},
 };
@@ -29,9 +30,9 @@ impl Ecosystem {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Crates => "crates.io",
-            Self::Npm    => "npm",
-            Self::Pypi   => "PyPI",
-            Self::Go     => "Go",
+            Self::Npm => "npm",
+            Self::Pypi => "PyPI",
+            Self::Go => "Go",
         }
     }
 }
@@ -39,11 +40,14 @@ impl Ecosystem {
 #[derive(Debug, Clone)]
 pub struct Dependency {
     pub ecosystem: Ecosystem,
-    pub name:      String,
-    pub version:   String,
-    pub lockfile:  PathBuf,
+    pub name: String,
+    pub version: String,
+    pub lockfile: PathBuf,
+    /// Shortest known dependency path from the project root to this package.
+    /// When the lockfile format does not encode a graph, this is just `[name]`.
+    pub dependency_path: Vec<String>,
     /// SPDX license identifier (if available from lockfile/manifest).
-    pub license:   Option<String>,
+    pub license: Option<String>,
 }
 
 /// Walk `root`, parsing every lockfile into a flat list of deps.
@@ -53,18 +57,24 @@ pub fn discover(root: &Path) -> Result<Vec<Dependency>> {
     }
 
     let mut deps = Vec::new();
-    for entry in WalkBuilder::new(root).standard_filters(true).hidden(false).build() {
+    for entry in WalkBuilder::new(root)
+        .standard_filters(true)
+        .hidden(false)
+        .build()
+    {
         let Ok(entry) = entry else { continue };
-        if !entry.file_type().map_or(false, |ft| ft.is_file()) { continue; }
+        if !entry.file_type().map_or(false, |ft| ft.is_file()) {
+            continue;
+        }
         let path = entry.path();
 
         match path.file_name().and_then(|s| s.to_str()) {
-            Some("Cargo.lock")        => deps.extend(parse_cargo_lock(path)?),
+            Some("Cargo.lock") => deps.extend(parse_cargo_lock(path)?),
             Some("package-lock.json") => deps.extend(parse_npm_lock(path)?),
-            Some("yarn.lock")         => deps.extend(parse_yarn_lock(path)?),
-            Some("go.sum")            => deps.extend(parse_go_sum(path)?),
-            Some("requirements.txt")  => deps.extend(parse_requirements(path)?),
-            Some("poetry.lock")       => deps.extend(parse_poetry_lock(path)?),
+            Some("yarn.lock") => deps.extend(parse_yarn_lock(path)?),
+            Some("go.sum") => deps.extend(parse_go_sum(path)?),
+            Some("requirements.txt") => deps.extend(parse_requirements(path)?),
+            Some("poetry.lock") => deps.extend(parse_poetry_lock(path)?),
             _ => {}
         }
     }
@@ -75,32 +85,63 @@ pub fn discover(root: &Path) -> Result<Vec<Dependency>> {
 
 fn parse_cargo_lock(path: &Path) -> Result<Vec<Dependency>> {
     #[derive(Deserialize)]
-    struct Lock { package: Option<Vec<Pkg>> }
+    struct Lock {
+        package: Option<Vec<Pkg>>,
+    }
     #[derive(Deserialize)]
-    struct Pkg  { name: String, version: String, source: Option<String> }
+    struct Pkg {
+        name: String,
+        version: String,
+        source: Option<String>,
+        dependencies: Option<Vec<String>>,
+    }
 
     let raw = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     let lock: Lock = toml::from_str(&raw).with_context(|| format!("parsing {}", path.display()))?;
 
-    Ok(lock.package.unwrap_or_default().into_iter()
-        // Path + git deps have no crates.io source — skip; advisories
-        // only apply to registry releases.
-        .filter(|p| p.source.as_deref().map_or(false, |s| s.starts_with("registry+")))
+    let packages = lock.package.unwrap_or_default();
+    let dependency_paths = cargo_dependency_paths(
+        &packages
+            .iter()
+            .map(|p| {
+                (
+                    p.name.clone(),
+                    p.source
+                        .as_deref()
+                        .map_or(false, |s| s.starts_with("registry+")),
+                    p.dependencies.clone().unwrap_or_default(),
+                )
+            })
+            .collect::<Vec<_>>(),
+    );
+
+    Ok(packages
+        .into_iter()
+        .filter(|p| {
+            p.source
+                .as_deref()
+                .map_or(false, |s| s.starts_with("registry+"))
+        })
         .map(|p| Dependency {
             ecosystem: Ecosystem::Crates,
-            name:      p.name,
-            version:   p.version,
-            lockfile:  path.to_path_buf(),
-            license:   None, // Cargo.lock doesn't carry license; Cargo.toml would
-        }).collect())
+            dependency_path: dependency_paths
+                .get(&p.name)
+                .cloned()
+                .unwrap_or_else(|| vec![p.name.clone()]),
+            name: p.name,
+            version: p.version,
+            lockfile: path.to_path_buf(),
+            license: None,
+        })
+        .collect())
 }
 
 // ── package-lock.json (v1 + v2/v3) ───────────────────────────────────
 
 fn parse_npm_lock(path: &Path) -> Result<Vec<Dependency>> {
     let raw = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    let v: serde_json::Value = serde_json::from_str(&raw)
-        .with_context(|| format!("parsing {}", path.display()))?;
+    let v: serde_json::Value =
+        serde_json::from_str(&raw).with_context(|| format!("parsing {}", path.display()))?;
 
     let mut out = Vec::new();
 
@@ -108,20 +149,38 @@ fn parse_npm_lock(path: &Path) -> Result<Vec<Dependency>> {
     // `"node_modules/<name>"` or `""` for root. Root has no version info
     // we care about; skip it.
     if let Some(pkgs) = v.get("packages").and_then(|x| x.as_object()) {
+        let root_name = pkgs
+            .get("")
+            .and_then(|meta| meta.get("name"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("root")
+            .to_string();
         for (key, meta) in pkgs {
-            if key.is_empty() { continue; }
+            if key.is_empty() {
+                continue;
+            }
             // Strip the leading `node_modules/` prefix; what remains may
             // still nest (`node_modules/a/node_modules/b`) — take the
             // last `node_modules/` segment.
-            let name = key.rsplit("node_modules/").next().unwrap_or(key).to_string();
-            let Some(ver) = meta.get("version").and_then(|x| x.as_str()) else { continue };
+            let name = key
+                .rsplit("node_modules/")
+                .next()
+                .unwrap_or(key)
+                .to_string();
+            let Some(ver) = meta.get("version").and_then(|x| x.as_str()) else {
+                continue;
+            };
             // npm v2+ packages carry a "license" field
-            let license = meta.get("license").and_then(|l| l.as_str()).map(|s| s.to_string());
+            let license = meta
+                .get("license")
+                .and_then(|l| l.as_str())
+                .map(|s| s.to_string());
             out.push(Dependency {
                 ecosystem: Ecosystem::Npm,
+                dependency_path: npm_package_path(&root_name, key, &name),
                 name,
-                version:   ver.to_string(),
-                lockfile:  path.to_path_buf(),
+                version: ver.to_string(),
+                lockfile: path.to_path_buf(),
                 license,
             });
         }
@@ -130,25 +189,39 @@ fn parse_npm_lock(path: &Path) -> Result<Vec<Dependency>> {
 
     // npm v1 layout: `dependencies` is recursive.
     if let Some(deps) = v.get("dependencies").and_then(|x| x.as_object()) {
-        walk_npm_v1(deps, path, &mut out);
+        let root_name = v
+            .get("name")
+            .and_then(|x| x.as_str())
+            .unwrap_or("root")
+            .to_string();
+        let mut chain = vec![root_name];
+        walk_npm_v1(deps, path, &mut out, &mut chain);
     }
     Ok(out)
 }
 
-fn walk_npm_v1(deps: &serde_json::Map<String, serde_json::Value>, path: &Path, out: &mut Vec<Dependency>) {
+fn walk_npm_v1(
+    deps: &serde_json::Map<String, serde_json::Value>,
+    path: &Path,
+    out: &mut Vec<Dependency>,
+    chain: &mut Vec<String>,
+) {
     for (name, meta) in deps {
+        chain.push(name.clone());
         if let Some(ver) = meta.get("version").and_then(|x| x.as_str()) {
             out.push(Dependency {
                 ecosystem: Ecosystem::Npm,
-                name:      name.clone(),
-                version:   ver.to_string(),
-                lockfile:  path.to_path_buf(),
-                license:   None,
+                name: name.clone(),
+                version: ver.to_string(),
+                lockfile: path.to_path_buf(),
+                dependency_path: chain.clone(),
+                license: None,
             });
         }
         if let Some(nested) = meta.get("dependencies").and_then(|x| x.as_object()) {
-            walk_npm_v1(nested, path, out);
+            walk_npm_v1(nested, path, out, chain);
         }
+        chain.pop();
     }
 }
 
@@ -172,7 +245,12 @@ fn parse_yarn_lock(path: &Path) -> Result<Vec<Dependency>> {
         let trimmed = line.trim_end();
         if !trimmed.starts_with(' ') && trimmed.ends_with(':') {
             // Heading — grab the first specifier, everything before `@`.
-            let spec = trimmed.trim_end_matches(':').split(',').next().unwrap_or("").trim();
+            let spec = trimmed
+                .trim_end_matches(':')
+                .split(',')
+                .next()
+                .unwrap_or("")
+                .trim();
             let spec = spec.trim_matches('"');
             // Scoped packages start with `@`; skip that when finding the
             // version separator.
@@ -187,10 +265,11 @@ fn parse_yarn_lock(path: &Path) -> Result<Vec<Dependency>> {
                 let version = rest.trim().trim_matches('"').to_string();
                 out.push(Dependency {
                     ecosystem: Ecosystem::Npm,
-                    name:      name.clone(),
+                    name: name.clone(),
                     version,
-                    lockfile:  path.to_path_buf(),
-                    license:   None,
+                    lockfile: path.to_path_buf(),
+                    dependency_path: vec![name.clone()],
+                    license: None,
                 });
                 current_name = None;
             }
@@ -213,17 +292,22 @@ fn parse_go_sum(path: &Path) -> Result<Vec<Dependency>> {
     for line in raw.lines() {
         let mut parts = line.split_whitespace();
         let Some(name) = parts.next() else { continue };
-        let Some(version) = parts.next() else { continue };
-        if version.ends_with("/go.mod") { continue; }
+        let Some(version) = parts.next() else {
+            continue;
+        };
+        if version.ends_with("/go.mod") {
+            continue;
+        }
         // Strip +incompatible suffixes that go.sum appends for v2+ modules
         // living at the module root.
         let version = version.trim_end_matches("+incompatible").to_string();
         out.push(Dependency {
             ecosystem: Ecosystem::Go,
-            name:      name.to_string(),
+            name: name.to_string(),
             version,
-            lockfile:  path.to_path_buf(),
-            license:   None,
+            lockfile: path.to_path_buf(),
+            dependency_path: vec![name.to_string()],
+            license: None,
         });
     }
     Ok(out)
@@ -240,21 +324,35 @@ fn parse_requirements(path: &Path) -> Result<Vec<Dependency>> {
     let mut out = Vec::new();
     for (line_no, line) in raw.lines().enumerate() {
         let line = line.split('#').next().unwrap_or("").trim();
-        if line.is_empty() { continue; }
+        if line.is_empty() {
+            continue;
+        }
         let Some((name, version)) = line.split_once("==") else {
-            log::debug!("{}:{} skipping non-pinned requirement: {line}", path.display(), line_no + 1);
+            log::debug!(
+                "{}:{} skipping non-pinned requirement: {line}",
+                path.display(),
+                line_no + 1
+            );
             continue;
         };
         // Strip extras like `package[extra]==1.0` → name = "package"
         let name = name.split('[').next().unwrap_or(name).trim().to_string();
-        let version = version.split(';').next().unwrap_or(version).trim().to_string();
-        if name.is_empty() || version.is_empty() { continue; }
+        let version = version
+            .split(';')
+            .next()
+            .unwrap_or(version)
+            .trim()
+            .to_string();
+        if name.is_empty() || version.is_empty() {
+            continue;
+        }
         out.push(Dependency {
             ecosystem: Ecosystem::Pypi,
+            dependency_path: vec![name.clone()],
             name,
             version,
             lockfile: path.to_path_buf(),
-            license:  None,
+            license: None,
         });
     }
     Ok(out)
@@ -264,17 +362,164 @@ fn parse_requirements(path: &Path) -> Result<Vec<Dependency>> {
 
 fn parse_poetry_lock(path: &Path) -> Result<Vec<Dependency>> {
     #[derive(Deserialize)]
-    struct Lock { package: Option<Vec<Pkg>> }
+    struct Lock {
+        package: Option<Vec<Pkg>>,
+    }
     #[derive(Deserialize)]
-    struct Pkg  { name: String, version: String }
+    struct Pkg {
+        name: String,
+        version: String,
+    }
 
     let raw = fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     let lock: Lock = toml::from_str(&raw).with_context(|| format!("parsing {}", path.display()))?;
-    Ok(lock.package.unwrap_or_default().into_iter().map(|p| Dependency {
-        ecosystem: Ecosystem::Pypi,
-        name:      p.name,
-        version:   p.version,
-        lockfile:  path.to_path_buf(),
-        license:   None,
-    }).collect())
+    Ok(lock
+        .package
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| Dependency {
+            ecosystem: Ecosystem::Pypi,
+            dependency_path: vec![p.name.clone()],
+            name: p.name,
+            version: p.version,
+            lockfile: path.to_path_buf(),
+            license: None,
+        })
+        .collect())
+}
+
+fn npm_package_path(root_name: &str, key: &str, fallback_name: &str) -> Vec<String> {
+    let mut path = vec![root_name.to_string()];
+    let mut saw_node_modules = false;
+    for segment in key.split('/') {
+        if segment == "node_modules" {
+            saw_node_modules = true;
+            continue;
+        }
+        if saw_node_modules {
+            path.push(segment.to_string());
+            saw_node_modules = false;
+        }
+    }
+    if path.len() == 1 {
+        path.push(fallback_name.to_string());
+    }
+    path
+}
+
+fn cargo_dependency_paths(
+    packages: &[(String, bool, Vec<String>)],
+) -> HashMap<String, Vec<String>> {
+    let mut deps_by_pkg: HashMap<String, HashSet<String>> = HashMap::new();
+    let mut depended_on: HashSet<String> = HashSet::new();
+    let registry_names: HashSet<String> = packages
+        .iter()
+        .filter(|(_, is_registry, _)| *is_registry)
+        .map(|(name, _, _)| name.clone())
+        .collect();
+
+    for (pkg_name, _, pkg_dependencies) in packages {
+        let mut children = HashSet::new();
+        for dep in pkg_dependencies {
+            let child = dep
+                .trim()
+                .trim_matches('"')
+                .split_whitespace()
+                .next()
+                .unwrap_or("");
+            if !child.is_empty() && registry_names.contains(child) {
+                children.insert(child.to_string());
+                depended_on.insert(child.to_string());
+            }
+        }
+        deps_by_pkg.insert(pkg_name.clone(), children);
+    }
+
+    let mut queue: VecDeque<(String, Vec<String>)> = VecDeque::new();
+    for (name, is_registry, _) in packages {
+        if *is_registry && !depended_on.contains(name) {
+            queue.push_back((name.clone(), vec![name.clone()]));
+        }
+    }
+    if queue.is_empty() {
+        for name in &registry_names {
+            queue.push_back((name.clone(), vec![name.clone()]));
+        }
+    }
+
+    let mut best_paths: HashMap<String, Vec<String>> = HashMap::new();
+    while let Some((name, path)) = queue.pop_front() {
+        if best_paths.contains_key(&name) {
+            continue;
+        }
+        best_paths.insert(name.clone(), path.clone());
+        if let Some(children) = deps_by_pkg.get(&name) {
+            for child in children {
+                if !best_paths.contains_key(child) {
+                    let mut child_path = path.clone();
+                    child_path.push(child.clone());
+                    queue.push_back((child.clone(), child_path));
+                }
+            }
+        }
+    }
+
+    best_paths
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn npm_v3_package_paths_are_extracted() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("package-lock.json");
+        fs::write(
+            &path,
+            r#"{
+  "name": "fixture-app",
+  "lockfileVersion": 3,
+  "packages": {
+    "": { "name": "fixture-app", "version": "0.0.1" },
+    "node_modules/a": { "version": "1.0.0" },
+    "node_modules/a/node_modules/b": { "version": "2.0.0" }
+  }
+}"#,
+        )
+        .unwrap();
+
+        let deps = parse_npm_lock(&path).unwrap();
+        let a = deps.iter().find(|d| d.name == "a").unwrap();
+        let b = deps.iter().find(|d| d.name == "b").unwrap();
+        assert_eq!(a.dependency_path, vec!["fixture-app", "a"]);
+        assert_eq!(b.dependency_path, vec!["fixture-app", "a", "b"]);
+    }
+
+    #[test]
+    fn cargo_dependency_paths_follow_shortest_chain() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("Cargo.lock");
+        fs::write(
+            &path,
+            r#"version = 3
+
+[[package]]
+name = "rootcrate"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = ["leaf 1.0.0"]
+
+[[package]]
+name = "leaf"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+"#,
+        )
+        .unwrap();
+
+        let deps = parse_cargo_lock(&path).unwrap();
+        let leaf = deps.iter().find(|d| d.name == "leaf").unwrap();
+        assert_eq!(leaf.dependency_path, vec!["rootcrate", "leaf"]);
+    }
 }

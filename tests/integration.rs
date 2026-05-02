@@ -160,6 +160,78 @@ fn supply_no_advisories_flag_skips_osv() {
 }
 
 #[test]
+fn supply_reachability_emits_dependency_path_and_callsite_evidence() {
+    use serde_json::Value;
+    use std::fs;
+
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+
+    fs::write(
+        tmp.path().join("package-lock.json"),
+        r#"{
+  "name": "fixture-app",
+  "lockfileVersion": 3,
+  "packages": {
+    "": { "name": "fixture-app", "version": "0.0.1" },
+    "node_modules/parent": { "version": "1.0.0" },
+    "node_modules/parent/node_modules/lodash": { "version": "4.17.15" }
+  }
+}"#,
+    )
+    .unwrap();
+    fs::write(
+        tmp.path().join("app.js"),
+        "import { template } from 'lodash'\ntemplate(input)\n",
+    )
+    .unwrap();
+
+    let output = Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "supply",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            &rules,
+            "--format",
+            "json",
+        ])
+        .output()
+        .unwrap();
+
+    assert!(
+        output.status.success(),
+        "supply failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let findings: Vec<Value> = serde_json::from_slice(&output.stdout).unwrap();
+    let finding = findings
+        .iter()
+        .find(|f| f["rule_id"] == "CBR-SUPPLY-GHSA-rg3q-prg8-7m8p")
+        .expect("expected lodash advisory finding");
+
+    assert_eq!(
+        finding["evidence"]["dependency_path_string"].as_str(),
+        Some("fixture-app > parent > lodash")
+    );
+    assert_eq!(
+        finding["evidence"]["reachable_dependency_path_string"].as_str(),
+        Some("fixture-app > parent > lodash")
+    );
+    assert_eq!(
+        finding["evidence"]["reachable_package"].as_str(),
+        Some("lodash")
+    );
+    assert_eq!(finding["reachability"].as_str(), Some("reachable"));
+    assert_eq!(
+        finding["evidence"]["reachable_callsite_count"].as_u64(),
+        Some(1)
+    );
+}
+
+#[test]
 fn python_pickle_alias_is_detected() {
     use std::fs;
     let manifest = env!("CARGO_MANIFEST_DIR");
