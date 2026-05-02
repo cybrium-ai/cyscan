@@ -2309,6 +2309,66 @@ class RunnerService {
 }
 
 #[test]
+fn java_spring_imported_service_method_call_propagates_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("app/service")).unwrap();
+    fs::write(
+        rules_dir.join("java-danger.yml"),
+        r#"
+id:         CBR-JAVA-SCRIPT_ENGINE_INJECTION
+title:      "danger() usage"
+severity:   critical
+languages:  [java]
+message: |
+  Passing dynamic input to danger is unsafe.
+query: |
+  (method_invocation
+    name: (identifier) @fn
+    arguments: (argument_list (_) @arg)
+    (#eq? @fn "danger")) @call
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("app/Entry.java"),
+        r#"
+package app;
+import app.service.RunnerService;
+import org.springframework.web.bind.annotation.RequestParam;
+class Entry {
+    void handle(@RequestParam String cmd) {
+        RunnerService service = new RunnerService();
+        service.run(cmd);
+    }
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("app/service/RunnerService.java"),
+        r#"
+package app.service;
+class RunnerService {
+    void run(String data) {
+        danger(data);
+    }
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("RunnerService.java")))
+        .stdout(predicate::str::contains("\"source_kind\": \"spring.request_param\""))
+        .stdout(predicate::str::contains("\"framework\": \"spring\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
 fn go_interprocedural_taint_uses_resolved_import_targets() {
     use std::fs;
     use serde_json::Value;
@@ -2655,6 +2715,45 @@ fn ruby_rails_service_method_call_propagates_taint() {
 }
 
 #[test]
+fn go_imported_receiver_method_call_propagates_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("service")).unwrap();
+    fs::write(
+        rules_dir.join("go-danger.yml"),
+        r#"
+id:         CBR-GO-DANGER
+title:      "danger() usage"
+severity:   critical
+languages:  [go]
+message: |
+  Passing dynamic input to danger is unsafe.
+query: |
+  (call_expression
+    function: (identifier) @fn
+    arguments: (argument_list (_) @arg)
+    (#eq? @fn "danger")) @call
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("main.go"),
+        "package main\n\nimport \"service\"\n\nfunc handle(r *Request) {\n    svc := service.RunnerService{}\n    user := r.URL.Query().Get(\"cmd\")\n    svc.Run(user)\n}\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("service/runner.go"),
+        "package service\n\ntype RunnerService struct{}\n\nfunc (s RunnerService) Run(data string) {\n    danger(data)\n}\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("runner.go")))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
 fn csharp_interprocedural_taint_uses_resolved_import_targets() {
     use std::fs;
     use serde_json::Value;
@@ -2854,6 +2953,108 @@ class RunnerService {
         .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("RunnerService.cs")))
         .stdout(predicate::str::contains("\"source_kind\": \"aspnet.request_query\""))
         .stdout(predicate::str::contains("\"framework\": \"aspnet\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn csharp_aspnet_imported_service_method_call_propagates_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("Demo/Web/Services")).unwrap();
+    fs::write(
+        rules_dir.join("csharp-raw.yml"),
+        r#"
+id:        CBR-CSHA-XSS_HTML_RAW
+title:     "Cross-Site Scripting (XSS) via Html.Raw"
+severity:  high
+languages: ['csharp']
+message: |
+  Html.Raw on user input is unsafe.
+query: |
+  (invocation_expression
+    function: (member_access_expression
+      expression: (identifier) @obj (#eq? @obj "Html")
+      name: (identifier) @method (#eq? @method "Raw"))
+    arguments: (argument_list
+      (argument) @arg))
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("Demo/Web/EntryController.cs"),
+        r#"
+using Demo.Web.Services;
+using Microsoft.AspNetCore.Mvc;
+namespace Demo.Web;
+public class EntryController : Controller {
+    public IActionResult Show(string html) {
+        var service = new RunnerService();
+        return service.Run(html);
+    }
+}
+"#,
+    ).unwrap();
+
+    fs::write(
+        tmp.path().join("Demo/Web/Services/RunnerService.cs"),
+        r#"
+using Microsoft.AspNetCore.Mvc;
+namespace Demo.Web.Services;
+public class RunnerService {
+    public IActionResult Run(string data) {
+        return Html.Raw(data);
+    }
+}
+"#,
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("RunnerService.cs")))
+        .stdout(predicate::str::contains("\"source_kind\": \"aspnet.request_query\""))
+        .stdout(predicate::str::contains("\"framework\": \"aspnet\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
+fn rust_imported_receiver_method_call_propagates_taint() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::create_dir_all(tmp.path().join("app")).unwrap();
+    fs::write(
+        rules_dir.join("rust-danger.yml"),
+        r#"
+id:         CBR-RUST-DANGER
+title:      "danger() usage"
+severity:   critical
+languages:  [rust]
+message: |
+  Passing dynamic input to danger is unsafe.
+query: |
+  (call_expression
+    function: (identifier) @fn
+    arguments: (arguments (_) @arg)
+    (#eq? @fn "danger")) @call
+"#,
+    ).unwrap();
+    fs::write(
+        tmp.path().join("app/main.rs"),
+        "mod service;\nuse crate::service::RunnerService;\n\nfn handle() {\n    let svc = RunnerService {};\n    let user = std::env::args().nth(1).unwrap();\n    svc.run(user);\n}\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("app/service.rs"),
+        "pub struct RunnerService {}\n\nimpl RunnerService {\n    pub fn run(&self, data: String) {\n        danger(data);\n    }\n}\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules_dir.to_str().unwrap(), "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"file\":").and(predicate::str::contains("service.rs")))
         .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
 }
 

@@ -1997,6 +1997,9 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
         r#"^\s*([A-Za-z_][A-Za-z0-9_<>\.\[\]]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*;?\s*$"#
     ).unwrap();
     let new_type_re = Regex::new(r#"new\s+([A-Za-z_][A-Za-z0-9_<>\.]*)\s*\("#).unwrap();
+    let class_re = Regex::new(
+        r#"^\s*(?:public|private|protected|internal)?\s*(?:sealed\s+|abstract\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)(?:\s*:\s*([A-Za-z_][A-Za-z0-9_<>\.,\s]*))?\s*\{"#
+    ).unwrap();
     let method_re = Regex::new(
         r#"^\s*(?:public|private|protected|internal)?\s*(?:static\s+)?(?:async\s+)?(?:sealed\s+)?(?:override\s+)?[A-Za-z_][A-Za-z0-9_<>\.\[\]]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)\s*\{"#
     ).unwrap();
@@ -2005,9 +2008,19 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
     let member_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_\.]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let lines: Vec<&str> = source.lines().collect();
     let mut current_fn: Option<(String, Vec<String>, i32, HashMap<String, Result<usize, String>>)> = None;
+    let mut current_class: Option<(String, bool, i32)> = None;
 
     for raw_line in &lines {
         let line = raw_line.split("//").next().unwrap_or("").trim();
+        if let Some((_, _, brace_depth)) = current_class.as_mut() {
+            if !line.is_empty() {
+                *brace_depth += line.matches('{').count() as i32;
+                *brace_depth -= line.matches('}').count() as i32;
+                if *brace_depth <= 0 {
+                    current_class = None;
+                }
+            }
+        }
         if let Some((func_identity, params, brace_depth, local_taint)) = current_fn.as_mut() {
             if !line.is_empty() {
                 if let Some(caps) = assign_re.captures(line) {
@@ -2070,6 +2083,25 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
             continue;
         }
 
+        if let Some(caps) = class_re.captures(line) {
+            let class_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+            let bases = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+            let is_controller = class_name.ends_with("Controller")
+                || bases.split(',')
+                    .map(|base| base.trim())
+                    .any(|base| {
+                        base == "Controller"
+                            || base == "ControllerBase"
+                            || base.ends_with(".Controller")
+                            || base.ends_with(".ControllerBase")
+                    });
+            current_class = Some((
+                class_name,
+                is_controller,
+                line.matches('{').count() as i32 - line.matches('}').count() as i32,
+            ));
+        }
+
         if let Some(caps) = method_re.captures(line) {
             let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
             let params_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
@@ -2081,11 +2113,28 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
             if !func_name.is_empty() {
                 let func_identity = format!("{module_identity}::{func_name}");
                 semantics.function_definitions.insert(func_identity.clone(), params.clone());
+                let mut seeded_taint = HashMap::new();
+                let is_aspnet_action = semantics.frameworks.contains("aspnet")
+                    && current_class.as_ref().is_some_and(|(_, is_controller, _)| *is_controller)
+                    && (line.contains(" IActionResult ")
+                        || line.contains(" ActionResult ")
+                        || line.contains("Task<IActionResult>")
+                        || line.contains("Task<ActionResult"));
+                if is_aspnet_action {
+                    for (idx, param) in params.iter().enumerate() {
+                        seeded_taint.insert(param.clone(), Err("aspnet.request_query".into()));
+                        semantics.tainted_calls.push((
+                            func_identity.clone(),
+                            idx,
+                            "aspnet.request_query".into(),
+                        ));
+                    }
+                }
                 current_fn = Some((
                     func_identity,
                     params,
                     line.matches('{').count() as i32 - line.matches('}').count() as i32,
-                    HashMap::new(),
+                    seeded_taint,
                 ));
             }
         }
@@ -2122,7 +2171,19 @@ fn extract_csharp(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
             let ident = caps.get(2).map(|m| m.as_str()).unwrap_or("").to_string();
             let rhs = caps.get(3).map(|m| m.as_str()).unwrap_or("").trim();
             if !ident.is_empty() {
-                if let Some(command_type) = csharp_db_command_type_from_decl(declared_type, rhs) {
+                if declared_type == "var" {
+                    if let Some(command_type) = csharp_db_command_type_from_rhs(rhs) {
+                        semantics.variable_types.insert(ident.clone(), command_type);
+                    } else if let Some(new_type) = new_type_re.captures(rhs)
+                        .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+                    {
+                        if csharp_is_db_command_type(&new_type) {
+                            semantics.variable_types.insert(ident.clone(), new_type);
+                        } else if let Some(resolved) = resolve_csharp_type_name(&semantics, &module_identity, &new_type) {
+                            semantics.variable_types.insert(ident.clone(), resolved);
+                        }
+                    }
+                } else if let Some(command_type) = csharp_db_command_type_from_decl(declared_type, rhs) {
                     semantics.variable_types.insert(ident.clone(), command_type);
                 } else if let Some(resolved) = resolve_csharp_type_name(&semantics, &module_identity, declared_type) {
                     semantics.variable_types.insert(ident.clone(), resolved);
@@ -2275,14 +2336,22 @@ fn resolve_csharp_type_name(
     if let Some(imported) = semantics.alias_to_module.get(base) {
         return Some(imported.clone());
     }
+    let module_root = module_identity.split('.').next().unwrap_or(module_identity);
+    let namespace = module_identity.rsplit_once('.').map(|(ns, _)| ns).unwrap_or(module_identity);
     if let Some(namespace_match) = semantics.imported_modules.iter()
         .filter(|ns| !ns.contains("::"))
+        .filter(|ns| ns.split('.').next().unwrap_or("") == module_root)
+        .max_by_key(|ns| common_dot_prefix_len(namespace, ns))
         .map(|ns| format!("{ns}.{base}"))
-        .next()
+        .or_else(|| {
+            semantics.imported_modules.iter()
+                .filter(|ns| !ns.contains("::"))
+                .min()
+                .map(|ns| format!("{ns}.{base}"))
+        })
     {
         return Some(namespace_match);
     }
-    let namespace = module_identity.rsplit_once('.').map(|(ns, _)| ns).unwrap_or(module_identity);
     Some(format!("{namespace}.{base}"))
 }
 
@@ -2290,6 +2359,13 @@ fn is_project_local_type(module_identity: &str, qualified_type: &str) -> bool {
     let Some(module_root) = module_identity.split('.').next() else { return false };
     let Some(type_root) = qualified_type.split('.').next() else { return false };
     !module_root.is_empty() && module_root == type_root
+}
+
+fn common_dot_prefix_len(left: &str, right: &str) -> usize {
+    left.split('.')
+        .zip(right.split('.'))
+        .take_while(|(l, r)| l == r)
+        .count()
 }
 
 fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> FileSemantics {
@@ -2470,7 +2546,7 @@ fn extract_go(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> Fi
             if ident.is_empty() || rhs.is_empty() {
                 continue;
             }
-            if let Some(ty) = go_receiver_type_from_rhs(rhs) {
+            if let Some(ty) = resolve_go_receiver_type(&semantics, rhs) {
                 semantics.variable_types.insert(ident.clone(), ty);
             } else if let Some(ty) = semantics.variable_types.get(rhs).cloned() {
                 semantics.variable_types.insert(ident.clone(), ty);
@@ -2661,7 +2737,7 @@ fn extract_rust(source: &str, path: Option<&Path>, base_path: Option<&Path>) -> 
             if ident.is_empty() || rhs.is_empty() {
                 continue;
             }
-            if let Some(ty) = rust_receiver_type_from_rhs(rhs) {
+            if let Some(ty) = resolve_rust_receiver_type(&semantics, rhs) {
                 semantics.variable_types.insert(ident.clone(), ty);
             } else if let Some(ty) = semantics.variable_types.get(rhs).cloned() {
                 semantics.variable_types.insert(ident.clone(), ty);
@@ -2938,7 +3014,11 @@ fn resolve_go_call_target(
     match member {
         Some(method) => {
             if let Some(ty) = semantics.variable_types.get(head) {
-                let candidate = format!("{module_identity}::{ty}::{method}");
+                let candidate = if ty.contains("::") {
+                    format!("{ty}::{method}")
+                } else {
+                    format!("{module_identity}::{ty}::{method}")
+                };
                 if semantics.function_definitions.contains_key(&candidate) {
                     return Some(candidate);
                 }
@@ -3069,7 +3149,11 @@ fn resolve_rust_call_target(
     match member {
         Some(method) => {
             if let Some(ty) = semantics.variable_types.get(head) {
-                let candidate = format!("{module_identity}::{ty}::{method}");
+                let candidate = if ty.contains("::") {
+                    format!("{ty}::{method}")
+                } else {
+                    format!("{module_identity}::{ty}::{method}")
+                };
                 if semantics.function_definitions.contains_key(&candidate) {
                     return Some(candidate);
                 }
@@ -3136,22 +3220,54 @@ fn record_tainted_call(
     }
 }
 
-fn go_receiver_type_from_rhs(rhs: &str) -> Option<String> {
+fn resolve_go_receiver_type(semantics: &FileSemantics, rhs: &str) -> Option<String> {
     let rhs = rhs.trim();
-    let struct_lit_re = Regex::new(r#"^&?([A-Z][A-Za-z0-9_]*)\s*\{"#).unwrap();
-    let ctor_re = Regex::new(r#"^&?([A-Z][A-Za-z0-9_]*)\s*\("#).unwrap();
-    struct_lit_re.captures(rhs)
-        .or_else(|| ctor_re.captures(rhs))
-        .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+    let qualified_struct_lit_re = Regex::new(r#"^&?(?:([a-z_][A-Za-z0-9_]*)\.)?([A-Z][A-Za-z0-9_]*)\s*\{"#).unwrap();
+    let qualified_ctor_re = Regex::new(r#"^&?(?:([a-z_][A-Za-z0-9_]*)\.)?([A-Z][A-Za-z0-9_]*)\s*\("#).unwrap();
+    let caps = qualified_struct_lit_re.captures(rhs)
+        .or_else(|| qualified_ctor_re.captures(rhs))?;
+    let pkg = caps.get(1).map(|m| m.as_str());
+    let ty = caps.get(2).map(|m| m.as_str())?;
+    if let Some(pkg) = pkg {
+        if let Some(module) = semantics.alias_to_module.get(pkg) {
+            return Some(format!("{module}::{ty}"));
+        }
+    }
+    Some(ty.to_string())
 }
 
-fn rust_receiver_type_from_rhs(rhs: &str) -> Option<String> {
+fn resolve_rust_receiver_type(semantics: &FileSemantics, rhs: &str) -> Option<String> {
     let rhs = rhs.trim();
-    let struct_lit_re = Regex::new(r#"^&?([A-Z][A-Za-z0-9_]*)\s*(?:\{|$)"#).unwrap();
-    let assoc_ctor_re = Regex::new(r#"^&?([A-Z][A-Za-z0-9_]*)::[A-Za-z_][A-Za-z0-9_]*\s*\("#).unwrap();
-    assoc_ctor_re.captures(rhs)
-        .or_else(|| struct_lit_re.captures(rhs))
-        .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
+    let simple_struct_lit_re = Regex::new(r#"^&?([A-Z][A-Za-z0-9_]*)\s*(?:\{|$)"#).unwrap();
+    let simple_assoc_ctor_re = Regex::new(r#"^&?([A-Z][A-Za-z0-9_]*)::[A-Za-z_][A-Za-z0-9_]*\s*\("#).unwrap();
+    let path_struct_lit_re = Regex::new(r#"^&?((?:[A-Za-z_][A-Za-z0-9_]*::)+)([A-Z][A-Za-z0-9_]*)\s*(?:\{|$)"#).unwrap();
+    let path_assoc_ctor_re = Regex::new(r#"^&?((?:[A-Za-z_][A-Za-z0-9_]*::)+)([A-Z][A-Za-z0-9_]*)::[A-Za-z_][A-Za-z0-9_]*\s*\("#).unwrap();
+
+    if let Some(caps) = path_assoc_ctor_re.captures(rhs).or_else(|| path_struct_lit_re.captures(rhs)) {
+        let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim_end_matches("::");
+        let ty = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+        if !prefix.is_empty() && !ty.is_empty() {
+            if let Some((first, rest)) = prefix.split_once("::") {
+                if let Some(module) = semantics.alias_to_module.get(first) {
+                    return Some(format!("{}::{}::{ty}", qualified_symbol_identity(module), rest));
+                }
+            }
+            if let Some(module) = semantics.alias_to_module.get(prefix) {
+                return Some(format!("{}::{ty}", qualified_symbol_identity(module)));
+            }
+            return Some(format!("{prefix}::{ty}"));
+        }
+    }
+
+    if let Some(caps) = simple_assoc_ctor_re.captures(rhs).or_else(|| simple_struct_lit_re.captures(rhs)) {
+        let ty = caps.get(1).map(|m| m.as_str())?;
+        if let Some(imported) = semantics.alias_to_module.get(ty) {
+            return Some(qualified_symbol_identity(imported));
+        }
+        return Some(ty.to_string());
+    }
+
+    None
 }
 
 fn csharp_db_command_type_from_decl(declared_type: &str, rhs: &str) -> Option<String> {

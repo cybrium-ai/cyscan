@@ -570,7 +570,10 @@ fn fnv1a_64(bytes: &[u8]) -> u64 {
 mod tests {
     use super::*;
     use crate::finding::Severity;
+    use crate::matcher::semantics::extract_with_context;
+    use crate::lang::Lang;
     use std::collections::HashMap;
+    use std::path::Path;
     use std::path::PathBuf;
 
     #[test]
@@ -785,5 +788,64 @@ mod tests {
         enrich_finding_context(Path::new("/repo"), &mut findings, None);
         assert_eq!(findings[0].evidence.get("context_suppression_reason").and_then(|v| v.as_str()), Some("generated_dotnet_source"));
         assert_eq!(findings[0].evidence.get("confidence").and_then(|v| v.as_str()), Some("low"));
+    }
+
+    #[test]
+    fn csharp_imported_controller_service_flow_builds_global_taint() {
+        let controller = extract_with_context(
+            Lang::Csharp,
+            r#"
+using Demo.Web.Services;
+using Microsoft.AspNetCore.Mvc;
+namespace Demo.Web;
+public class EntryController : Controller {
+    public IActionResult Show(string html) {
+        var service = new RunnerService();
+        return service.Run(html);
+    }
+}
+"#,
+            Some(Path::new("/repo/Demo/Web/EntryController.cs")),
+            Some(Path::new("/repo")),
+        );
+        let service = extract_with_context(
+            Lang::Csharp,
+            r#"
+using Microsoft.AspNetCore.Mvc;
+namespace Demo.Web.Services;
+public class RunnerService {
+    public IActionResult Run(string data) {
+        return Html.Raw(data);
+    }
+}
+"#,
+            Some(Path::new("/repo/Demo/Web/Services/RunnerService.cs")),
+            Some(Path::new("/repo")),
+        );
+        let map = HashMap::from([
+            (PathBuf::from("/repo/Demo/Web/EntryController.cs"), controller),
+            (PathBuf::from("/repo/Demo/Web/Services/RunnerService.cs"), service),
+        ]);
+        let controller = map.get(&PathBuf::from("/repo/Demo/Web/EntryController.cs")).unwrap();
+        assert!(controller.function_definitions.contains_key("Demo.Web.EntryController::Show"));
+        assert_eq!(
+            controller.variable_types.get("service").map(String::as_str),
+            Some("Demo.Web.Services.RunnerService")
+        );
+        assert!(controller.tainted_calls.iter().any(|(target, idx, kind)|
+            target == "Demo.Web.EntryController::Show" && *idx == 0 && kind == "aspnet.request_query"
+        ));
+        assert!(controller.param_call_edges.iter().any(|edge|
+            edge.caller == "Demo.Web.EntryController::Show"
+                && edge.callee == "Demo.Web.Services.RunnerService::Run"
+                && edge.callee_arg_idx == 0
+                && edge.caller_param_idx == 0
+        ));
+        let gtm = GlobalTaintMap::build(&map);
+        assert!(
+            gtm.tainted_params
+                .get("Demo.Web.Services.RunnerService::Run")
+                .is_some_and(|params| params.iter().any(|(name, kind)| name == "data" && kind == "aspnet.request_query"))
+        );
     }
 }
