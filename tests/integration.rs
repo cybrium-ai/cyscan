@@ -1399,6 +1399,29 @@ def run(data):
 }
 
 #[test]
+fn python_return_taint_from_imported_helper_reaches_sink() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("helper.py"),
+        "def wrap(value):\n    return value\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("entry.py"),
+        "from flask import request\nfrom helper import wrap\nuser = request.args.get('code')\nwrapped = wrap(user)\neval(wrapped)\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-PY-CODE-EVAL\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"flask.request.args\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
+}
+
+#[test]
 fn javascript_interprocedural_taint_uses_resolved_import_targets() {
     use std::fs;
     use serde_json::Value;
@@ -1463,6 +1486,29 @@ export function run(data) {
     let other = findings.iter().find(|f| f["file"].as_str().is_some_and(|s| s.ends_with("other.js"))).unwrap();
     assert!(other["evidence"].get("source_kind").is_none());
     assert_eq!(other["reachability"], "unknown");
+}
+
+#[test]
+fn javascript_return_taint_from_imported_helper_reaches_sink() {
+    use std::fs;
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(
+        tmp.path().join("helper.js"),
+        "export function identity(value) {\n  return value;\n}\n",
+    ).unwrap();
+    fs::write(
+        tmp.path().join("entry.js"),
+        "import { identity } from './helper';\nconst user = req.query.code;\nconst wrapped = identity(user);\nel.innerHTML = wrapped;\n",
+    ).unwrap();
+
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", &rules, "--format", "json"])
+        .assert()
+        .stdout(predicate::str::contains("\"rule_id\": \"CBR-JS-XSS-INNER-HTML\""))
+        .stdout(predicate::str::contains("\"source_kind\": \"express.req.query\""))
+        .stdout(predicate::str::contains("\"reachability\": \"reachable\""));
 }
 
 #[test]

@@ -5,6 +5,13 @@ use regex::Regex;
 
 use crate::lang::Lang;
 
+#[derive(Debug, Clone)]
+pub struct CallAssignment {
+    pub ident: String,
+    pub target: String,
+    pub args: Vec<String>,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct FileSemantics {
     pub module_identity: Option<String>,
@@ -20,6 +27,12 @@ pub struct FileSemantics {
     pub function_definitions: HashMap<String, Vec<String>>,
     /// List of (function_name, argument_index, source_kind) for calls in this file.
     pub tainted_calls: Vec<(String, usize, String)>,
+    /// Functions that return one or more of their parameters by index.
+    pub return_param_indices: HashMap<String, Vec<usize>>,
+    /// Functions that directly return a source kind without caller-controlled params.
+    pub direct_return_sources: HashMap<String, Vec<String>>,
+    /// Local variables assigned from resolved function calls.
+    pub call_assignments: Vec<CallAssignment>,
     /// Maps identifiers (e.g. "db") to their inferred type/module (e.g. "sqlite3").
     pub variable_types: HashMap<String, String>,
 }
@@ -68,12 +81,69 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
         r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$"
     ).unwrap();
     let def_re = Regex::new(r#"^\s*def\s+([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\):"#).unwrap();
+    let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let member_call_re = Regex::new(r#"([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*\((.*?)\)"#).unwrap();
     let lines: Vec<&str> = source.lines().collect();
+    let mut current_fn: Option<(String, usize, Vec<String>, HashMap<String, Result<usize, String>>)> = None;
 
     for raw_line in &lines {
+        let indent = raw_line.chars().take_while(|c| c.is_whitespace()).count();
         let line = raw_line.split('#').next().unwrap_or("").trim();
+        if let Some((func_identity, fn_indent, params, local_taint)) = current_fn.as_mut() {
+            if !line.is_empty() && indent > *fn_indent {
+                if let Some(caps) = assign_re.captures(line) {
+                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
+                    if !ident.is_empty() && !rhs.is_empty() {
+                        if let Some(source_kind) = python_source_kind(rhs) {
+                            semantics.tainted_identifiers.insert(ident.clone(), source_kind.to_string());
+                            local_taint.insert(ident, Err(source_kind.to_string()));
+                        } else if let Some(idx) = params.iter().position(|param| param == rhs) {
+                            local_taint.insert(ident, Ok(idx));
+                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                            }
+                            local_taint.insert(ident, kind);
+                        }
+                    }
+                }
+                for caps in member_call_re.captures_iter(line) {
+                    let object = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let method = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_python_call_target(&semantics, &module_identity, object, Some(method)) else {
+                        continue;
+                    };
+                    record_python_tainted_call(&mut semantics, &target, args_raw);
+                }
+                for caps in direct_call_re.captures_iter(line) {
+                    let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_python_call_target(&semantics, &module_identity, func_name, None) else {
+                        continue;
+                    };
+                    record_python_tainted_call(&mut semantics, &target, args_raw);
+                }
+                if let Some(caps) = return_re.captures(line) {
+                    let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim();
+                    if let Some(source_kind) = python_source_kind(expr) {
+                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
+                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
+                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
+                    } else if let Some(kind) = local_taint.get(expr) {
+                        match kind {
+                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
+                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
+                        }
+                    }
+                }
+                continue;
+            }
+            current_fn = None;
+        }
+
         if line.is_empty() {
             continue;
         }
@@ -89,6 +159,12 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
                 format!("{module_identity}::{func_name}"),
                 params,
             );
+            current_fn = Some((
+                format!("{module_identity}::{func_name}"),
+                indent,
+                semantics.function_definitions.get(&format!("{module_identity}::{func_name}")).cloned().unwrap_or_default(),
+                HashMap::new(),
+            ));
         }
 
         if let Some(caps) = import_re.captures(line) {
@@ -139,6 +215,29 @@ fn extract_python(source: &str, path: Option<&Path>, base_path: Option<&Path>) -
             let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
             if ident.is_empty() || rhs.is_empty() {
                 continue;
+            }
+
+            if let Some(call_caps) = member_call_re.captures(rhs) {
+                let object = call_caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                let method = call_caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                let args_raw = call_caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                if let Some(target) = resolve_python_call_target(&semantics, &module_identity, object, Some(method)) {
+                    semantics.call_assignments.push(CallAssignment {
+                        ident: ident.clone(),
+                        target,
+                        args: args_raw.split(',').map(|arg| arg.trim().to_string()).collect(),
+                    });
+                }
+            } else if let Some(call_caps) = direct_call_re.captures(rhs) {
+                let func_name = call_caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                let args_raw = call_caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                if let Some(target) = resolve_python_call_target(&semantics, &module_identity, func_name, None) {
+                    semantics.call_assignments.push(CallAssignment {
+                        ident: ident.clone(),
+                        target,
+                        args: args_raw.split(',').map(|arg| arg.trim().to_string()).collect(),
+                    });
+                }
             }
 
             // Type Inference: Look for common factory patterns
@@ -260,6 +359,20 @@ fn qualified_symbol_identity(symbol: &str) -> String {
     symbol.to_string()
 }
 
+fn push_unique_usize(map: &mut HashMap<String, Vec<usize>>, key: &str, value: usize) {
+    let values = map.entry(key.to_string()).or_default();
+    if !values.contains(&value) {
+        values.push(value);
+    }
+}
+
+fn push_unique_string(map: &mut HashMap<String, Vec<String>>, key: &str, value: &str) {
+    let values = map.entry(key.to_string()).or_default();
+    if !values.iter().any(|v| v == value) {
+        values.push(value.to_string());
+    }
+}
+
 fn path_module_identity(
     path: Option<&Path>,
     base_path: Option<&Path>,
@@ -323,12 +436,71 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
     let function_expr_re = Regex::new(
         r#"^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*function\s*\((.*?)\)"#
     ).unwrap();
+    let return_re = Regex::new(r#"^\s*return\s+(.+?)\s*;?\s*$"#).unwrap();
     let direct_call_re = Regex::new(r#"([A-Za-z_$][A-Za-z0-9_$]*)\s*\((.*?)\)"#).unwrap();
     let member_call_re = Regex::new(r#"([A-Za-z_$][A-Za-z0-9_$]*)\.([A-Za-z_$][A-Za-z0-9_$]*)\s*\((.*?)\)"#).unwrap();
     let lines: Vec<&str> = source.lines().collect();
+    let mut current_fn: Option<(String, Vec<String>, i32, HashMap<String, Result<usize, String>>)> = None;
 
     for raw_line in &lines {
         let line = raw_line.split("//").next().unwrap_or("").trim();
+        if let Some((func_identity, params, brace_depth, local_taint)) = current_fn.as_mut() {
+            if !line.is_empty() {
+                if let Some(caps) = assign_re.captures(line) {
+                    let ident = caps.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
+                    let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
+                    if !ident.is_empty() && !rhs.is_empty() {
+                        if let Some(source_kind) = js_source_kind(rhs) {
+                            semantics.tainted_identifiers.insert(ident.clone(), source_kind.to_string());
+                            local_taint.insert(ident, Err(source_kind.to_string()));
+                        } else if let Some(idx) = params.iter().position(|param| param == rhs) {
+                            local_taint.insert(ident, Ok(idx));
+                        } else if let Some(kind) = local_taint.get(rhs).cloned() {
+                            if let Err(source_kind) = &kind {
+                                semantics.tainted_identifiers.insert(ident.clone(), source_kind.clone());
+                            }
+                            local_taint.insert(ident, kind);
+                        }
+                    }
+                }
+                for caps in member_call_re.captures_iter(line) {
+                    let object = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let method = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_js_call_target(&semantics, &module_identity, object, Some(method)) else {
+                        continue;
+                    };
+                    record_js_tainted_call(&mut semantics, &target, args_raw);
+                }
+                for caps in direct_call_re.captures_iter(line) {
+                    let func_name = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                    let args_raw = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                    let Some(target) = resolve_js_call_target(&semantics, &module_identity, func_name, None) else {
+                        continue;
+                    };
+                    record_js_tainted_call(&mut semantics, &target, args_raw);
+                }
+                if let Some(caps) = return_re.captures(line) {
+                    let expr = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim().trim_end_matches(';');
+                    if let Some(source_kind) = js_source_kind(expr) {
+                        push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind);
+                    } else if let Some(idx) = params.iter().position(|param| param == expr) {
+                        push_unique_usize(&mut semantics.return_param_indices, func_identity, idx);
+                    } else if let Some(kind) = local_taint.get(expr) {
+                        match kind {
+                            Ok(idx) => push_unique_usize(&mut semantics.return_param_indices, func_identity, *idx),
+                            Err(source_kind) => push_unique_string(&mut semantics.direct_return_sources, func_identity, source_kind),
+                        }
+                    }
+                }
+            }
+            *brace_depth += line.matches('{').count() as i32;
+            *brace_depth -= line.matches('}').count() as i32;
+            if *brace_depth <= 0 {
+                current_fn = None;
+            }
+        }
+
         if line.is_empty() {
             continue;
         }
@@ -344,10 +516,26 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
                 .filter(|s| !s.is_empty())
                 .collect();
             if !func_name.is_empty() {
-                semantics.function_definitions.insert(
-                    format!("{module_identity}::{func_name}"),
-                    params,
-                );
+                let func_identity = format!("{module_identity}::{func_name}");
+                semantics.function_definitions.insert(func_identity.clone(), params.clone());
+                if line.contains('{') {
+                    current_fn = Some((
+                        func_identity,
+                        params,
+                        line.matches('{').count() as i32 - line.matches('}').count() as i32,
+                        HashMap::new(),
+                    ));
+                } else if let Some(arrow_pos) = line.find("=>") {
+                    let expr = line[arrow_pos + 2..].trim().trim_end_matches(';');
+                    if let Some(source_kind) = js_source_kind(expr) {
+                        push_unique_string(&mut semantics.direct_return_sources, &func_identity, source_kind);
+                    } else if let Some(idx) = semantics.function_definitions[&func_identity]
+                        .iter()
+                        .position(|param| param == expr)
+                    {
+                        push_unique_usize(&mut semantics.return_param_indices, &func_identity, idx);
+                    }
+                }
             }
         }
 
@@ -447,6 +635,28 @@ fn extract_javascript(source: &str, path: Option<&Path>, base_path: Option<&Path
             let rhs = caps.get(2).map(|m| m.as_str()).unwrap_or("").trim();
             if ident.is_empty() || rhs.is_empty() {
                 continue;
+            }
+            if let Some(call_caps) = member_call_re.captures(rhs) {
+                let object = call_caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                let method = call_caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                let args_raw = call_caps.get(3).map(|m| m.as_str()).unwrap_or("");
+                if let Some(target) = resolve_js_call_target(&semantics, &module_identity, object, Some(method)) {
+                    semantics.call_assignments.push(CallAssignment {
+                        ident: ident.clone(),
+                        target,
+                        args: args_raw.split(',').map(|arg| arg.trim().to_string()).collect(),
+                    });
+                }
+            } else if let Some(call_caps) = direct_call_re.captures(rhs) {
+                let func_name = call_caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                let args_raw = call_caps.get(2).map(|m| m.as_str()).unwrap_or("");
+                if let Some(target) = resolve_js_call_target(&semantics, &module_identity, func_name, None) {
+                    semantics.call_assignments.push(CallAssignment {
+                        ident: ident.clone(),
+                        target,
+                        args: args_raw.split(',').map(|arg| arg.trim().to_string()).collect(),
+                    });
+                }
             }
             if let Some(source_kind) = js_source_kind(rhs) {
                 semantics.tainted_identifiers.insert(ident, source_kind.to_string());

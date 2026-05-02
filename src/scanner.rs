@@ -24,6 +24,8 @@ pub struct CloudContext {
 pub struct GlobalTaintMap {
     /// Maps function names to a set of (parameter_name, source_kind) that are tainted.
     pub tainted_params: HashMap<String, Vec<(String, String)>>,
+    /// Maps function names to source kinds that can flow out of the return value.
+    pub tainted_returns: HashMap<String, Vec<String>>,
 }
 
 impl GlobalTaintMap {
@@ -34,14 +36,59 @@ impl GlobalTaintMap {
             .flat_map(|semantics| semantics.function_definitions.iter())
             .map(|(func_name, params)| (func_name.clone(), params.clone()))
             .collect();
-        
-        for semantics in file_semantics.values() {
-            for (func_name, arg_idx, source_kind) in &semantics.tainted_calls {
-                if let Some(params) = global_definitions.get(func_name) {
-                    if let Some(param_name) = params.get(*arg_idx) {
-                        gtm.tainted_params.entry(func_name.clone())
-                            .or_default()
-                            .push((param_name.clone(), source_kind.clone()));
+        let return_param_indices: HashMap<String, Vec<usize>> = file_semantics
+            .values()
+            .flat_map(|semantics| semantics.return_param_indices.iter())
+            .map(|(func_name, indices)| (func_name.clone(), indices.clone()))
+            .collect();
+        let direct_return_sources: HashMap<String, Vec<String>> = file_semantics
+            .values()
+            .flat_map(|semantics| semantics.direct_return_sources.iter())
+            .map(|(func_name, kinds)| (func_name.clone(), kinds.clone()))
+            .collect();
+
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for semantics in file_semantics.values() {
+                for (func_name, arg_idx, source_kind) in &semantics.tainted_calls {
+                    if let Some(params) = global_definitions.get(func_name) {
+                        if let Some(param_name) = params.get(*arg_idx) {
+                            let values = gtm.tainted_params.entry(func_name.clone()).or_default();
+                            if !values.iter().any(|(name, kind)| name == param_name && kind == source_kind) {
+                                values.push((param_name.clone(), source_kind.clone()));
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (func_name, kinds) in &direct_return_sources {
+                let values = gtm.tainted_returns.entry(func_name.clone()).or_default();
+                for kind in kinds {
+                    if !values.iter().any(|existing| existing == kind) {
+                        values.push(kind.clone());
+                        changed = true;
+                    }
+                }
+            }
+
+            for (func_name, indices) in &return_param_indices {
+                let Some(params) = global_definitions.get(func_name) else { continue };
+                let tainted_params = gtm.tainted_params.get(func_name).cloned().unwrap_or_default();
+                for idx in indices {
+                    if let Some(param_name) = params.get(*idx) {
+                        for (name, source_kind) in &tainted_params {
+                            if name != param_name {
+                                continue;
+                            }
+                            let values = gtm.tainted_returns.entry(func_name.clone()).or_default();
+                            if !values.iter().any(|existing| existing == source_kind) {
+                                values.push(source_kind.clone());
+                                changed = true;
+                            }
+                        }
                     }
                 }
             }
@@ -113,6 +160,12 @@ pub fn run_with_context(target: &Path, pack: &RulePack, cloud: Option<CloudConte
                             final_semantics.tainted_identifiers.insert(param_name.clone(), source_kind.clone());
                         }
                     }
+                }
+            }
+            for call in &semantics.call_assignments {
+                let Some(kinds) = gtm.tainted_returns.get(&call.target) else { continue };
+                for kind in kinds {
+                    final_semantics.tainted_identifiers.entry(call.ident.clone()).or_insert(kind.clone());
                 }
             }
 
