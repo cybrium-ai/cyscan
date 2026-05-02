@@ -127,6 +127,23 @@ pub struct Rule {
     /// auto-classified by the heuristic in `cia_auto_classify()`.
     #[serde(default)]
     pub cia:       Option<CiaTriad>,
+    /// Inter-procedural dataflow gate (Gap A4). When set, the matcher
+    /// consults `ProjectSemantics::is_reachable_from_source` for the
+    /// function enclosing each match and either suppresses or tags the
+    /// finding accordingly.
+    #[serde(default)]
+    pub dataflow:  Option<DataflowSpec>,
+}
+
+/// Dataflow gating block on a rule.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct DataflowSpec {
+    /// When true, the rule only fires if at least one tainted source
+    /// reaches the matched function via cross-file propagation.
+    /// Default false — rule still fires, but findings get
+    /// `evidence.dataflow_reachable: false` so reviewers can sort.
+    #[serde(default)]
+    pub require_reachable: bool,
 }
 
 impl Rule {

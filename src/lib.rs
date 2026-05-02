@@ -18,6 +18,7 @@ pub mod output;
 pub mod reachability;
 pub mod rule;
 pub mod scanner;
+pub mod dataflow;
 pub mod self_update;
 pub mod supply;
 pub mod triage;

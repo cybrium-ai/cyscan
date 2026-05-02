@@ -28,12 +28,30 @@ pub fn run(target: &Path, pack: &RulePack) -> Result<Vec<Finding>> {
 
     log::info!("scanning {} candidate file(s)", files.len());
 
+    // Project pre-pass (Gap A4 / inter-procedural dataflow). Aggregate
+    // FileSemantics from every file and run the fixed-point taint
+    // propagator BEFORE per-file rule matching. Rules with a
+    // `dataflow:` block consult the resulting `ProjectSemantics` to
+    // decide reachability across function boundaries.
+    let project = if pack.rules().iter().any(|r| r.dataflow.is_some()) {
+        log::info!("dataflow: building project semantics for {} files", files.len());
+        Some(crate::dataflow::aggregate_project(target))
+    } else {
+        None
+    };
+
     let mut findings: Vec<Finding> = files
         .par_iter()
         .flat_map_iter(|path| {
             let lang = Lang::from_path(path).expect("filtered above");
             match fs::read_to_string(path) {
-                Ok(source) => matcher::run_rules(pack.rules(), lang, path, &source),
+                Ok(source) => matcher::run_rules_with_project(
+                    pack.rules(),
+                    lang,
+                    path,
+                    &source,
+                    project.as_ref(),
+                ),
                 Err(err) => {
                     log::warn!("skipping {}: {err}", path.display());
                     Vec::new()
