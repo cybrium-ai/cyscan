@@ -1,6 +1,6 @@
 //! Rule pack — loading, validation, and the rule shape callers match against.
 
-use std::{fs, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -70,6 +70,38 @@ pub struct Rule {
     /// Alias so imported rules with `pattern:` field work without conversion.
     #[serde(default)]
     pub pattern:   Option<String>,
+    // ── Semgrep-DSL filters (Gap 3 / B1) ────────────────────────────────
+    /// Conjunctive list of patterns. ALL must match for the rule to fire.
+    #[serde(default)]
+    pub patterns:  Vec<String>,
+    /// Disjunctive list of patterns. At least ONE must match.
+    #[serde(default)]
+    pub pattern_either:        Vec<String>,
+    /// Grouped any-of patterns. At least one *group* must match, and
+    /// every entry inside that group must match together.
+    #[serde(default)]
+    pub pattern_either_groups: Vec<Vec<String>>,
+    /// Negative pattern filter. If matched, the rule is suppressed.
+    #[serde(default)]
+    pub pattern_not:           Option<String>,
+    /// Positive enclosing-context filter — match must occur inside a
+    /// larger snippet matching this pattern.
+    #[serde(default)]
+    pub pattern_inside:        Option<String>,
+    /// Negative enclosing-context filters. If the match occurs inside
+    /// any of these contexts, the rule is suppressed.
+    #[serde(default)]
+    pub pattern_not_inside:    Vec<String>,
+    /// Capture-aware comparison filter such as `len($arg) > 10` or
+    /// `$fn == "eval"`. Singular form (legacy).
+    #[serde(default)]
+    pub metavariable_comparison: Option<String>,
+    /// Boolean all-of comparisons.
+    #[serde(default)]
+    pub metavariable_comparisons: Vec<String>,
+    /// Capture type constraints such as `arg: string` or `fn: identifier`.
+    #[serde(default)]
+    pub metavariable_types: HashMap<String, String>,
     pub message:   String,
     #[serde(default)]
     pub fix_recipe: Option<String>,

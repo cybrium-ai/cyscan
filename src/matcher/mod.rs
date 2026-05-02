@@ -1,5 +1,6 @@
 //! Matcher dispatch — picks regex vs tree-sitter per rule, emits findings.
 
+pub mod dsl;
 pub mod entropy;
 pub mod regex;
 pub mod treesitter;
