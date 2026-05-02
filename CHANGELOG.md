@@ -2,6 +2,16 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.13.0] — 2026-05-02
+
+### Added
+- **Semgrep-max DSL operators** — `metavariable_regex` (per-capture regex constraint), `metavariable_pattern` (per-capture sub-pattern, regex flavour; nested AST patterns deferred), and `pattern_not_regex` (matched-line negative regex filter). Closes the remaining headline DSL gap from the parity audit. Wired into both `regex::match_rule` and `treesitter::match_rule`. Two new integration tests cover the operators.
+- **Scope-aware Python symbol table (`src/symbols/`)** — start of compiler-grade resolution. `build_python_symbol_table(source)` returns a `SymbolTable` whose `resolve(line, name)` walks the lexical scope stack (Module / Function / Class) outward and returns the *narrowest* binding that covers the line — shadowing resolves correctly, unlike the flat `variable_types: HashMap` from the semantic extractor. Indentation-driven scope detection over Python source; bindings extracted from `=`, `import [as]`, and `from M import a, b [as c]`. Three unit tests cover module-level resolution, function-scope shadowing, and `from`-import unpacking. Other languages follow in subsequent releases.
+
+### Changed
+- `Lang::Objective_c` → `Lang::ObjectiveC` (Rust naming convention). The display string `objective_c` is unchanged so existing rules / SARIF output keep matching.
+- Cleaned all 17 compiler warnings from the lib build (`cargo build --release` now emits 0 warnings). Auto-fix dropped 6 unused imports and 3 unused variables; manual changes resolved 4 unreachable-pattern warnings (collapsed `Format::Sarif | Format::Json` arms in cli.rs) plus 2 unread-assignment warnings.
+
 ## [0.12.0] — 2026-05-02
 
 ### Added
