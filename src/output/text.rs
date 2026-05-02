@@ -19,12 +19,15 @@ pub fn emit(findings: &[Finding]) -> io::Result<()> {
         writeln!(
             out,
             "{sev}  {id}  {file}:{line}:{col}",
-            id   = f.rule_id.bold(),
+            id = f.rule_id.bold(),
             file = f.file.display(),
             line = f.line,
-            col  = f.column,
+            col = f.column,
         )?;
         writeln!(out, "        {}", f.title)?;
+        if let Some(status) = f.evidence.get("triage_status").and_then(|v| v.as_str()) {
+            writeln!(out, "        triage: {}", status)?;
+        }
         if !f.snippet.is_empty() {
             writeln!(out, "        {} {}", "│".dimmed(), f.snippet.dimmed())?;
         }
@@ -41,9 +44,9 @@ pub fn emit(findings: &[Finding]) -> io::Result<()> {
 fn colored_sev(s: Severity) -> colored::ColoredString {
     match s {
         Severity::Critical => "[crit]".red().bold(),
-        Severity::High     => "[high]".red(),
-        Severity::Medium   => "[med ]".yellow(),
-        Severity::Low      => "[low ]".blue(),
-        Severity::Info     => "[info]".normal(),
+        Severity::High => "[high]".red(),
+        Severity::Medium => "[med ]".yellow(),
+        Severity::Low => "[low ]".blue(),
+        Severity::Info => "[info]".normal(),
     }
 }

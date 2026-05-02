@@ -232,6 +232,282 @@ fn supply_reachability_emits_dependency_path_and_callsite_evidence() {
 }
 
 #[test]
+fn triage_init_set_list_and_history_work() {
+    use std::fs;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let triage = tmp.path().join("triage.json");
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args(["triage", "init", "--output", triage.to_str().unwrap()])
+        .assert()
+        .success();
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "triage",
+            "set",
+            "abc123",
+            "--status",
+            "false-positive",
+            "--triage",
+            triage.to_str().unwrap(),
+            "--note",
+            "safe test case",
+            "--author",
+            "qa",
+            "--rule-id",
+            "CBR-TEST",
+            "--title",
+            "Test finding",
+        ])
+        .assert()
+        .success();
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args(["triage", "list", "--triage", triage.to_str().unwrap()])
+        .assert()
+        .stdout(predicate::str::contains("false_positive"))
+        .stdout(predicate::str::contains("abc123"))
+        .stdout(predicate::str::contains("CBR-TEST"));
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "triage",
+            "history",
+            "abc123",
+            "--triage",
+            triage.to_str().unwrap(),
+        ])
+        .assert()
+        .stdout(predicate::str::contains("false_positive"))
+        .stdout(predicate::str::contains("safe test case"))
+        .stdout(predicate::str::contains("qa"));
+
+    let body = fs::read_to_string(triage).unwrap();
+    assert!(body.contains("\"version\": 1"));
+}
+
+#[test]
+fn scan_applies_triage_status_and_hide_triaged() {
+    use serde_json::Value;
+    use std::fs;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("demo.yml"),
+        r#"
+id:        CBR-TEST-DEMO
+title:     "Demo rule"
+severity:  high
+languages: ['python']
+message: |
+  Demo finding.
+regex: 'eval\(.+\)'
+"#,
+    )
+    .unwrap();
+    fs::write(tmp.path().join("app.py"), "eval(user_input)\n").unwrap();
+
+    let first = Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "scan",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            rules_dir.to_str().unwrap(),
+            "--format",
+            "json",
+        ])
+        .output()
+        .unwrap();
+    assert!(first.status.success(), "{}", String::from_utf8_lossy(&first.stderr));
+    let findings: Vec<Value> = serde_json::from_slice(&first.stdout).unwrap();
+    let fingerprint = findings[0]["fingerprint"].as_str().unwrap().to_string();
+
+    let triage = tmp.path().join("triage.json");
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "triage",
+            "set",
+            &fingerprint,
+            "--status",
+            "accepted-risk",
+            "--triage",
+            triage.to_str().unwrap(),
+            "--note",
+            "accepted by appsec",
+        ])
+        .assert()
+        .success();
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "scan",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            rules_dir.to_str().unwrap(),
+            "--triage",
+            triage.to_str().unwrap(),
+            "--format",
+            "json",
+        ])
+        .assert()
+        .stdout(predicate::str::contains("\"triage_status\": \"accepted_risk\""))
+        .stdout(predicate::str::contains("\"triage_note\": \"accepted by appsec\""));
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "scan",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            rules_dir.to_str().unwrap(),
+            "--triage",
+            triage.to_str().unwrap(),
+            "--hide-triaged",
+            "--format",
+            "json",
+        ])
+        .assert()
+        .stdout(predicate::str::contains("[]"));
+}
+
+#[test]
+fn triaged_findings_do_not_fail_scan_or_supply_thresholds() {
+    use serde_json::Value;
+    use std::fs;
+
+    let tmp = tempfile::tempdir().unwrap();
+    let rules_dir = tmp.path().join("rules");
+    fs::create_dir_all(&rules_dir).unwrap();
+    fs::write(
+        rules_dir.join("demo.yml"),
+        r#"
+id:        CBR-TEST-DEMO
+title:     "Demo rule"
+severity:  critical
+languages: ['python']
+message: |
+  Demo finding.
+regex: 'eval\(.+\)'
+"#,
+    )
+    .unwrap();
+    fs::write(tmp.path().join("app.py"), "eval(user_input)\n").unwrap();
+    fs::write(
+        tmp.path().join("package-lock.json"),
+        r#"{
+  "name": "fixture-app",
+  "lockfileVersion": 3,
+  "packages": {
+    "": { "name": "fixture-app", "version": "0.0.1" },
+    "node_modules/lodash": { "version": "4.17.15" }
+  }
+}"#,
+    )
+    .unwrap();
+    fs::write(
+        tmp.path().join("app.js"),
+        "import { template } from 'lodash'\ntemplate(input)\n",
+    )
+    .unwrap();
+
+    let scan_first = Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "scan",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            rules_dir.to_str().unwrap(),
+            "--format",
+            "json",
+        ])
+        .output()
+        .unwrap();
+    let scan_findings: Vec<Value> = serde_json::from_slice(&scan_first.stdout).unwrap();
+    let scan_fp = scan_findings[0]["fingerprint"].as_str().unwrap().to_string();
+
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let rules = format!("{manifest}/rules");
+    let supply_first = Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "supply",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            &rules,
+            "--format",
+            "json",
+        ])
+        .output()
+        .unwrap();
+    let supply_findings: Vec<Value> = serde_json::from_slice(&supply_first.stdout).unwrap();
+    let supply_fp = supply_findings
+        .iter()
+        .find(|f| f["rule_id"] == "CBR-SUPPLY-GHSA-rg3q-prg8-7m8p")
+        .unwrap()["fingerprint"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let triage = tmp.path().join("triage.json");
+    for fp in [&scan_fp, &supply_fp] {
+        Command::cargo_bin("cyscan")
+            .unwrap()
+            .args([
+                "triage",
+                "set",
+                fp,
+                "--status",
+                "accepted-risk",
+                "--triage",
+                triage.to_str().unwrap(),
+            ])
+            .assert()
+            .success();
+    }
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "scan",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            rules_dir.to_str().unwrap(),
+            "--triage",
+            triage.to_str().unwrap(),
+            "--fail-on",
+            "critical",
+        ])
+        .assert()
+        .success();
+
+    Command::cargo_bin("cyscan")
+        .unwrap()
+        .args([
+            "supply",
+            tmp.path().to_str().unwrap(),
+            "--rules",
+            &rules,
+            "--triage",
+            triage.to_str().unwrap(),
+            "--fail-on",
+            "critical",
+        ])
+        .assert()
+        .success();
+}
+
+#[test]
 fn python_pickle_alias_is_detected() {
     use std::fs;
     let manifest = env!("CARGO_MANIFEST_DIR");

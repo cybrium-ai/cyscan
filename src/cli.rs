@@ -5,14 +5,20 @@ use std::{path::PathBuf, process::ExitCode};
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::{finding::Severity, fixer, k8s, output, rule::RulePack, scanner, self_update, supply};
+use crate::{
+    finding::Severity,
+    fixer, k8s, output,
+    rule::RulePack,
+    scanner, self_update, supply,
+    triage::{self, TriageSetOptions, TriageStatus, TriageStore},
+};
 
 #[derive(Debug, Parser)]
 #[command(
-    name    = "cyscan",
-    about   = "Cybrium Scan — fast multi-language SAST engine",
+    name = "cyscan",
+    about = "Cybrium Scan — fast multi-language SAST engine",
     version,
-    bin_name = "cyscan",
+    bin_name = "cyscan"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -35,6 +41,14 @@ enum Cmd {
         /// Path to a baseline file. Findings in this file will be suppressed.
         #[arg(long, short = 'b')]
         baseline: Option<PathBuf>,
+
+        /// Path to a triage file. Findings are enriched with triage status and history.
+        #[arg(long)]
+        triage: Option<PathBuf>,
+
+        /// Hide triaged findings marked false_positive, accepted_risk, or fixed.
+        #[arg(long, default_value_t = false)]
+        hide_triaged: bool,
 
         /// Output format.
         #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
@@ -67,6 +81,14 @@ enum Cmd {
         /// Rule pack directory.
         #[arg(long, short = 'r')]
         rules: Option<PathBuf>,
+
+        /// Path to a triage file. Findings are enriched with triage status and history.
+        #[arg(long)]
+        triage: Option<PathBuf>,
+
+        /// Hide triaged findings marked false_positive, accepted_risk, or fixed.
+        #[arg(long, default_value_t = false)]
+        hide_triaged: bool,
 
         /// Advisory snapshot directory.
         #[arg(long)]
@@ -136,6 +158,12 @@ enum Cmd {
     Rules {
         #[command(subcommand)]
         cmd: RulesCmd,
+    },
+
+    /// Manage finding triage states and audit history.
+    Triage {
+        #[command(subcommand)]
+        cmd: TriageCmd,
     },
 
     /// Check repository security health (governance, secrets, supply chain).
@@ -244,6 +272,52 @@ enum RulesCmd {
     },
 }
 
+#[derive(Debug, Subcommand)]
+enum TriageCmd {
+    /// Create an empty triage store.
+    Init {
+        #[arg(long, short = 'o', default_value = ".cyscan-triage.json")]
+        output: PathBuf,
+    },
+    /// Set the triage status for one finding fingerprint.
+    Set {
+        fingerprint: String,
+        #[arg(long, value_enum)]
+        status: TriageStatus,
+        #[arg(long, default_value = ".cyscan-triage.json")]
+        triage: PathBuf,
+        #[arg(long)]
+        note: Option<String>,
+        #[arg(long)]
+        author: Option<String>,
+        #[arg(long)]
+        rule_id: Option<String>,
+        #[arg(long)]
+        file: Option<String>,
+        #[arg(long)]
+        title: Option<String>,
+        #[arg(long)]
+        severity: Option<Severity>,
+    },
+    /// List triaged findings.
+    List {
+        #[arg(long, default_value = ".cyscan-triage.json")]
+        triage: PathBuf,
+        #[arg(long, value_enum)]
+        status: Option<TriageStatus>,
+        #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
+        format: Format,
+    },
+    /// Show triage history for one finding fingerprint.
+    History {
+        fingerprint: String,
+        #[arg(long, default_value = ".cyscan-triage.json")]
+        triage: PathBuf,
+        #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
+        format: Format,
+    },
+}
+
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
 pub enum Format {
     #[default]
@@ -274,7 +348,18 @@ pub fn run() -> Result<ExitCode> {
         _ => {}
     }
     match cli.cmd {
-        Cmd::Scan { target, rules, baseline, format, fail_on, jobs, verify, cia: show_cia } => {
+        Cmd::Scan {
+            target,
+            rules,
+            baseline,
+            triage: triage_path,
+            hide_triaged,
+            format,
+            fail_on,
+            jobs,
+            verify,
+            cia: show_cia,
+        } => {
             if let Some(n) = jobs {
                 rayon::ThreadPoolBuilder::new()
                     .num_threads(n)
@@ -282,7 +367,7 @@ pub fn run() -> Result<ExitCode> {
                     .ok();
             }
             let pack = load_pack(rules.as_deref())?;
-            
+
             // --- Code to Cloud Synergy: Automatic Manifest Context ---
             let cloud_ctx = if target.is_dir() {
                 Some(collect_cloud_context(&target))
@@ -293,11 +378,15 @@ pub fn run() -> Result<ExitCode> {
             let mut findings = scanner::run_with_context(&target, &pack, cloud_ctx)?;
 
             if let Some(baseline_path) = baseline {
-                let baseline_content = std::fs::read_to_string(&baseline_path)
-                    .with_context(|| format!("reading baseline file {}", baseline_path.display()))?;
-                let baseline_fingerprints: std::collections::HashSet<String> = serde_json::from_str(&baseline_content)
-                    .with_context(|| "parsing baseline JSON (expected an array of fingerprint strings)")?;
-                
+                let baseline_content =
+                    std::fs::read_to_string(&baseline_path).with_context(|| {
+                        format!("reading baseline file {}", baseline_path.display())
+                    })?;
+                let baseline_fingerprints: std::collections::HashSet<String> =
+                    serde_json::from_str(&baseline_content).with_context(|| {
+                        "parsing baseline JSON (expected an array of fingerprint strings)"
+                    })?;
+
                 let original_count = findings.len();
                 findings.retain(|f| !baseline_fingerprints.contains(&f.fingerprint));
                 let suppressed = original_count - findings.len();
@@ -306,18 +395,31 @@ pub fn run() -> Result<ExitCode> {
                 }
             }
 
+            let triage_store = if let Some(path) = triage_path.as_ref() {
+                Some(TriageStore::load_or_default(path)?)
+            } else {
+                None
+            };
+            if let Some(store) = triage_store.as_ref() {
+                let hidden = triage::overlay_and_filter(&mut findings, store, hide_triaged);
+                if hidden > 0 {
+                    eprintln!("  Hidden {} triaged finding(s)", hidden);
+                }
+            }
+
             if verify {
                 eprintln!("Verifying detected secrets...");
                 crate::matcher::verify::enrich_findings(&mut findings);
-                let live_count = findings.iter()
+                let live_count = findings
+                    .iter()
                     .filter(|f| f.evidence.get("verified").and_then(|v| v.as_bool()) == Some(true))
                     .count();
                 eprintln!("  {} live secrets confirmed", live_count);
             }
 
             match format {
-                Format::Text  => output::text::emit(&findings)?,
-                Format::Json  => output::json::emit(&findings)?,
+                Format::Text => output::text::emit(&findings)?,
+                Format::Json => output::json::emit(&findings)?,
                 Format::Sarif => output::sarif::emit(&findings)?,
             }
 
@@ -325,7 +427,10 @@ pub fn run() -> Result<ExitCode> {
                 let cia_scores = crate::cia::score(&findings, &pack);
                 match format {
                     Format::Json => {
-                        println!("{}", serde_json::to_string_pretty(&cia_scores).unwrap_or_default());
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&cia_scores).unwrap_or_default()
+                        );
                     }
                     _ => {
                         crate::cia::print_summary(&cia_scores, &findings, &pack);
@@ -334,28 +439,48 @@ pub fn run() -> Result<ExitCode> {
             }
 
             let fail_hit = match fail_on {
-                Some(min) => findings.iter().any(|f| f.severity >= min),
-                None      => false,
+                Some(min) => findings.iter().any(|f| {
+                    f.severity >= min
+                        && triage::is_actionable_for_fail_on(f, triage_store.as_ref())
+                }),
+                None => false,
             };
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
         }
 
-        Cmd::Baseline { target, rules, output } => {
+        Cmd::Baseline {
+            target,
+            rules,
+            output,
+        } => {
             let pack = load_pack(rules.as_deref())?;
             let findings = scanner::run(&target, &pack)?;
-            let fingerprints: std::collections::BTreeSet<String> = findings.into_iter()
-                .map(|f| f.fingerprint)
-                .collect();
-            
+            let fingerprints: std::collections::BTreeSet<String> =
+                findings.into_iter().map(|f| f.fingerprint).collect();
+
             let json = serde_json::to_string_pretty(&fingerprints)?;
             std::fs::write(&output, json)
                 .with_context(|| format!("writing baseline to {}", output.display()))?;
-            
-            eprintln!("✓ Baseline created with {} unique finding(s) in {}", fingerprints.len(), output.display());
+
+            eprintln!(
+                "✓ Baseline created with {} unique finding(s) in {}",
+                fingerprints.len(),
+                output.display()
+            );
             Ok(ExitCode::from(0))
         }
 
-        Cmd::Supply { target, rules, advisories, no_advisories, offline: _, format, fail_on } => {
+        Cmd::Supply {
+            target,
+            rules,
+            triage: triage_path,
+            hide_triaged,
+            advisories,
+            no_advisories,
+            offline: _,
+            format,
+            fail_on,
+        } => {
             let pack = load_pack(rules.as_deref())?;
             let snapshot = if no_advisories {
                 supply::advisory::Snapshot::default()
@@ -363,29 +488,53 @@ pub fn run() -> Result<ExitCode> {
                 let dir = advisories.unwrap_or_else(bundled_advisories_path);
                 supply::advisory::Snapshot::load_dir(&dir)?
             };
-            let findings = supply::run(&target, &pack, &snapshot)?;
+            let mut findings = supply::run(&target, &pack, &snapshot)?;
+            let triage_store = if let Some(path) = triage_path.as_ref() {
+                Some(TriageStore::load_or_default(path)?)
+            } else {
+                None
+            };
+            if let Some(store) = triage_store.as_ref() {
+                let hidden = triage::overlay_and_filter(&mut findings, store, hide_triaged);
+                if hidden > 0 {
+                    eprintln!("  Hidden {} triaged finding(s)", hidden);
+                }
+            }
             match format {
-                Format::Text  => output::text::emit(&findings)?,
-                Format::Json  => output::json::emit(&findings)?,
+                Format::Text => output::text::emit(&findings)?,
+                Format::Json => output::json::emit(&findings)?,
                 Format::Sarif => output::sarif::emit(&findings)?,
             }
             let fail_hit = match fail_on {
-                Some(min) => findings.iter().any(|f| f.severity >= min),
-                None      => false,
+                Some(min) => findings.iter().any(|f| {
+                    f.severity >= min
+                        && triage::is_actionable_for_fail_on(f, triage_store.as_ref())
+                }),
+                None => false,
             };
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
         }
 
-        Cmd::Fix { target, rules, dry_run, interactive, no_backup, fail_on } => {
+        Cmd::Fix {
+            target,
+            rules,
+            dry_run,
+            interactive,
+            no_backup,
+            fail_on,
+        } => {
             let pack = load_pack(rules.as_deref())?;
             let findings = scanner::run(&target, &pack)?;
             let total = findings.len();
 
-            let report = fixer::apply(findings, fixer::FixOptions {
-                dry_run,
-                interactive,
-                backup: !no_backup,
-            })?;
+            let report = fixer::apply(
+                findings,
+                fixer::FixOptions {
+                    dry_run,
+                    interactive,
+                    backup: !no_backup,
+                },
+            )?;
 
             eprintln!(
                 "fix: {} patched, {} fixed, {} skipped (no fix), {} skipped (overlap), {} aborted; {} findings remain",
@@ -399,12 +548,14 @@ pub fn run() -> Result<ExitCode> {
 
             let fail_hit = match fail_on {
                 Some(min) => report.remaining.iter().any(|f| f.severity >= min),
-                None      => false,
+                None => false,
             };
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
         }
 
-        Cmd::Rules { cmd: RulesCmd::List { rules } } => {
+        Cmd::Rules {
+            cmd: RulesCmd::List { rules },
+        } => {
             let pack = load_pack(rules.as_deref())?;
             for rule in pack.rules() {
                 println!("{:<40} {:<8} {}", rule.id, rule.severity, rule.title);
@@ -413,9 +564,134 @@ pub fn run() -> Result<ExitCode> {
             Ok(ExitCode::from(0))
         }
 
-        Cmd::Rules { cmd: RulesCmd::Validate { rules } } => {
+        Cmd::Rules {
+            cmd: RulesCmd::Validate { rules },
+        } => {
             let pack = load_pack(rules.as_deref())?;
             println!("✓ {} rule(s) parsed cleanly", pack.rules().len());
+            Ok(ExitCode::from(0))
+        }
+
+        Cmd::Triage {
+            cmd: TriageCmd::Init { output },
+        } => {
+            let store = TriageStore::default();
+            store.save(&output)?;
+            eprintln!("✓ Triage store created at {}", output.display());
+            Ok(ExitCode::from(0))
+        }
+
+        Cmd::Triage {
+            cmd:
+                TriageCmd::Set {
+                    fingerprint,
+                    status,
+                    triage,
+                    note,
+                    author,
+                    rule_id,
+                    file,
+                    title,
+                    severity,
+                },
+        } => {
+            let mut store = TriageStore::load_or_default(&triage)?;
+            let entry = store.set(
+                fingerprint,
+                status,
+                TriageSetOptions {
+                    note,
+                    author,
+                    rule_id,
+                    file,
+                    title,
+                    severity,
+                },
+            );
+            let fingerprint = entry.fingerprint.clone();
+            let status = entry.status;
+            store.save(&triage)?;
+            eprintln!(
+                "✓ {} -> {} in {}",
+                fingerprint,
+                status.as_str(),
+                triage.display()
+            );
+            Ok(ExitCode::from(0))
+        }
+
+        Cmd::Triage {
+            cmd:
+                TriageCmd::List {
+                    triage,
+                    status,
+                    format,
+                },
+        } => {
+            let store = TriageStore::load_or_default(&triage)?;
+            let entries: Vec<_> = store
+                .entries
+                .values()
+                .filter(|entry| status.is_none_or(|s| s == entry.status))
+                .cloned()
+                .collect();
+            match format {
+                Format::Json | Format::Sarif => {
+                    println!("{}", serde_json::to_string_pretty(&entries)?);
+                }
+                Format::Text => {
+                    if entries.is_empty() {
+                        println!("No triaged findings.");
+                    } else {
+                        for entry in entries {
+                            println!(
+                                "{}  {}  {}",
+                                entry.status.as_str(),
+                                entry.fingerprint,
+                                entry.rule_id.unwrap_or_default()
+                            );
+                            if let Some(title) = entry.title {
+                                println!("        {}", title);
+                            }
+                            if let Some(note) = entry.note {
+                                println!("        note: {}", note);
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(ExitCode::from(0))
+        }
+
+        Cmd::Triage {
+            cmd:
+                TriageCmd::History {
+                    fingerprint,
+                    triage,
+                    format,
+                },
+        } => {
+            let store = TriageStore::load_or_default(&triage)?;
+            let Some(entry) = store.entries.get(&fingerprint) else {
+                anyhow::bail!("no triage entry found for fingerprint {}", fingerprint);
+            };
+            match format {
+                Format::Json | Format::Sarif => {
+                    println!("{}", serde_json::to_string_pretty(entry)?);
+                }
+                Format::Text => {
+                    println!("{}  {}", entry.status.as_str(), entry.fingerprint);
+                    for event in &entry.history {
+                        println!("  {}  {}", event.timestamp, event.status.as_str());
+                        if let Some(author) = &event.author {
+                            println!("    by: {}", author);
+                        }
+                        if let Some(note) = &event.note {
+                            println!("    note: {}", note);
+                        }
+                    }
+                }
+            }
             Ok(ExitCode::from(0))
         }
 
@@ -423,11 +699,23 @@ pub fn run() -> Result<ExitCode> {
             let health = crate::framework::check_repo_health(&target);
             match format {
                 Format::Json => {
-                    println!("{}", serde_json::to_string_pretty(&health).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&health).unwrap_or_default()
+                    );
                 }
                 Format::Text => {
-                    let icon = if health.score >= 80 { "PASS" } else if health.score >= 50 { "WARN" } else { "FAIL" };
-                    println!("\nRepository Health Score: {}/100 [{}]\n", health.score, icon);
+                    let icon = if health.score >= 80 {
+                        "PASS"
+                    } else if health.score >= 50 {
+                        "WARN"
+                    } else {
+                        "FAIL"
+                    };
+                    println!(
+                        "\nRepository Health Score: {}/100 [{}]\n",
+                        health.score, icon
+                    );
                     for check in &health.checks {
                         let status = if check.passed { " PASS " } else { " FAIL " };
                         let sev = match check.severity {
@@ -445,7 +733,10 @@ pub fn run() -> Result<ExitCode> {
                     println!();
                 }
                 Format::Sarif => {
-                    println!("{}", serde_json::to_string_pretty(&health).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&health).unwrap_or_default()
+                    );
                 }
             }
             Ok(ExitCode::from(if health.score >= 50 { 0 } else { 1 }))
@@ -458,14 +749,27 @@ pub fn run() -> Result<ExitCode> {
             } else {
                 match format {
                     Format::Json => {
-                        println!("{}", serde_json::to_string_pretty(&detected).unwrap_or_default());
+                        println!(
+                            "{}",
+                            serde_json::to_string_pretty(&detected).unwrap_or_default()
+                        );
                     }
                     _ => {
                         println!("{} framework(s) detected:\n", detected.len());
                         for fw in &detected {
-                            let ver = fw.version.as_deref().map(|v| format!(" v{v}")).unwrap_or_default();
-                            println!("  {:<20} {:<12} {:<8} confidence {:.0}%{}",
-                                fw.name, fw.language, fw.category, fw.confidence * 100.0, ver);
+                            let ver = fw
+                                .version
+                                .as_deref()
+                                .map(|v| format!(" v{v}"))
+                                .unwrap_or_default();
+                            println!(
+                                "  {:<20} {:<12} {:<8} confidence {:.0}%{}",
+                                fw.name,
+                                fw.language,
+                                fw.category,
+                                fw.confidence * 100.0,
+                                ver
+                            );
                             for loc in &fw.detected_in {
                                 println!("    found in: {loc}");
                             }
@@ -476,7 +780,15 @@ pub fn run() -> Result<ExitCode> {
             Ok(ExitCode::from(0))
         }
 
-        Cmd::K8s { kubeconfig, namespace, report, format, scan_images, rules, fail_on } => {
+        Cmd::K8s {
+            kubeconfig,
+            namespace,
+            report,
+            format,
+            scan_images,
+            rules,
+            fail_on,
+        } => {
             print_banner();
             let pack = load_pack(rules.as_deref())?;
             let opts = k8s::K8sOptions {
@@ -489,31 +801,42 @@ pub fn run() -> Result<ExitCode> {
             match report {
                 K8sReportMode::Summary => k8s::summary::print_summary(&k8s_report),
                 K8sReportMode::Full => match format {
-                    Format::Text  => k8s::summary::print_full(&k8s_report),
-                    Format::Json  => output::json::emit(&k8s_report.all_findings)?,
+                    Format::Text => k8s::summary::print_full(&k8s_report),
+                    Format::Json => output::json::emit(&k8s_report.all_findings)?,
                     Format::Sarif => output::sarif::emit(&k8s_report.all_findings)?,
                 },
             }
 
             let fail_hit = match fail_on {
                 Some(min) => k8s_report.all_findings.iter().any(|f| f.severity >= min),
-                None      => false,
+                None => false,
             };
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
         }
 
-        Cmd::App { target, format, fail_below } => {
+        Cmd::App {
+            target,
+            format,
+            fail_below,
+        } => {
             print_banner();
             let report = crate::appscan::scan(&target)?;
 
             match format {
                 Format::Json => {
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&report).unwrap_or_default()
+                    );
                 }
                 Format::Text => {
-                    let icon = if report.score >= 80 { "\x1b[32mGOOD\x1b[0m" }
-                        else if report.score >= 50 { "\x1b[33mFAIR\x1b[0m" }
-                        else { "\x1b[31mPOOR\x1b[0m" };
+                    let icon = if report.score >= 80 {
+                        "\x1b[32mGOOD\x1b[0m"
+                    } else if report.score >= 50 {
+                        "\x1b[33mFAIR\x1b[0m"
+                    } else {
+                        "\x1b[31mPOOR\x1b[0m"
+                    };
 
                     println!();
                     println!("  App: {} ({})", report.app_name, report.app_type);
@@ -524,7 +847,12 @@ pub fn run() -> Result<ExitCode> {
                     }
                     println!();
                     println!("  Security Score: {}/100 [{}]", report.score, icon);
-                    println!("  Passed: {}  Failed: {}  Total: {}", report.passed, report.failed, report.passed + report.failed);
+                    println!(
+                        "  Passed: {}  Failed: {}  Total: {}",
+                        report.passed,
+                        report.failed,
+                        report.passed + report.failed
+                    );
                     println!();
 
                     for f in &report.findings {
@@ -533,12 +861,16 @@ pub fn run() -> Result<ExitCode> {
                         } else {
                             match f.severity.as_str() {
                                 "critical" => "\x1b[31m FAIL \x1b[0m",
-                                "high"     => "\x1b[33m FAIL \x1b[0m",
-                                _          => "\x1b[36m FAIL \x1b[0m",
+                                "high" => "\x1b[33m FAIL \x1b[0m",
+                                _ => "\x1b[36m FAIL \x1b[0m",
                             }
                         };
                         let sev = match f.severity.as_str() {
-                            "critical" => "CRIT", "high" => "HIGH", "medium" => "MED ", "low" => "LOW ", _ => "INFO",
+                            "critical" => "CRIT",
+                            "high" => "HIGH",
+                            "medium" => "MED ",
+                            "low" => "LOW ",
+                            _ => "INFO",
                         };
                         println!("  [{}] [{}] {}", status, sev, f.check);
                         if !f.passed {
@@ -567,7 +899,10 @@ pub fn run() -> Result<ExitCode> {
                     println!();
                 }
                 Format::Sarif => {
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&report).unwrap_or_default()
+                    );
                 }
             }
 
@@ -584,19 +919,29 @@ pub fn run() -> Result<ExitCode> {
 
             match format {
                 Format::Json => {
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&report).unwrap_or_default()
+                    );
                 }
                 Format::Text => {
-                    let icon = if report.score >= 80 { "\x1b[32mGOOD\x1b[0m" }
-                        else if report.score >= 50 { "\x1b[33mFAIR\x1b[0m" }
-                        else { "\x1b[31mPOOR\x1b[0m" };
+                    let icon = if report.score >= 80 {
+                        "\x1b[32mGOOD\x1b[0m"
+                    } else if report.score >= 50 {
+                        "\x1b[33mFAIR\x1b[0m"
+                    } else {
+                        "\x1b[31mPOOR\x1b[0m"
+                    };
 
                     println!();
                     println!("  Endpoint: {} ({})", report.hostname, report.os);
                     println!("  OS Version: {}", report.os_version);
                     println!();
                     println!("  Security Score: {}/100 [{}]", report.score, icon);
-                    println!("  Passed: {}  Failed: {}  Total: {}", report.passed, report.failed, report.total);
+                    println!(
+                        "  Passed: {}  Failed: {}  Total: {}",
+                        report.passed, report.failed, report.total
+                    );
                     println!();
 
                     for check in &report.checks {
@@ -605,8 +950,8 @@ pub fn run() -> Result<ExitCode> {
                         } else {
                             match check.severity.as_str() {
                                 "critical" => "\x1b[31m FAIL \x1b[0m",
-                                "high"     => "\x1b[33m FAIL \x1b[0m",
-                                _          => "\x1b[36m FAIL \x1b[0m",
+                                "high" => "\x1b[33m FAIL \x1b[0m",
+                                _ => "\x1b[36m FAIL \x1b[0m",
                             }
                         };
                         let sev = match check.severity.as_str() {
@@ -626,7 +971,10 @@ pub fn run() -> Result<ExitCode> {
                 }
                 Format::Sarif => {
                     // Convert to findings for SARIF output
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&report).unwrap_or_default()
+                    );
                 }
             }
 
@@ -701,22 +1049,30 @@ fn bundled_advisories_path() -> PathBuf {
     if let Ok(exe) = std::env::current_exe() {
         let real_exe = std::fs::canonicalize(&exe).unwrap_or(exe);
         if let Some(dir) = real_exe.parent() {
-            for rel in ["rules/advisories", "../rules/advisories", "../share/cyscan/rules/advisories"] {
+            for rel in [
+                "rules/advisories",
+                "../rules/advisories",
+                "../share/cyscan/rules/advisories",
+            ] {
                 let c = dir.join(rel);
-                if c.exists() { return c.canonicalize().unwrap_or(c); }
+                if c.exists() {
+                    return c.canonicalize().unwrap_or(c);
+                }
             }
         }
     }
     for prefix in ["/opt/homebrew/opt/cyscan", "/usr/local/opt/cyscan"] {
         let c = PathBuf::from(prefix).join("rules/advisories");
-        if c.exists() { return c; }
+        if c.exists() {
+            return c;
+        }
     }
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("rules/advisories")
 }
 
 fn collect_cloud_context(target: &std::path::Path) -> scanner::CloudContext {
     let mut ctx = scanner::CloudContext::default();
-    
+
     // Quick heuristic scan of manifests in the same repo
     let walker = ignore::WalkBuilder::new(target)
         .standard_filters(true)
@@ -734,16 +1090,24 @@ fn collect_cloud_context(target: &std::path::Path) -> scanner::CloudContext {
                     if content.contains("hostNetwork: true") {
                         ctx.host_networks.insert(path.to_string_lossy().into());
                     }
-                    
+
                     // Resource Extraction (Heuristic for S3/Storage)
                     // Matches strings like bucket: "my-data" or name: "my-bucket" in public contexts
-                    if content.contains("public") || content.contains("allUsers") || content.contains("0.0.0.0") {
+                    if content.contains("public")
+                        || content.contains("allUsers")
+                        || content.contains("0.0.0.0")
+                    {
                         for line in content.lines() {
                             if line.contains("bucket") || line.contains("name") {
                                 if let Some(name) = line.split(':').nth(1) {
-                                    let clean_name = name.trim().trim_matches('"').trim_matches('\'').to_string();
+                                    let clean_name = name
+                                        .trim()
+                                        .trim_matches('"')
+                                        .trim_matches('\'')
+                                        .to_string();
                                     if clean_name.len() > 3 {
-                                        ctx.public_resources.insert(clean_name, path.to_string_lossy().into());
+                                        ctx.public_resources
+                                            .insert(clean_name, path.to_string_lossy().into());
                                     }
                                 }
                             }
