@@ -1,6 +1,6 @@
 //! Rule pack — loading, validation, and the rule shape callers match against.
 
-use std::{fs, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -78,6 +78,10 @@ pub struct Rule {
     /// match for the rule to fire.
     #[serde(default)]
     pub pattern_either: Vec<String>,
+    /// Grouped boolean any-of Semgrep-style patterns. At least one group
+    /// must match, and every entry in a group must match together.
+    #[serde(default)]
+    pub pattern_either_groups: Vec<Vec<String>>,
     /// Negative pattern filter. If this matches the candidate context, the
     /// rule is suppressed.
     #[serde(default)]
@@ -86,10 +90,20 @@ pub struct Rule {
     /// larger snippet that satisfies this pattern.
     #[serde(default)]
     pub pattern_inside: Option<String>,
+    /// Negative enclosing context filters. If the match occurs inside any of
+    /// these contexts, the rule is suppressed.
+    #[serde(default)]
+    pub pattern_not_inside: Vec<String>,
     /// Simple capture-aware comparison filter such as `len($arg) > 10` or
     /// `$fn == "eval"`.
     #[serde(default)]
     pub metavariable_comparison: Option<String>,
+    /// Boolean all-of capture-aware comparisons.
+    #[serde(default)]
+    pub metavariable_comparisons: Vec<String>,
+    /// Capture type constraints such as `arg: string` or `fn: identifier`.
+    #[serde(default)]
+    pub metavariable_types: HashMap<String, String>,
     pub message: String,
     #[serde(default)]
     pub fix_recipe: Option<String>,
@@ -149,9 +163,10 @@ impl Rule {
             && self.pattern.is_none()
             && self.patterns.is_empty()
             && self.pattern_either.is_empty()
+            && self.pattern_either_groups.is_empty()
         {
             bail!(
-                "rule {}: neither query, regex, pattern, patterns, nor pattern_either set",
+                "rule {}: neither query, regex, pattern, patterns, pattern_either, nor pattern_either_groups set",
                 self.id
             );
         }

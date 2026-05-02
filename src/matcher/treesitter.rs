@@ -10,7 +10,10 @@ use tree_sitter::{Parser, Query, QueryCursor, Tree};
 
 use crate::{finding::Finding, lang::Lang, rule::Rule};
 
-use super::{dsl::metavariable_comparison_matches, semantics::FileSemantics};
+use super::{
+    dsl::{metavariable_comparisons_match, metavariable_types_match, CaptureMeta},
+    semantics::FileSemantics,
+};
 
 #[derive(Debug, Clone)]
 struct PathSensitivity {
@@ -100,7 +103,7 @@ pub fn match_rule(
         if !semantic_guard(rule, semantics, &captures) {
             continue;
         }
-        if !dsl_pattern_filters_match(rule, source, node, &captures) {
+        if !dsl_pattern_filters_match(rule, source, node, &query, &m.captures, &captures) {
             continue;
         }
 
@@ -227,6 +230,8 @@ fn dsl_pattern_filters_match(
     rule: &Rule,
     source: &str,
     node: tree_sitter::Node<'_>,
+    query: &Query,
+    raw_captures: &[tree_sitter::QueryCapture<'_>],
     captures: &HashMap<String, String>,
 ) -> bool {
     let node_text = node.utf8_text(source.as_bytes()).ok().unwrap_or_default();
@@ -271,6 +276,30 @@ fn dsl_pattern_filters_match(
         }
     }
 
+    let either_groups = tree_either_groups(rule);
+    if !either_groups.is_empty() {
+        let compiled_groups: Vec<Vec<Regex>> = either_groups
+            .into_iter()
+            .map(|group| {
+                group
+                    .into_iter()
+                    .filter_map(compile_tree_filter_regex)
+                    .collect::<Vec<_>>()
+            })
+            .filter(|group| !group.is_empty())
+            .collect();
+        if compiled_groups.is_empty() {
+            return false;
+        }
+        if !compiled_groups.iter().any(|group| {
+            group
+                .iter()
+                .all(|re| candidate_texts.iter().any(|text| re.is_match(text)))
+        }) {
+            return false;
+        }
+    }
+
     if let Some(pattern_not) = rule.pattern_not.as_deref() {
         if let Some(re) = compile_tree_filter_regex(pattern_not) {
             if re.is_match(node_text) {
@@ -282,12 +311,42 @@ fn dsl_pattern_filters_match(
         }
     }
 
+    if !rule.pattern_not_inside.is_empty() {
+        let not_inside: Vec<Regex> = rule
+            .pattern_not_inside
+            .iter()
+            .filter_map(|pattern| compile_tree_filter_regex(pattern))
+            .collect();
+        if not_inside.is_empty() {
+            return false;
+        }
+        let mut current = node.parent();
+        while let Some(parent) = current {
+            if parent.parent().is_none() {
+                current = parent.parent();
+                continue;
+            }
+            if let Ok(text) = parent.utf8_text(source.as_bytes()) {
+                if not_inside.iter().any(|re| re.is_match(text)) {
+                    return false;
+                }
+            }
+            current = parent.parent();
+        }
+    }
+
+    let capture_meta = build_capture_meta(source, query, raw_captures, node_text, captures);
+
     if let Some(pattern_inside) = rule.pattern_inside.as_deref() {
         let Some(re) = compile_tree_filter_regex(pattern_inside) else {
             return false;
         };
         let mut current = node.parent();
         while let Some(parent) = current {
+            if parent.parent().is_none() {
+                current = parent.parent();
+                continue;
+            }
             if let Ok(text) = parent.utf8_text(source.as_bytes()) {
                 if re.is_match(text) {
                     return true;
@@ -298,15 +357,16 @@ fn dsl_pattern_filters_match(
         return false;
     }
 
-    if let Some(comparison) = rule.metavariable_comparison.as_deref() {
-        if !metavariable_comparison_matches(comparison, |name| {
-            if name == "MATCH" {
-                return Some(node_text);
-            }
-            captures.get(name).map(String::as_str)
-        }) {
-            return false;
-        }
+    if !metavariable_comparisons_match(
+        &rule.metavariable_comparisons,
+        rule.metavariable_comparison.as_deref(),
+        &capture_meta,
+    ) {
+        return false;
+    }
+
+    if !metavariable_types_match(&rule.metavariable_types, &capture_meta) {
+        return false;
     }
 
     true
@@ -324,6 +384,45 @@ fn tree_positive_patterns(rule: &Rule) -> Vec<&str> {
 
 fn tree_either_patterns(rule: &Rule) -> Vec<&str> {
     rule.pattern_either.iter().map(String::as_str).collect()
+}
+
+fn tree_either_groups(rule: &Rule) -> Vec<Vec<&str>> {
+    rule.pattern_either_groups
+        .iter()
+        .map(|group| group.iter().map(String::as_str).collect())
+        .collect()
+}
+
+fn build_capture_meta<'a>(
+    source: &'a str,
+    query: &Query,
+    raw_captures: &[tree_sitter::QueryCapture<'a>],
+    node_text: &'a str,
+    captures: &'a HashMap<String, String>,
+) -> HashMap<String, CaptureMeta<'a>> {
+    let mut meta = HashMap::new();
+    meta.insert(
+        "MATCH".into(),
+        CaptureMeta {
+            text: node_text,
+            kind: Some("match"),
+        },
+    );
+    for capture in raw_captures {
+        let name = query.capture_names()[capture.index as usize].to_string();
+        let text = capture.node.utf8_text(source.as_bytes()).ok().unwrap_or("");
+        meta.entry(name).or_insert(CaptureMeta {
+            text,
+            kind: Some(capture.node.kind()),
+        });
+    }
+    for (name, value) in captures {
+        meta.entry(name.clone()).or_insert(CaptureMeta {
+            text: value.as_str(),
+            kind: None,
+        });
+    }
+    meta
 }
 
 fn compile_tree_filter_regex(pattern: &str) -> Option<Regex> {

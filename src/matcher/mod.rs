@@ -73,6 +73,7 @@ pub fn run_rules_with_semantics<'a>(
             || rule.pattern.is_some()
             || !rule.patterns.is_empty()
             || !rule.pattern_either.is_empty()
+            || !rule.pattern_either_groups.is_empty()
         {
             findings.extend(regex::match_rule(rule, lang, path, source, semantics));
         }

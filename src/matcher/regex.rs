@@ -9,7 +9,10 @@ use regex::{Regex, RegexBuilder};
 
 use crate::{finding::Finding, lang::Lang, rule::Rule};
 
-use super::{dsl::metavariable_comparison_matches, semantics::FileSemantics};
+use super::{
+    dsl::{metavariable_comparisons_match, metavariable_types_match, CaptureMeta},
+    semantics::FileSemantics,
+};
 
 /// Convert semgrep-style AST pattern to regex.
 ///
@@ -134,7 +137,8 @@ pub fn match_rule(
 ) -> Vec<Finding> {
     let positive_patterns = rule_positive_patterns(rule);
     let either_patterns = rule_either_patterns(rule);
-    if positive_patterns.is_empty() && either_patterns.is_empty() {
+    let either_groups = rule_either_groups(rule);
+    if positive_patterns.is_empty() && either_patterns.is_empty() && either_groups.is_empty() {
         return Vec::new();
     }
 
@@ -146,12 +150,26 @@ pub fn match_rule(
         .iter()
         .filter_map(|pat| compile_semgrep_like_regex(rule.id.as_str(), pat, false))
         .collect();
-    if compiled_patterns.is_empty() && compiled_either.is_empty() {
+    let compiled_either_groups: Vec<Vec<Regex>> = either_groups
+        .iter()
+        .map(|group| {
+            group
+                .iter()
+                .filter_map(|pat| compile_semgrep_like_regex(rule.id.as_str(), pat, false))
+                .collect::<Vec<_>>()
+        })
+        .filter(|group| !group.is_empty())
+        .collect();
+    if compiled_patterns.is_empty()
+        && compiled_either.is_empty()
+        && compiled_either_groups.is_empty()
+    {
         return Vec::new();
     }
     let multiline = positive_patterns
         .iter()
         .chain(either_patterns.iter())
+        .chain(either_groups.iter().flat_map(|group| group.iter()))
         .any(|pat| needs_multiline_matching(pat))
         || rule
             .pattern_inside
@@ -167,12 +185,23 @@ pub fn match_rule(
         .pattern_not
         .as_deref()
         .and_then(|pat| compile_semgrep_like_regex(rule.id.as_str(), pat, multiline));
+    let not_inside_ranges: Vec<(usize, usize)> = rule
+        .pattern_not_inside
+        .iter()
+        .filter_map(|pat| compile_semgrep_like_regex(rule.id.as_str(), pat, true))
+        .flat_map(|re| context_ranges(source, &re))
+        .collect();
 
     let mut out = Vec::new();
     if multiline {
         let additional_patterns = compiled_patterns.get(1..).unwrap_or(&[]);
         let primary_patterns: Vec<&Regex> = if !compiled_patterns.is_empty() {
             vec![&compiled_patterns[0]]
+        } else if !compiled_either_groups.is_empty() {
+            compiled_either_groups
+                .iter()
+                .filter_map(|group| group.first())
+                .collect()
         } else {
             compiled_either.iter().collect()
         };
@@ -184,6 +213,9 @@ pub fn match_rule(
                 if !either_patterns_match_range(&compiled_either, source, m.start(), m.end()) {
                     continue;
                 }
+                if !either_groups_match_range(&compiled_either_groups, source, m.start(), m.end()) {
+                    continue;
+                }
                 if pattern_not_matches(
                     rule.pattern_not.as_deref(),
                     pattern_not.as_ref(),
@@ -192,8 +224,15 @@ pub fn match_rule(
                     continue;
                 }
                 if !metavariable_comparison_ok(
+                    &rule.metavariable_comparisons,
                     rule.metavariable_comparison.as_deref(),
-                    &[("MATCH", &source[m.start()..m.end()])],
+                    &capture_meta_for_regex(&source[m.start()..m.end()]),
+                ) {
+                    continue;
+                }
+                if !metavariable_types_ok(
+                    &rule.metavariable_types,
+                    &capture_meta_for_regex(&source[m.start()..m.end()]),
                 ) {
                     continue;
                 }
@@ -201,6 +240,12 @@ pub fn match_rule(
                     && !inside_ranges
                         .iter()
                         .any(|(start, end)| m.start() >= *start && m.end() <= *end)
+                {
+                    continue;
+                }
+                if not_inside_ranges
+                    .iter()
+                    .any(|(start, end)| m.start() >= *start && m.end() <= *end)
                 {
                     continue;
                 }
@@ -247,6 +292,11 @@ pub fn match_rule(
         let additional_patterns = compiled_patterns.get(1..).unwrap_or(&[]);
         let primary_patterns: Vec<&Regex> = if !compiled_patterns.is_empty() {
             vec![&compiled_patterns[0]]
+        } else if !compiled_either_groups.is_empty() {
+            compiled_either_groups
+                .iter()
+                .filter_map(|group| group.first())
+                .collect()
         } else {
             compiled_either.iter().collect()
         };
@@ -266,6 +316,9 @@ pub fn match_rule(
                     {
                         continue;
                     }
+                    if !either_groups_match_text(&compiled_either_groups, trimmed) {
+                        continue;
+                    }
                     if pattern_not_matches(
                         rule.pattern_not.as_deref(),
                         pattern_not.as_ref(),
@@ -274,8 +327,15 @@ pub fn match_rule(
                         continue;
                     }
                     if !metavariable_comparison_ok(
+                        &rule.metavariable_comparisons,
                         rule.metavariable_comparison.as_deref(),
-                        &[("MATCH", &trimmed[m.start()..m.end()])],
+                        &capture_meta_for_regex(&trimmed[m.start()..m.end()]),
+                    ) {
+                        continue;
+                    }
+                    if !metavariable_types_ok(
+                        &rule.metavariable_types,
+                        &capture_meta_for_regex(&trimmed[m.start()..m.end()]),
                     ) {
                         continue;
                     }
@@ -285,6 +345,12 @@ pub fn match_rule(
                         && !inside_ranges
                             .iter()
                             .any(|(start, end)| abs_start >= *start && abs_end <= *end)
+                    {
+                        continue;
+                    }
+                    if not_inside_ranges
+                        .iter()
+                        .any(|(start, end)| abs_start >= *start && abs_end <= *end)
                     {
                         continue;
                     }
@@ -341,6 +407,13 @@ fn rule_either_patterns(rule: &Rule) -> Vec<&str> {
     rule.pattern_either.iter().map(String::as_str).collect()
 }
 
+fn rule_either_groups(rule: &Rule) -> Vec<Vec<&str>> {
+    rule.pattern_either_groups
+        .iter()
+        .map(|group| group.iter().map(String::as_str).collect())
+        .collect()
+}
+
 fn compile_semgrep_like_regex(rule_id: &str, pattern: &str, multiline: bool) -> Option<Regex> {
     let pat = pattern.trim();
     if pat.is_empty() {
@@ -387,6 +460,30 @@ fn either_patterns_match_range(patterns: &[Regex], source: &str, start: usize, e
     patterns.iter().any(|re| re.is_match(snippet))
 }
 
+fn either_groups_match_range(
+    pattern_groups: &[Vec<Regex>],
+    source: &str,
+    start: usize,
+    end: usize,
+) -> bool {
+    if pattern_groups.is_empty() {
+        return true;
+    }
+    let snippet = &source[start..end];
+    pattern_groups
+        .iter()
+        .any(|group| group.iter().all(|re| re.is_match(snippet)))
+}
+
+fn either_groups_match_text(pattern_groups: &[Vec<Regex>], text: &str) -> bool {
+    if pattern_groups.is_empty() {
+        return true;
+    }
+    pattern_groups
+        .iter()
+        .any(|group| group.iter().all(|re| re.is_match(text)))
+}
+
 fn context_ranges(source: &str, re: &Regex) -> Vec<(usize, usize)> {
     re.find_iter(source)
         .map(|m| {
@@ -405,15 +502,23 @@ fn pattern_not_matches(raw: Option<&str>, compiled: Option<&Regex>, text: &str) 
         || raw.is_some_and(|pat| compact_code(text).contains(&compact_code(pat)))
 }
 
-fn metavariable_comparison_ok(comparison: Option<&str>, captures: &[(&str, &str)]) -> bool {
-    let Some(comparison) = comparison else {
-        return true;
-    };
-    metavariable_comparison_matches(comparison, |name| {
-        captures
-            .iter()
-            .find_map(|(capture, value)| (*capture == name).then_some(*value))
-    })
+fn capture_meta_for_regex<'a>(text: &'a str) -> HashMap<String, CaptureMeta<'a>> {
+    HashMap::from([("MATCH".to_string(), CaptureMeta { text, kind: None })])
+}
+
+fn metavariable_comparison_ok(
+    comparisons: &[String],
+    singular: Option<&str>,
+    captures: &HashMap<String, CaptureMeta<'_>>,
+) -> bool {
+    metavariable_comparisons_match(comparisons, singular, captures)
+}
+
+fn metavariable_types_ok(
+    constraints: &HashMap<String, String>,
+    captures: &HashMap<String, CaptureMeta<'_>>,
+) -> bool {
+    metavariable_types_match(constraints, captures)
 }
 
 fn compact_code(text: &str) -> String {
@@ -1439,9 +1544,13 @@ mod tests {
             source: None,
             patterns: vec![],
             pattern_either: vec![],
+            pattern_either_groups: vec![],
             pattern_not: None,
             pattern_inside: None,
+            pattern_not_inside: vec![],
             metavariable_comparison: None,
+            metavariable_comparisons: vec![],
+            metavariable_types: HashMap::new(),
             cia: None,
         };
         let source = "import org.springframework.web.bind.annotation.RequestParam;\nclass Controller { String go(@RequestParam String expr) { parser.parseExpression(expr); return expr; } }\n";
@@ -1489,9 +1598,13 @@ mod tests {
             source: None,
             patterns: vec![],
             pattern_either: vec![],
+            pattern_either_groups: vec![],
             pattern_not: None,
             pattern_inside: None,
+            pattern_not_inside: vec![],
             metavariable_comparison: None,
+            metavariable_comparisons: vec![],
+            metavariable_types: HashMap::new(),
             cia: None,
         };
         let source = "import flask\npayload = flask.request.args.get('code')\n";
@@ -1543,9 +1656,13 @@ mod tests {
             source: None,
             patterns: vec![],
             pattern_either: vec![],
+            pattern_either_groups: vec![],
             pattern_not: None,
             pattern_inside: None,
+            pattern_not_inside: vec![],
             metavariable_comparison: None,
+            metavariable_comparisons: vec![],
+            metavariable_types: HashMap::new(),
             cia: None,
         };
         let source = "import org.springframework.web.bind.annotation.RequestParam;\nclass Controller { String go(@RequestParam String next) { return \"redirect:\" + next; } }\n";
@@ -1586,9 +1703,13 @@ mod tests {
             source: None,
             patterns: vec![],
             pattern_either: vec![],
+            pattern_either_groups: vec![],
             pattern_not: None,
             pattern_inside: None,
+            pattern_not_inside: vec![],
             metavariable_comparison: None,
+            metavariable_comparisons: vec![],
+            metavariable_types: HashMap::new(),
             cia: None,
         };
         let source = "import org.springframework.web.bind.annotation.RequestParam;\nclass Controller { String go(@RequestParam String expr) { engine.eval(expr); return expr; } }\n";
@@ -1638,9 +1759,13 @@ mod tests {
             source: None,
             patterns: vec![],
             pattern_either: vec![],
+            pattern_either_groups: vec![],
             pattern_not: None,
             pattern_inside: None,
+            pattern_not_inside: vec![],
             metavariable_comparison: None,
+            metavariable_comparisons: vec![],
+            metavariable_types: HashMap::new(),
             cia: None,
         };
         let source = "import org.springframework.web.bind.annotation.RequestParam;\nclass Controller {\n  void run(@RequestParam String user, Connection conn) throws Exception {\n    String query = \"select * from t where user='\" + user + \"'\";\n    PreparedStatement ps = conn.prepareStatement(query);\n  }\n}\n";
@@ -1703,9 +1828,13 @@ mod tests {
             pattern: None,
             patterns: vec!["eval(".into(), "user".into()],
             pattern_either: vec![],
+            pattern_either_groups: vec![],
             pattern_not: Some("ast.literal_eval(".into()),
             pattern_inside: None,
+            pattern_not_inside: vec![],
             metavariable_comparison: None,
+            metavariable_comparisons: vec![],
+            metavariable_types: HashMap::new(),
             message: "msg".into(),
             fix_recipe: None,
             fix: None,
@@ -1739,9 +1868,13 @@ mod tests {
             pattern: None,
             patterns: vec![],
             pattern_either: vec![],
+            pattern_either_groups: vec![],
             pattern_not: None,
             pattern_inside: Some("def dangerous".into()),
+            pattern_not_inside: vec![],
             metavariable_comparison: None,
+            metavariable_comparisons: vec![],
+            metavariable_types: HashMap::new(),
             message: "msg".into(),
             fix_recipe: None,
             fix: None,
@@ -1770,9 +1903,13 @@ mod tests {
             pattern: None,
             patterns: vec![],
             pattern_either: vec!["eval(".into(), "exec(".into()],
+            pattern_either_groups: vec![],
             pattern_not: None,
             pattern_inside: None,
+            pattern_not_inside: vec![],
             metavariable_comparison: None,
+            metavariable_comparisons: vec![],
+            metavariable_types: HashMap::new(),
             message: "msg".into(),
             fix_recipe: None,
             fix: None,
@@ -1805,9 +1942,13 @@ mod tests {
             pattern: None,
             patterns: vec![],
             pattern_either: vec![],
+            pattern_either_groups: vec![],
             pattern_not: None,
             pattern_inside: None,
+            pattern_not_inside: vec![],
             metavariable_comparison: Some("len($MATCH) > 8".into()),
+            metavariable_comparisons: vec![],
+            metavariable_types: HashMap::new(),
             message: "msg".into(),
             fix_recipe: None,
             fix: None,
@@ -1827,5 +1968,82 @@ mod tests {
         );
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].snippet, "eval(user_input)");
+    }
+
+    #[test]
+    fn pattern_either_groups_require_one_complete_branch() {
+        let rule = Rule {
+            id: "CBR-TEST-REGEX-EITHER-GROUPS".into(),
+            title: "Regex either groups".into(),
+            severity: crate::finding::Severity::Medium,
+            languages: vec![Lang::Python],
+            query: None,
+            regex: None,
+            pattern: None,
+            patterns: vec![],
+            pattern_either: vec![],
+            pattern_either_groups: vec![
+                vec!["eval(".into(), "user".into()],
+                vec!["exec(".into(), "admin".into()],
+            ],
+            pattern_not: None,
+            pattern_inside: None,
+            pattern_not_inside: vec![],
+            metavariable_comparison: None,
+            metavariable_comparisons: vec![],
+            metavariable_types: HashMap::new(),
+            message: "msg".into(),
+            fix_recipe: None,
+            fix: None,
+            dependency: None,
+            cwe: vec![],
+            frameworks: vec![],
+            source: None,
+            cia: None,
+        };
+        let semantics = semantics::extract(Lang::Python, "");
+        let findings = match_rule(
+            &rule,
+            Lang::Python,
+            Path::new("x.py"),
+            "eval(user)\nexec(user)\nexec(admin)\n",
+            &semantics,
+        );
+        assert_eq!(findings.len(), 2);
+    }
+
+    #[test]
+    fn pattern_not_inside_excludes_enclosing_context() {
+        let rule = Rule {
+            id: "CBR-TEST-REGEX-NOT-INSIDE".into(),
+            title: "Regex not inside".into(),
+            severity: crate::finding::Severity::Medium,
+            languages: vec![Lang::Python],
+            query: None,
+            regex: Some(r"eval\(user\)".into()),
+            pattern: None,
+            patterns: vec![],
+            pattern_either: vec![],
+            pattern_either_groups: vec![],
+            pattern_not: None,
+            pattern_inside: None,
+            pattern_not_inside: vec!["def safe".into()],
+            metavariable_comparison: None,
+            metavariable_comparisons: vec![],
+            metavariable_types: HashMap::new(),
+            message: "msg".into(),
+            fix_recipe: None,
+            fix: None,
+            dependency: None,
+            cwe: vec![],
+            frameworks: vec![],
+            source: None,
+            cia: None,
+        };
+        let semantics = semantics::extract(Lang::Python, "");
+        let source = "def safe():\n    eval(user)\n\ndef dangerous():\n    eval(user)\n";
+        let findings = match_rule(&rule, Lang::Python, Path::new("x.py"), source, &semantics);
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].line, 5);
     }
 }
