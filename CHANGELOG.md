@@ -2,6 +2,42 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.21.0] — 2026-05-02
+
+### Added
+- **`metavariable-receiver-type`** — Checkmarx-style semantic disambiguation. The match fires only when the captured identifier resolves (via the per-file symbol / import / type-hierarchy graph already built in `FileSemantics`) to one of the listed types.
+
+  Closes the false-positive class where two libraries name a method the same way:
+  ```yaml
+  query: |
+    (call function: (attribute object: (identifier) @recv attribute: (identifier) @method))
+  metavariable_receiver_type:
+    recv:
+      - sqlite3
+      - psycopg2
+      - Microsoft.Data.SqlClient
+  ```
+
+  Resolution order:
+  1. `variable_types[$X]` — `db = sqlite3.connect(...)` style direct receiver typing
+  2. `imported_symbols[$X]` — `using SqlConnection;` style qualified imports
+  3. `alias_to_module[$X]` — `import sqlite3 as sql` style module aliases
+
+  Type matching against each allow-list entry tries: exact equality, substring containment in either direction (`SqlConnection` matches `Microsoft.Data.SqlClient.SqlConnection` and vice-versa), and finally regex.
+
+  Type-hierarchy walk: each resolved type is followed up through `type_hierarchy` so a rule listing `DbCommand` accepts `SqlCommand : DbCommand`.
+
+  Available in both regex- and tree-sitter-based rules. Works for the 12 languages the semantics layer already covers (Python, JS, TS, Ruby, Java, C#, Go, Rust, PHP, Swift, Scala, C, Bash).
+
+### Notes
+This was the last meaningful gap vs. Checkmarx One's "semantic engine" pitch — false-positive elimination via receiver-type disambiguation. Combined with the existing inter-procedural taint engine, `pattern-where`, and `metavariable-pattern: { language }` (v0.20.0), cyscan now ships every commercial-tier disambiguation primitive.
+
+4 new integration tests:
+- `receiver_type_accepts_call_on_imported_module`
+- `receiver_type_rejects_unrelated_local_class_with_same_method_name`
+- `receiver_type_substring_match_works_in_either_direction`
+- `receiver_type_filter_is_skipped_when_unset`
+
 ## [0.20.0] — 2026-05-02
 
 ### Added

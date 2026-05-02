@@ -13,9 +13,11 @@ use crate::{finding::Finding, lang::Lang, rule::Rule};
 use super::dsl::{
     metavariable_analysis_passes, metavariable_comparisons_match,
     metavariable_pattern_ast_match, metavariable_pattern_match,
-    metavariable_regex_match, metavariable_types_match,
-    pattern_not_regex_passes, pattern_where_match, CaptureMeta,
+    metavariable_receiver_type_match, metavariable_regex_match,
+    metavariable_types_match, pattern_not_regex_passes,
+    pattern_where_match, CaptureMeta,
 };
+use super::semantics::FileSemantics;
 
 pub fn parse(lang: Lang, source: &str) -> Result<Tree> {
     let mut parser = Parser::new();
@@ -28,11 +30,12 @@ pub fn parse(lang: Lang, source: &str) -> Result<Tree> {
 }
 
 pub fn match_rule(
-    rule:   &Rule,
-    lang:   Lang,
-    path:   &Path,
-    source: &str,
-    tree:   &Tree,
+    rule:      &Rule,
+    lang:      Lang,
+    path:      &Path,
+    source:    &str,
+    tree:      &Tree,
+    semantics: &FileSemantics,
 ) -> Vec<Finding> {
     let Some(q_str) = rule.query.as_deref() else { return Vec::new() };
 
@@ -134,6 +137,16 @@ pub fn match_rule(
         }
         // Compound boolean — Semgrep beta `pattern-where`.
         if !pattern_where_match(rule.pattern_where.as_deref(), &captures) {
+            continue;
+        }
+        // Resolved-receiver-type — Checkmarx-style semantic
+        // disambiguation. `db.execute(...)` only fires when `db`
+        // resolves (via FileSemantics) to one of the listed types.
+        if !metavariable_receiver_type_match(
+            &rule.metavariable_receiver_type,
+            &captures,
+            semantics,
+        ) {
             continue;
         }
         let span_text = node.utf8_text(bytes).unwrap_or("");

@@ -154,6 +154,39 @@ pub struct Rule {
     /// Example: `len($x) > 10 and $fn != "eval" and not $x contains "test"`
     #[serde(default)]
     pub pattern_where: Option<String>,
+    /// Resolved-receiver-type filter — Checkmarx-style semantic
+    /// disambiguation. Each entry maps a capture name to a list of
+    /// accepted receiver types. The match fires only when the
+    /// captured identifier resolves (via the per-file symbol /
+    /// import / type-hierarchy graph in `FileSemantics`) to one
+    /// of the listed types.
+    ///
+    /// Closes the false-positive class where two libraries name a
+    /// method the same way (`db.execute(...)` for SQLite vs. a local
+    /// `class Foo: def execute(self, ...)`). Type matching is
+    /// substring-or-regex against the resolved type, so a rule can
+    /// list either the short name (`SqlConnection`) or the fully
+    /// qualified path (`Microsoft.Data.SqlClient.SqlConnection`).
+    /// Type-hierarchy walks are followed automatically — a rule
+    /// listing `DbCommand` will match `SqlCommand` when the
+    /// inheritance chain is known.
+    ///
+    /// Example:
+    ///
+    /// ```yaml
+    /// query: |
+    ///   (invocation_expression
+    ///     (member_access_expression
+    ///       expression: (identifier) @recv
+    ///       name: (identifier) @method))
+    /// metavariable_receiver_type:
+    ///   recv:
+    ///     - sqlite3
+    ///     - psycopg2
+    ///     - Microsoft.Data.SqlClient
+    /// ```
+    #[serde(default)]
+    pub metavariable_receiver_type: HashMap<String, Vec<String>>,
     pub message:   String,
     #[serde(default)]
     pub fix_recipe: Option<String>,

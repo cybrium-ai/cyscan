@@ -304,6 +304,145 @@ VAL = "gamma"
         "should NOT fire on gamma; got {texts:?}");
 }
 
+// ─── metavariable-receiver-type (v0.21.0 — Checkmarx-style semantic typing) ─
+
+#[test]
+fn receiver_type_accepts_call_on_imported_module() {
+    // db is bound from sqlite3.connect() — the rule's allow-list
+    // contains "sqlite3", so db.execute(q) should fire.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-OK
+title: "SQLite execute"
+severity: medium
+languages: [python]
+regex: "(\\w+)\\.execute\\("
+metavariable_receiver_type:
+  match:
+    - sqlite3
+    - psycopg2
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+import sqlite3
+db = sqlite3.connect(':memory:')
+db.execute("SELECT 1")
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("db.execute"));
+}
+
+#[test]
+fn receiver_type_rejects_unrelated_local_class_with_same_method_name() {
+    // foo is a local Foo() instance — Foo is not in the allow-list,
+    // so foo.execute(q) must NOT fire even though the method name
+    // collides with sqlite3.Connection.execute. This is the
+    // false-positive class Checkmarx names "Collision FP".
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-FP
+title: "SQLite execute (typed)"
+severity: medium
+languages: [python]
+regex: "(\\w+)\\.execute\\("
+metavariable_receiver_type:
+  match:
+    - sqlite3
+    - psycopg2
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+class Foo:
+    def execute(self, q):
+        return q
+foo = Foo()
+foo.execute("not a sql call")
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-RECV-FP"))
+        .collect();
+    assert!(hits.is_empty(), "local-class call must NOT fire; got {hits:?}");
+}
+
+#[test]
+fn receiver_type_substring_match_works_in_either_direction() {
+    // Allow-list says "SqlConnection" but the resolved type might
+    // be "Microsoft.Data.SqlClient.SqlConnection" (or just
+    // "SqlConnection" on its own). Either should be accepted.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-SUBSTR
+title: "Imported namespace alias"
+severity: medium
+languages: [python]
+regex: "(\\w+)\\.read\\("
+metavariable_receiver_type:
+  match:
+    - boto3
+message: "matched"
+"#).unwrap();
+    // boto3 is imported as `s3`; the resolved alias-to-module is
+    // `s3 -> boto3`, which the substring/alias path should accept.
+    fs::write(tmp.path().join("a.py"), r#"
+import boto3 as s3
+s3.read("bucket/key")
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("s3.read"));
+}
+
+#[test]
+fn receiver_type_filter_is_skipped_when_unset() {
+    // Empty metavariable_receiver_type must not change behaviour —
+    // the rule keeps firing on every method call.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-NOOP
+title: "Untyped execute"
+severity: low
+languages: [python]
+regex: "(\\w+)\\.execute\\("
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+class Local:
+    def execute(self, q): pass
+x = Local()
+x.execute("anything")
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("x.execute"));
+}
+
 // ─── metavariable-analysis (v0.19.0 — Semgrep Pro parity) ──────────────────
 
 #[test]

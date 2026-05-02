@@ -123,6 +123,103 @@ pub(super) fn pattern_not_regex_passes(patterns: &[String], text: &str) -> bool 
 /// text as plain string and run the inner regex against it). For the
 /// tree-sitter matcher, callers parse with the inner-spec's language
 /// and run the inner pattern as a tree-sitter query.
+/// Resolved-receiver-type filter — Checkmarx-style semantic
+/// disambiguation. For each `$X: [allowed types]` constraint, look
+/// up the captured identifier in the file's symbol/import graph
+/// (`FileSemantics`) and accept the match only when the resolved
+/// type appears in the allow-list.
+///
+/// Resolution order:
+///   1. `variable_types[$X]` — direct receiver type from
+///      `db = sqlite3.connect(...)` style assignments.
+///   2. `imported_symbols[$X]` — `using SqlConnection;` style
+///      qualified imports.
+///   3. `alias_to_module[$X]` — `import sqlite3 as sql` style
+///      module aliases.
+///
+/// Type matching against each allowed entry tries (in order):
+///   * exact equality
+///   * substring containment in either direction (`SqlConnection`
+///     matches `Microsoft.Data.SqlClient.SqlConnection` and vice
+///     versa)
+///   * regex
+///
+/// Type-hierarchy walk: each resolved type is followed up through
+/// `type_hierarchy` so a rule listing `DbCommand` accepts
+/// `SqlCommand : DbCommand`.
+pub(super) fn metavariable_receiver_type_match<'a>(
+    constraints: &HashMap<String, Vec<String>>,
+    captures:    &HashMap<String, CaptureMeta<'a>>,
+    semantics:   &super::semantics::FileSemantics,
+) -> bool {
+    if constraints.is_empty() { return true; }
+    use ::regex::Regex;
+    constraints.iter().all(|(raw_name, allow)| {
+        if allow.is_empty() { return true; }
+        let name = raw_name.trim().trim_start_matches('$');
+        let Some(meta) = captures.get(name) else { return false };
+        let ident = meta.text.trim();
+        if ident.is_empty() { return false }
+
+        // Build the candidate set: the resolved type plus its
+        // transitive supertypes via type_hierarchy.
+        let mut candidates: Vec<String> = Vec::new();
+        if let Some(t) = semantics.variable_types.get(ident) {
+            candidates.push(t.clone());
+        }
+        if let Some(t) = semantics.imported_symbols.get(ident) {
+            candidates.push(t.clone());
+        }
+        if let Some(t) = semantics.alias_to_module.get(ident) {
+            candidates.push(t.clone());
+        }
+        // Also consider the identifier itself as a candidate — covers
+        // the case where the capture text *is* the type (e.g.
+        // matching a static-method call `SqlCommand.Execute(...)`).
+        candidates.push(ident.to_string());
+
+        // Walk type_hierarchy upward.
+        let mut expanded: Vec<String> = Vec::new();
+        let mut seen: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        let mut queue: Vec<String> = candidates.clone();
+        while let Some(cur) = queue.pop() {
+            if !seen.insert(cur.clone()) { continue; }
+            expanded.push(cur.clone());
+            if let Some(parents) = semantics.type_hierarchy.get(&cur) {
+                queue.extend(parents.iter().cloned());
+            }
+        }
+
+        // Cheap check first: exact equality / substring either way.
+        let try_match = |needle: &str, hay: &str| -> bool {
+            if needle.is_empty() { return false }
+            if needle == hay { return true }
+            // `Microsoft.Data.SqlClient` matches
+            // `Microsoft.Data.SqlClient.SqlConnection` (allow-list is
+            // a prefix/segment of the resolved type)…
+            if hay.contains(needle) { return true }
+            // …and vice-versa: rule allows the FQN, code reports the
+            // short name.
+            if needle.contains(hay) { return true }
+            false
+        };
+
+        allow.iter().any(|raw| {
+            let pat = raw.trim();
+            if pat.is_empty() { return false }
+            for c in &expanded {
+                if try_match(pat, c) { return true }
+            }
+            // Last try: regex.
+            if let Ok(re) = Regex::new(pat) {
+                return expanded.iter().any(|c| re.is_match(c));
+            }
+            false
+        })
+    })
+}
+
 pub(super) fn metavariable_pattern_ast_match<'a>(
     constraints: &std::collections::HashMap<String, crate::rule::NestedPatternSpec>,
     captures: &HashMap<String, CaptureMeta<'a>>,

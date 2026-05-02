@@ -12,9 +12,11 @@ use crate::{finding::Finding, rule::Rule};
 use super::dsl::{
     metavariable_analysis_passes, metavariable_comparisons_match,
     metavariable_pattern_ast_match, metavariable_pattern_match,
-    metavariable_regex_match, metavariable_types_match,
-    pattern_not_regex_passes, pattern_where_match, CaptureMeta,
+    metavariable_receiver_type_match, metavariable_regex_match,
+    metavariable_types_match, pattern_not_regex_passes,
+    pattern_where_match, CaptureMeta,
 };
+use super::semantics::FileSemantics;
 
 /// Convert semgrep-style AST pattern to regex.
 ///
@@ -75,7 +77,12 @@ fn is_regex_alternation(chars: &[char], pos: usize) -> bool {
     false // Default: treat | as literal in semgrep patterns
 }
 
-pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
+pub fn match_rule(
+    rule: &Rule,
+    path: &Path,
+    source: &str,
+    semantics: &FileSemantics,
+) -> Vec<Finding> {
     // YAML block literal `|` keeps a trailing newline, which the regex
     // crate treats as a literal \n requirement. Trim any surrounding
     // whitespace so rule authors don't have to remember `|-` every time.
@@ -90,7 +97,7 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
         {
             return Vec::new();
         }
-        return dsl_only_match(rule, path, source);
+        return dsl_only_match(rule, path, source, semantics);
     };
     if pat.is_empty() { return Vec::new() }
 
@@ -194,6 +201,16 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
             if !pattern_where_match(rule.pattern_where.as_deref(), &captures) {
                 continue;
             }
+            // Resolved-receiver-type filter — Checkmarx-style
+            // semantic disambiguation. `db.execute(...)` only fires
+            // when `db` resolves to one of the listed types.
+            if !metavariable_receiver_type_match(
+                &rule.metavariable_receiver_type,
+                &captures,
+                semantics,
+            ) {
+                continue;
+            }
             // pattern_not_regex matches against the whole line so a
             // rule like `regex: "SELECT * FROM"` + `pattern_not_regex:
             // ["WHERE id ="]` correctly suppresses `SELECT * FROM
@@ -287,7 +304,12 @@ fn single_match_captures(text: &str) -> HashMap<String, CaptureMeta<'_>> {
 /// the new aggregate sources (patterns / pattern_either /
 /// pattern_either_groups). We OR every supplied pattern into a single
 /// alternation regex and run the standard line-by-line scan.
-fn dsl_only_match(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
+fn dsl_only_match(
+    rule: &Rule,
+    path: &Path,
+    source: &str,
+    semantics: &FileSemantics,
+) -> Vec<Finding> {
     let mut all: Vec<&str> = Vec::new();
     all.extend(rule.patterns.iter().map(String::as_str));
     all.extend(rule.pattern_either.iter().map(String::as_str));
@@ -310,5 +332,5 @@ fn dsl_only_match(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
     synthetic.patterns.clear();
     synthetic.pattern_either.clear();
     synthetic.pattern_either_groups.clear();
-    match_rule(&synthetic, path, source)
+    match_rule(&synthetic, path, source, semantics)
 }
