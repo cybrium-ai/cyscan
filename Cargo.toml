@@ -51,8 +51,10 @@ semver      = "1"
 # SARIF shape types — we emit SARIF manually via serde_json rather than
 # dragging in the sarif crate, which is heavy and overkill for v0.1.
 
-# Self-update (blocking HTTP for sync CLI)
-reqwest     = { version = "0.12", features = ["blocking", "json", "native-tls"], default-features = false }
+# Self-update (blocking HTTP for sync CLI). Uses rustls instead of
+# native-tls so cross-compilation (aarch64-linux, etc.) doesn't need
+# the target's libssl headers — pure-Rust TLS keeps the matrix green.
+reqwest     = { version = "0.12", features = ["blocking", "json", "rustls-tls"], default-features = false }
 walkdir = "2.5.0"
 flate2 = "1.1.9"
 urlencoding = "2"
