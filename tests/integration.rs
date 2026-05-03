@@ -96,6 +96,105 @@ fn supply_detects_advisories_typosquat_and_policy() {
 }
 
 #[test]
+fn supply_offline_tampering_fires_on_synthetic_lockfiles() {
+    // Build a synthetic project root with three lockfiles exercising
+    // each offline tampering finding ID:
+    //   • Cargo.lock with a malformed sha256 (CYSCAN-TAMPER-002)
+    //   • npm package-lock.json with a clean entry + a missing-integrity
+    //     entry (CYSCAN-TAMPER-001)
+    //   • Two Cargo.lock files both pinning the same crate but with
+    //     different sha256s (CYSCAN-TAMPER-003)
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+
+    // (1) Cargo.lock with malformed sha256 — only 8 hex chars instead of 64.
+    fs::create_dir_all(tmp.path().join("a")).unwrap();
+    fs::write(tmp.path().join("a/Cargo.lock"), r#"
+[[package]]
+name = "anyhow"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "deadbeef"
+"#).unwrap();
+
+    // (2) Cargo.lock conflicting on the same (name, version) with a
+    //     different (well-formed) sha256.
+    fs::create_dir_all(tmp.path().join("b")).unwrap();
+    fs::write(tmp.path().join("b/Cargo.lock"), &format!(r#"
+[[package]]
+name = "anyhow"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "{}"
+"#, "0".repeat(64))).unwrap();
+    // Same as (a)/anyhow but in another lockfile = conflicting hashes.
+    fs::create_dir_all(tmp.path().join("c")).unwrap();
+    fs::write(tmp.path().join("c/Cargo.lock"), &format!(r#"
+[[package]]
+name = "anyhow"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "{}"
+"#, "1".repeat(64))).unwrap();
+
+    // (3) npm package-lock.json with one missing-integrity entry.
+    fs::write(tmp.path().join("package-lock.json"), r#"{
+        "name": "test", "version": "1.0.0", "lockfileVersion": 3,
+        "packages": {
+            "": {},
+            "node_modules/no-integrity-pkg": {
+                "version": "1.0.0"
+            }
+        }
+    }"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["supply", tmp.path().to_str().unwrap(), "--no-advisories", "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let ids: Vec<&str> = json.as_array().unwrap().iter()
+        .filter_map(|f| f["rule_id"].as_str())
+        .collect();
+    assert!(ids.contains(&"CYSCAN-TAMPER-002"),
+        "expected malformed-integrity finding; got rule ids: {ids:?}");
+    assert!(ids.contains(&"CYSCAN-TAMPER-003"),
+        "expected conflicting-integrity finding; got rule ids: {ids:?}");
+    assert!(ids.contains(&"CYSCAN-TAMPER-001"),
+        "expected missing-integrity finding; got rule ids: {ids:?}");
+}
+
+#[test]
+fn supply_offline_tampering_silent_on_clean_lockfile() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("Cargo.lock"), &format!(r#"
+[[package]]
+name = "anyhow"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "{}"
+"#, "0".repeat(64))).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["supply", tmp.path().to_str().unwrap(), "--no-advisories", "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let tamper_findings: Vec<_> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str().map_or(false, |s| s.starts_with("CYSCAN-TAMPER")))
+        .collect();
+    assert_eq!(tamper_findings.len(), 0,
+        "clean lockfile should produce no tampering findings; got {tamper_findings:?}");
+}
+
+#[test]
 fn supply_no_advisories_flag_skips_osv() {
     let manifest = env!("CARGO_MANIFEST_DIR");
     let target = format!("{manifest}/tests/fixtures/lockfiles");
@@ -108,6 +207,899 @@ fn supply_no_advisories_flag_skips_osv() {
         .stdout(predicate::str::contains("CBR-DEP-EVENT-STREAM-MALWARE"))
         // But no GHSA-prefixed advisory findings.
         .stdout(predicate::str::contains("GHSA-").not());
+}
+
+// ─── Semgrep-max DSL parity (Phase B) ───────────────────────────────────────
+
+#[test]
+fn dsl_metavariable_regex_filters_capture() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("metavar_re.yml"), r#"
+id: TEST-MR
+title: "URL token"
+severity: low
+languages: [python]
+regex: "TOKEN_[A-Za-z0-9_]+"
+metavariable_regex:
+  match: "^TOKEN_[A-Z]{6,}$"
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), "x = TOKEN_short\ny = TOKEN_LONGENOUGH\n").unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TOKEN_LONGENOUGH"))
+        .stdout(predicate::str::contains("TOKEN_short").not());
+}
+
+#[test]
+fn dsl_pattern_not_regex_suppresses_matched_span() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("not_re.yml"), r#"
+id: TEST-PNR
+title: "Naked SELECT"
+severity: medium
+languages: [python]
+regex: "SELECT \\* FROM"
+pattern_not_regex:
+  - "WHERE id ="
+message: "matched"
+"#).unwrap();
+    let src = tmp.path().join("a.py");
+    fs::write(&src, "x = \"SELECT * FROM users\"\n").unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TEST-PNR"));
+
+    fs::write(&src, "x = \"SELECT * FROM users WHERE id = 1\"\n").unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("TEST-PNR").not());
+}
+
+// ─── metavariable-pattern (nested AST) + cross-language + pattern-where ───
+
+#[test]
+fn metavariable_pattern_ast_filters_capture_with_inner_pattern() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("nested.yml"), r#"
+id: TEST-MV-AST
+title: "JS in HTML script"
+severity: high
+languages: [generic]
+regex: "<script>([^<]*)</script>"
+metavariable_pattern_ast:
+  match:
+    pattern: eval(...)
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("page.env"), r#"
+<html><script>console.log("hi")</script></html>
+<html><script>eval(payload)</script></html>
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("eval(payload)"))
+        .stdout(predicate::str::contains("console.log").not());
+}
+
+#[test]
+fn metavariable_pattern_ast_cross_language_re_parses_capture() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("xlang.yml"), r#"
+id: TEST-MV-XLANG
+title: "JS inside HTML template"
+severity: high
+languages: [generic]
+regex: "<script[^>]*>([^<]*)</script>"
+metavariable_pattern_ast:
+  match:
+    language: javascript
+    regex: "eval\\s*\\("
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("page.env"), r#"
+<script type="text/javascript">eval(window.location.hash.slice(1))</script>
+<script>safe()</script>
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("eval(window.location.hash"))
+        .stdout(predicate::str::contains("<script>safe()</script>").not());
+}
+
+#[test]
+fn pattern_where_evaluates_compound_boolean_expression() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("where.yml"), r#"
+id: TEST-PWHERE
+title: "long admin token"
+severity: medium
+languages: [python]
+regex: "TOKEN\\s*=\\s*['\"]([^'\"]+)['\"]"
+pattern_where: 'len($match) > 10 and $match contains "admin"'
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+TOKEN = "shortadmin"
+TOKEN = "admin-long-token-with-more"
+TOKEN = "regular-long-token-no-keyword"
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("admin-long-token-with-more"))
+        .stdout(predicate::str::contains("shortadmin").not())
+        .stdout(predicate::str::contains("regular-long-token-no-keyword").not());
+}
+
+#[test]
+fn pattern_where_supports_not_and_or_with_grouping() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("where_or.yml"), r#"
+id: TEST-PWHERE-OR
+title: "a or b but not test"
+severity: low
+languages: [python]
+regex: "VAL\\s*=\\s*['\"]([^'\"]+)['\"]"
+pattern_where: '($match contains "alpha" or $match contains "beta") and not $match contains "test"'
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+VAL = "alpha"
+VAL = "alphatest"
+VAL = "beta"
+VAL = "gamma"
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-PWHERE-OR"))
+        .collect();
+    let texts: Vec<&str> = hits.iter()
+        .filter_map(|h| h["snippet"].as_str())
+        .collect();
+    assert!(texts.iter().any(|t| t.contains("alpha") && !t.contains("alphatest")),
+        "should fire on alpha; got {texts:?}");
+    assert!(texts.iter().any(|t| t.contains("beta")),
+        "should fire on beta; got {texts:?}");
+    assert!(!texts.iter().any(|t| t.contains("alphatest")),
+        "should NOT fire on alphatest (not contains test); got {texts:?}");
+    assert!(!texts.iter().any(|t| t.contains("gamma")),
+        "should NOT fire on gamma; got {texts:?}");
+}
+
+// ─── metavariable-receiver-type (v0.21.0 — Checkmarx-style semantic typing) ─
+
+#[test]
+fn receiver_type_accepts_call_on_imported_module() {
+    // db is bound from sqlite3.connect() — the rule's allow-list
+    // contains "sqlite3", so db.execute(q) should fire.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-OK
+title: "SQLite execute"
+severity: medium
+languages: [python]
+regex: "(\\w+)\\.execute\\("
+metavariable_receiver_type:
+  match:
+    - sqlite3
+    - psycopg2
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+import sqlite3
+db = sqlite3.connect(':memory:')
+db.execute("SELECT 1")
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("db.execute"));
+}
+
+#[test]
+fn receiver_type_rejects_unrelated_local_class_with_same_method_name() {
+    // foo is a local Foo() instance — Foo is not in the allow-list,
+    // so foo.execute(q) must NOT fire even though the method name
+    // collides with sqlite3.Connection.execute. This is the
+    // false-positive class Checkmarx names "Collision FP".
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-FP
+title: "SQLite execute (typed)"
+severity: medium
+languages: [python]
+regex: "(\\w+)\\.execute\\("
+metavariable_receiver_type:
+  match:
+    - sqlite3
+    - psycopg2
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+class Foo:
+    def execute(self, q):
+        return q
+foo = Foo()
+foo.execute("not a sql call")
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-RECV-FP"))
+        .collect();
+    assert!(hits.is_empty(), "local-class call must NOT fire; got {hits:?}");
+}
+
+#[test]
+fn receiver_type_substring_match_works_in_either_direction() {
+    // Allow-list says "SqlConnection" but the resolved type might
+    // be "Microsoft.Data.SqlClient.SqlConnection" (or just
+    // "SqlConnection" on its own). Either should be accepted.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-SUBSTR
+title: "Imported namespace alias"
+severity: medium
+languages: [python]
+regex: "(\\w+)\\.read\\("
+metavariable_receiver_type:
+  match:
+    - boto3
+message: "matched"
+"#).unwrap();
+    // boto3 is imported as `s3`; the resolved alias-to-module is
+    // `s3 -> boto3`, which the substring/alias path should accept.
+    fs::write(tmp.path().join("a.py"), r#"
+import boto3 as s3
+s3.read("bucket/key")
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("s3.read"));
+}
+
+#[test]
+fn receiver_type_filter_is_skipped_when_unset() {
+    // Empty metavariable_receiver_type must not change behaviour —
+    // the rule keeps firing on every method call.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-NOOP
+title: "Untyped execute"
+severity: low
+languages: [python]
+regex: "(\\w+)\\.execute\\("
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+class Local:
+    def execute(self, q): pass
+x = Local()
+x.execute("anything")
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("x.execute"));
+}
+
+#[test]
+fn receiver_type_resolves_cross_file_class_hierarchy() {
+    // class SqlCommand : DbCommand declared in B.cs.
+    // foo.Execute() is called in A.cs against a SqlCommand local.
+    // Rule allowlists "DbCommand". Without cross-file hierarchy this
+    // would miss; with v0.22.0 it fires because the project walker
+    // sees SqlCommand : DbCommand.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-XFILE
+title: "DbCommand execute"
+severity: medium
+languages: [csharp]
+regex: "(\\w+)\\.Execute\\("
+metavariable_receiver_type:
+  match:
+    - DbCommand
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("B.cs"), r#"
+namespace App;
+public class DbCommand { public void Execute() {} }
+public class SqlCommand : DbCommand { }
+"#).unwrap();
+    fs::write(tmp.path().join("A.cs"), r#"
+namespace App;
+class Caller {
+    void Run() {
+        SqlCommand cmd = new SqlCommand();
+        cmd.Execute();
+    }
+}
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("cmd.Execute"));
+}
+
+#[test]
+fn receiver_type_respects_php_method_shadowing() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-PHP
+title: "PDO prepare"
+severity: high
+languages: [php]
+regex: "\\$([A-Za-z_][A-Za-z_0-9]*)\\s*->\\s*prepare\\("
+metavariable_receiver_type:
+  match:
+    - PDO
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("App.php"), r#"<?php
+class App {
+    public function run() {
+        $conn = new PDO("sqlite::memory:");
+        $conn->prepare("SELECT outer");
+        if (true) {
+            $conn = "shadow-string";
+            $conn->prepare("SELECT inner");
+        }
+    }
+}
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-RECV-PHP"))
+        .collect();
+    let texts: Vec<String> = hits.iter()
+        .filter_map(|h| h["snippet"].as_str().map(String::from))
+        .collect();
+    assert!(texts.iter().any(|t| t.contains("SELECT outer")),
+        "outer PDO should fire; got {texts:?}");
+}
+
+#[test]
+fn receiver_type_respects_ruby_method_shadowing() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-RUBY
+title: "SQLite3 execute"
+severity: medium
+languages: [ruby]
+regex: "([a-z_][a-z_0-9]*)\\s*\\.\\s*execute\\("
+metavariable_receiver_type:
+  match:
+    - SQLite3
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("app.rb"), r#"
+require 'sqlite3'
+db = SQLite3.new
+db.execute("SELECT 1")
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("db.execute"));
+}
+
+#[test]
+fn receiver_type_respects_in_method_shadowing() {
+    // Java: outer `Connection conn` from java.sql is shadowed inside
+    // an `if {}` block by `String conn`. The rule allowlists
+    // java.sql.Connection. The OUTER call should fire; the INNER
+    // (where conn is a String) must NOT.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-SHADOW
+title: "Connection prepareStatement"
+severity: high
+languages: [java]
+regex: "(\\w+)\\.prepareStatement\\("
+metavariable_receiver_type:
+  match:
+    - java.sql.Connection
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("App.java"), r#"
+import java.sql.Connection;
+class App {
+    void run(Connection makeConn) {
+        Connection conn = makeConn;
+        conn.prepareStatement("SELECT outer");
+        if (true) {
+            String conn = "shadowed";
+            conn.prepareStatement("SELECT inner");
+        }
+    }
+}
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-RECV-SHADOW"))
+        .collect();
+    let texts: Vec<String> = hits.iter()
+        .filter_map(|h| h["snippet"].as_str().map(String::from))
+        .collect();
+    assert!(texts.iter().any(|t| t.contains("SELECT outer")),
+        "outer Connection should fire; got {texts:?}");
+    assert!(!texts.iter().any(|t| t.contains("SELECT inner")),
+        "inner String shadow must NOT fire; got {texts:?}");
+}
+
+// ─── metavariable-analysis (v0.19.0 — Semgrep Pro parity) ──────────────────
+
+#[test]
+fn metavariable_analysis_redos_filters_safe_patterns() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("redos.yml"), r#"
+id: TEST-MV-REDOS
+title: "ReDoS regex"
+severity: high
+languages: [python]
+regex: "RE\\s*=\\s*r['\"]([^'\"]+)['\"]"
+metavariable_analysis:
+  match: redos
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+SAFE_RE = r'^[A-Za-z0-9_-]+$'
+RISKY_RE = r'(a+)+'
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("(a+)+"))
+        .stdout(predicate::str::contains("[A-Za-z0-9_-]+").not());
+}
+
+#[test]
+fn metavariable_analysis_entropy_filters_low_entropy_strings() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("entropy.yml"), r#"
+id: TEST-MV-ENTROPY
+title: "high-entropy literal"
+severity: medium
+languages: [python]
+regex: "TOKEN\\s*=\\s*['\"]([^'\"]+)['\"]"
+metavariable_analysis:
+  match: entropy
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("a.py"), r#"
+TOKEN = "hello world example"
+TOKEN = "xK7zP9mNvL2qR5tY8wB3aE6h"
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("xK7zP9mNvL2qR5tY8wB3aE6h"))
+        .stdout(predicate::str::contains("hello world example").not());
+}
+
+// ─── Cross-service evidence + aggregation + path prefix (v0.17.0) ──────────
+
+#[test]
+fn xservice_path_prefix_composes_for_spring_class_level_mapping() {
+    // Spring lets @RequestMapping("/api") at class level compose with
+    // @PostMapping("/users") at method level → "/api/users". This must
+    // match a C# client calling "/api/users".
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("Auth.cs"), r#"
+public class Auth {
+    public async Task Run() {
+        await httpClient.PostAsync("/api/users", body);
+    }
+}
+"#).unwrap();
+    fs::write(tmp.path().join("UserService.java"), r#"
+@RequestMapping("/api")
+public class UserService {
+    @PostMapping("/users")
+    public Response create(@RequestBody Body b) { return null; }
+}
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["xservice", tmp.path().to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let map: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let links = map["links"].as_array().unwrap();
+    let cs_to_java = links.iter().find(|l| {
+        l["client"]["language"].as_str() == Some("csharp")
+            && l["handler"].is_object()
+            && l["handler"]["language"].as_str() == Some("java")
+    });
+    assert!(
+        cs_to_java.is_some(),
+        "C# /api/users should match Java @RequestMapping(/api) + @PostMapping(/users); got {:#?}",
+        links,
+    );
+}
+
+#[test]
+fn scan_findings_in_handler_carry_cross_service_callers_evidence() {
+    use std::fs;
+    let tmp   = tempfile::tempdir().unwrap();
+    let cs    = tmp.path().join("auth");
+    let py    = tmp.path().join("svc");
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&cs).unwrap();
+    fs::create_dir(&py).unwrap();
+    fs::create_dir(&rules).unwrap();
+
+    fs::write(cs.join("Auth.cs"), r#"
+public class Auth {
+    public async Task Run() {
+        await httpClient.PostAsync("/svc/danger", body);
+    }
+}
+"#).unwrap();
+    fs::write(py.join("svc.py"), r#"
+@app.route("/svc/danger", methods=["POST"])
+def handler():
+    DANGER_TOKEN
+"#).unwrap();
+    fs::write(rules.join("danger.yml"), r#"
+id: TEST-XSVC-CALLERS
+title: "danger"
+severity: high
+languages: [python]
+regex: "DANGER_TOKEN"
+message: "matched"
+"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hit = json.as_array().unwrap().iter()
+        .find(|f| f["rule_id"].as_str() == Some("TEST-XSVC-CALLERS"))
+        .expect("rule should fire on the handler");
+    let callers = hit["evidence"]["cross_service_callers"].as_array()
+        .expect("cross_service_callers evidence should be present");
+    assert!(
+        !callers.is_empty(),
+        "callers list should include the C# upstream caller, got {:?}", callers,
+    );
+    assert_eq!(callers[0]["language"].as_str(), Some("csharp"));
+    assert_eq!(callers[0]["method"].as_str(),   Some("POST"));
+    assert_eq!(callers[0]["path"].as_str(),     Some("/svc/danger"));
+}
+
+#[test]
+fn xservice_dot_and_mermaid_render_for_polyglot_graph() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("Auth.cs"), r#"
+public class Auth { public async Task R() { await httpClient.PostAsync("/x", b); } }
+"#).unwrap();
+    fs::write(tmp.path().join("svc.py"), r#"
+@app.route("/x", methods=["POST"])
+def h(): pass
+"#).unwrap();
+    let dot = Command::cargo_bin("cyscan").unwrap()
+        .args(["xservice", tmp.path().to_str().unwrap(), "-f", "dot"])
+        .assert().success().get_output().stdout.clone();
+    let dot = String::from_utf8(dot).unwrap();
+    assert!(dot.starts_with("digraph cyscan_xservice"), "DOT preamble missing: {dot}");
+    assert!(dot.contains("POST /x"), "DOT should label edge with method+path");
+
+    let mer = Command::cargo_bin("cyscan").unwrap()
+        .args(["xservice", tmp.path().to_str().unwrap(), "-f", "mermaid"])
+        .assert().success().get_output().stdout.clone();
+    let mer = String::from_utf8(mer).unwrap();
+    assert!(mer.starts_with("graph LR"), "Mermaid preamble missing: {mer}");
+    assert!(mer.contains("|POST /x|"), "Mermaid edge missing label");
+}
+
+// ─── Cross-service API contract (Option 1 / v0.16.0) ───────────────────────
+
+#[test]
+fn xservice_pairs_csharp_client_to_java_to_python() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let cs   = tmp.path().join("auth");
+    let java = tmp.path().join("user-svc");
+    let py   = tmp.path().join("db");
+    fs::create_dir(&cs).unwrap();
+    fs::create_dir(&java).unwrap();
+    fs::create_dir(&py).unwrap();
+
+    fs::write(cs.join("AuthController.cs"), r#"
+public class AuthController {
+    public async Task<Response> Login(LoginRequest body) {
+        return await httpClient.PostAsync("/api/users/{id}/login", body);
+    }
+}
+"#).unwrap();
+    fs::write(java.join("UserService.java"), r#"
+@RestController
+public class UserService {
+    @PostMapping("/api/users/{id}/login")
+    public Response login(@PathVariable String id, @RequestBody LoginRequest body) {
+        return restTemplate.getForObject("/db/lookup/{id}", Response.class);
+    }
+}
+"#).unwrap();
+    fs::write(py.join("db.py"), r#"
+@app.route("/db/lookup/<id>", methods=["GET"])
+def lookup(id):
+    return {"user": id}
+"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["xservice", tmp.path().to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let map: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let links = map["links"].as_array().unwrap();
+    assert!(links.len() >= 2, "expected >= 2 links, got {}", links.len());
+
+    // Find the C# → Java link
+    let cs_to_java = links.iter().find(|l| {
+        l["client"]["language"].as_str() == Some("csharp")
+            && l["handler"].is_object()
+            && l["handler"]["language"].as_str() == Some("java")
+    });
+    assert!(cs_to_java.is_some(), "C# → Java link should exist; got {:#?}", links);
+
+    // Find the Java → Python link
+    let java_to_py = links.iter().find(|l| {
+        l["client"]["language"].as_str() == Some("java")
+            && l["handler"].is_object()
+            && l["handler"]["language"].as_str() == Some("python")
+    });
+    assert!(java_to_py.is_some(), "Java → Python link should exist; got {:#?}", links);
+}
+
+#[test]
+fn xservice_normalises_path_param_styles() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("client.py"), r#"
+requests.get("/users/123")
+"#).unwrap();
+    fs::write(tmp.path().join("server.py"), r#"
+@app.route("/users/<id>", methods=["GET"])
+def view(id): pass
+"#).unwrap();
+    // Different param styles in client vs server — must still match.
+    fs::write(tmp.path().join("openapi.yaml"), r#"
+openapi: 3.0.0
+info: { title: t, version: 1 }
+paths:
+  /users/{id}:
+    get:
+      operationId: getUser
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["xservice", tmp.path().to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout.clone();
+    let map: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let specs = map["specs"].as_array().unwrap();
+    assert!(!specs.is_empty(), "openapi.yaml should be discovered");
+    let ops = specs[0]["operations"].as_array().unwrap();
+    assert!(
+        ops.iter().any(|op| op["normalised_path"].as_str() == Some("/users/{}")),
+        "openapi op should normalise to /users/{{}}, got {:?}", ops,
+    );
+}
+
+// ─── Engine depth: dynamic dispatch / decorators / metaprogramming ────────
+
+#[test]
+fn callable_alias_extracted_for_eval() {
+    // Phase A — `f = eval` should populate callable_aliases.
+    let src = "f = eval\n";
+    let s = cyscan::matcher::semantics::extract(cyscan::lang::Lang::Python, src);
+    assert_eq!(
+        s.callable_aliases.get("f").map(|s| s.as_str()),
+        Some("eval"),
+        "callable_aliases should map `f -> eval`, got {:?}",
+        s.callable_aliases,
+    );
+}
+
+#[test]
+fn decorator_implies_framework_for_handler() {
+    // Phase C — a function decorated `@app.route` makes a `frameworks: [flask]`
+    // rule fire even when the file's import doesn't pull from flask directly.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    let src   = tmp.path().join("src");
+    fs::create_dir(&rules).unwrap();
+    fs::create_dir(&src).unwrap();
+
+    fs::write(rules.join("flask_only.yml"), r#"
+id: TEST-DECO-FW
+title: "Flask handler bug"
+severity: high
+languages: [python]
+frameworks: [flask]
+regex: "DANGER"
+message: "matched"
+"#).unwrap();
+    fs::write(src.join("handler.py"), r#"
+from app import app
+
+@app.route("/x", methods=["POST"])
+def view():
+    DANGER
+"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", src.to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-DECO-FW"))
+        .collect();
+    assert_eq!(hits.len(), 1, "decorator-implied framework should fire the rule");
+    let fw = &hits[0]["evidence"]["framework"];
+    assert!(fw.is_array(), "framework evidence should be array, got {:?}", fw);
+    let fws: Vec<&str> = fw.as_array().unwrap().iter().filter_map(|v| v.as_str()).collect();
+    assert!(fws.contains(&"flask"), "should report flask via decorator, got {:?}", fws);
+}
+
+#[test]
+fn metaprogrammed_class_surfaces_in_evidence() {
+    // Phase D — class with `metaclass=` should be flagged on every
+    // finding inside its body so reviewers know to double-check.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    let src   = tmp.path().join("src");
+    fs::create_dir(&rules).unwrap();
+    fs::create_dir(&src).unwrap();
+    fs::write(rules.join("meta.yml"), r#"
+id: TEST-META
+title: "danger in class"
+severity: low
+languages: [python]
+regex: "DANGER"
+message: "matched"
+"#).unwrap();
+    fs::write(src.join("plugin.py"), r#"
+class Plugin(metaclass=Registry):
+    DANGER
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", src.to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hit = json.as_array().unwrap().iter()
+        .find(|f| f["rule_id"].as_str() == Some("TEST-META"))
+        .expect("rule should fire");
+    let mp = &hit["evidence"]["metaprogrammed_class"];
+    assert!(mp.is_object(), "metaprogrammed_class evidence should be present");
+    assert_eq!(mp["class"].as_str(), Some("Plugin"));
+    let reasons: Vec<&str> = mp["reasons"].as_array().unwrap().iter()
+        .filter_map(|v| v.as_str())
+        .collect();
+    assert!(
+        reasons.iter().any(|r| r.contains("metaclass=")),
+        "reasons should mention metaclass, got {:?}", reasons,
+    );
 }
 
 // ─── Inter-procedural dataflow tests (Gap A4) ───────────────────────────────

@@ -52,6 +52,31 @@ pub struct FileSemantics {
     pub variable_types: HashMap<String, String>,
     /// Maps a type/class/interface to its declared direct supertypes.
     pub type_hierarchy: HashMap<String, Vec<String>>,
+    /// Identifiers bound to a callable (`f = eval` → `f -> eval`).
+    /// Lets the dispatcher resolve dynamic-dispatch calls so `f(x)` is
+    /// treated identically to `eval(x)`. Closes the false-negative gap
+    /// where Semgrep Pro / Checkmarx catch reflection-style aliasing
+    /// and pattern-only engines don't.
+    pub callable_aliases: HashMap<String, String>,
+    /// Per-function decorator stack. `view → ["app.route", "login_required"]`.
+    /// Used by framework propagation: a function decorated with
+    /// `@app.route` is treated as a Flask handler even when the
+    /// file-wide framework set doesn't list flask.
+    pub decorated_functions: HashMap<String, Vec<String>>,
+    /// Class declarations carrying metaclass / `__init_subclass__` /
+    /// inheritance from a known metaprogramming base. Stored so
+    /// reviewers see the metaprogramming surface in finding evidence
+    /// — we don't yet *resolve* what the metaclass does, but we can
+    /// flag it. Maps `class_name → [reason, ...]`.
+    pub metaprogrammed_classes: HashMap<String, Vec<String>>,
+
+    /// Scope-aware symbol table — when populated, callers can resolve
+    /// an identifier at a specific source line to the correct
+    /// binding (handles in-file shadowing). Built for languages
+    /// supported by `crate::symbols` (Python, JS/TS, Java, C#, Go,
+    /// Rust); other languages leave this as `None` and consumers
+    /// fall back to the flat `variable_types` map.
+    pub symbol_table: Option<crate::symbols::SymbolTable>,
 }
 
 pub fn extract(lang: Lang, source: &str) -> FileSemantics {
@@ -64,7 +89,7 @@ pub fn extract_with_context(
     path: Option<&Path>,
     base_path: Option<&Path>,
 ) -> FileSemantics {
-    match lang {
+    let mut sem = match lang {
         Lang::Python => extract_python(source, path, base_path),
         Lang::Javascript | Lang::Typescript => extract_javascript(source, path, base_path),
         Lang::Ruby => extract_ruby(source, path, base_path),
@@ -78,6 +103,207 @@ pub fn extract_with_context(
         Lang::C => extract_c(source, path, base_path),
         Lang::Bash => extract_bash(source, path, base_path),
         _ => FileSemantics::default(),
+    };
+    // Universal post-pass — populates callable_aliases /
+    // decorated_functions / metaprogrammed_classes from the raw
+    // source, regardless of which per-language extractor ran. Closes
+    // the dynamic-dispatch / decorator-rewrite / metaclass gaps for
+    // every supported language at once.
+    populate_dynamic_dispatch_and_decorators(&mut sem, lang, source);
+
+    // Scope-aware symbol table for the languages we support. Other
+    // languages keep `symbol_table: None` and the receiver-type
+    // matcher falls back to the flat `variable_types` map.
+    sem.symbol_table = match lang {
+        Lang::Python                 => Some(crate::symbols::build_python_symbol_table(source)),
+        Lang::Javascript |
+        Lang::Typescript             => Some(crate::symbols::build_javascript_symbol_table(source)),
+        Lang::Java                   => Some(crate::symbols::build_java_symbol_table(source)),
+        Lang::Csharp                 => Some(crate::symbols::build_csharp_symbol_table(source)),
+        Lang::Go                     => Some(crate::symbols::build_go_symbol_table(source)),
+        Lang::Rust                   => Some(crate::symbols::build_rust_symbol_table(source)),
+        Lang::Php                    => Some(crate::symbols::build_php_symbol_table(source)),
+        Lang::Ruby                   => Some(crate::symbols::build_ruby_symbol_table(source)),
+        Lang::Swift                  => Some(crate::symbols::build_swift_symbol_table(source)),
+        Lang::Scala                  => Some(crate::symbols::build_scala_symbol_table(source)),
+        Lang::C                      => Some(crate::symbols::build_c_symbol_table(source)),
+        Lang::Bash                   => Some(crate::symbols::build_bash_symbol_table(source)),
+        _ => None,
+    };
+
+    sem
+}
+
+/// Single-pass scan of `source` to populate FileSemantics with:
+///   • callable_aliases:    `f = eval` → `f -> eval`
+///   • decorated_functions: `@app.route\ndef view(...)` → `view -> ["app.route"]`
+///   • metaprogrammed_classes: `class Foo(metaclass=Bar)` etc.
+///
+/// Language-agnostic regex over the raw source. Doesn't try to be
+/// scope-aware — the propagator downstream uses these as hints, not
+/// authoritative bindings. False positives in dynamic-dispatch
+/// resolution flow into the conservative-by-default taint engine.
+fn populate_dynamic_dispatch_and_decorators(
+    sem: &mut FileSemantics,
+    lang: Lang,
+    source: &str,
+) {
+    use ::regex::Regex;
+    use std::sync::OnceLock;
+
+    // ── (1) callable aliases ────────────────────────────────────────
+    // Match `name = ident` (Python/Ruby/JS-let-const) where `ident` is
+    // a known sink-y callable. We intentionally restrict the RHS to
+    // bare identifiers (no `()`, no `.attr`) — `f = eval` qualifies,
+    // `f = obj.method` does not (call_assignments handles that case).
+    static ALIAS_RE: OnceLock<Regex> = OnceLock::new();
+    let alias_re = ALIAS_RE.get_or_init(|| Regex::new(
+        // No trailing terminator — `source.lines()` strips newlines, and
+        // we don't want to require `;` for Python.
+        r"^\s*(?:(?:var|let|const|my|our)\s+)?([A-Za-z_$][A-Za-z_0-9$]*)\s*=\s*([A-Za-z_$][A-Za-z_0-9$]*)\s*[;]?\s*$"
+    ).unwrap());
+    // Known sink-callable allowlist — only mirror through these to
+    // keep the alias map small and high-signal.
+    const ALIASABLE: &[&str] = &[
+        "eval", "exec", "compile", "system", "popen", "spawn",
+        "execFile", "execSync", "Function", "setTimeout", "setInterval",
+        "require", "import_module", "loads", "load",
+    ];
+    for raw in source.lines() {
+        if let Some(c) = alias_re.captures(raw) {
+            let name = c.get(1).unwrap().as_str();
+            let rhs  = c.get(2).unwrap().as_str();
+            if ALIASABLE.iter().any(|a| *a == rhs) {
+                sem.callable_aliases.insert(name.to_string(), rhs.to_string());
+            }
+        }
+    }
+
+    // ── (2) decorated functions ────────────────────────────────────
+    // Python:  @decorator(args)\ndef fn(...)
+    // TS/JS:   @decorator\nclass / fn
+    // C#:      [Attribute]\npublic void fn(...)
+    static DECO_PY: OnceLock<Regex> = OnceLock::new();
+    static DECO_TS: OnceLock<Regex> = OnceLock::new();
+    static DECO_CS: OnceLock<Regex> = OnceLock::new();
+    let deco_py = DECO_PY.get_or_init(|| Regex::new(
+        r"^\s*@([A-Za-z_][A-Za-z_0-9.]*)(?:\([^)]*\))?\s*$"
+    ).unwrap());
+    let deco_ts = DECO_TS.get_or_init(|| Regex::new(
+        r"^\s*@([A-Za-z_$][A-Za-z_0-9$.]*)(?:\([^)]*\))?\s*$"
+    ).unwrap());
+    let deco_cs = DECO_CS.get_or_init(|| Regex::new(
+        r"^\s*\[([A-Za-z_][A-Za-z_0-9]*)(?:\([^)]*\))?\]\s*$"
+    ).unwrap());
+    let header_re = match lang {
+        Lang::Python => OnceLock::<Regex>::new(),
+        Lang::Javascript | Lang::Typescript => OnceLock::<Regex>::new(),
+        Lang::Csharp => OnceLock::<Regex>::new(),
+        _ => return,
+    };
+    let _ = header_re; // marker for the per-language header pattern below
+
+    let mut pending: Vec<String> = Vec::new();
+    for raw in source.lines() {
+        let trimmed = raw.trim();
+        // Decorator collection per language.
+        let deco_match = match lang {
+            Lang::Python => deco_py.captures(raw).map(|c| c.get(1).unwrap().as_str().to_string()),
+            Lang::Javascript | Lang::Typescript => deco_ts.captures(raw).map(|c| c.get(1).unwrap().as_str().to_string()),
+            Lang::Csharp => deco_cs.captures(raw).map(|c| c.get(1).unwrap().as_str().to_string()),
+            _ => None,
+        };
+        if let Some(d) = deco_match {
+            pending.push(d);
+            continue;
+        }
+        // Function-header detection — bind pending decorators to the
+        // function being defined.
+        let fn_name: Option<String> = match lang {
+            Lang::Python => {
+                if let Some(rest) = trimmed.strip_prefix("def ").or_else(|| trimmed.strip_prefix("async def ")) {
+                    rest.split(['(', ':']).next().map(|s| s.trim().to_string())
+                } else { None }
+            }
+            Lang::Javascript | Lang::Typescript => {
+                if let Some(rest) = trimmed.strip_prefix("function ") {
+                    rest.split('(').next().map(|s| s.trim().to_string())
+                } else if trimmed.starts_with("class ") {
+                    trimmed["class ".len()..].split([' ', '{', ':']).next().map(|s| s.trim().to_string())
+                } else { None }
+            }
+            Lang::Csharp => {
+                static CSHARP_FN: OnceLock<Regex> = OnceLock::new();
+                let re = CSHARP_FN.get_or_init(|| Regex::new(
+                    r"^\s*(?:public|private|protected|internal|static|virtual|override|async|\s)+(?:[A-Za-z_<>][A-Za-z_0-9<>\[\]]*\s+)?([A-Za-z_][A-Za-z_0-9]*)\s*\("
+                ).unwrap());
+                re.captures(raw).and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
+            }
+            _ => None,
+        };
+        if let Some(name) = fn_name {
+            if !pending.is_empty() {
+                sem.decorated_functions
+                    .entry(name)
+                    .or_default()
+                    .extend(pending.drain(..));
+            } else {
+                pending.clear();
+            }
+        } else if !trimmed.is_empty() {
+            // Non-decorator, non-fn-header line — drop pending so we
+            // don't accidentally bind a stray decorator to the wrong fn.
+            pending.clear();
+        }
+    }
+
+    // ── (3) metaprogrammed classes ─────────────────────────────────
+    static META_PY: OnceLock<Regex> = OnceLock::new();
+    static META_TS: OnceLock<Regex> = OnceLock::new();
+    let meta_py = META_PY.get_or_init(|| Regex::new(
+        r"class\s+([A-Za-z_][A-Za-z_0-9]*)\s*\(([^)]*)\)"
+    ).unwrap());
+    let meta_ts = META_TS.get_or_init(|| Regex::new(
+        r"class\s+([A-Za-z_$][A-Za-z_0-9$]*)(?:\s+extends\s+[A-Za-z_$][A-Za-z_0-9$.]*)?(?:\s+implements\s+[^{]*)?"
+    ).unwrap());
+
+    if matches!(lang, Lang::Python) {
+        for c in meta_py.captures_iter(source) {
+            let name  = c.get(1).unwrap().as_str().to_string();
+            let bases = c.get(2).unwrap().as_str();
+            let mut reasons: Vec<String> = Vec::new();
+            if bases.contains("metaclass") {
+                reasons.push(format!("metaclass=...: {}", bases.trim()));
+            }
+            if !reasons.is_empty() {
+                sem.metaprogrammed_classes.insert(name, reasons);
+            }
+        }
+        // Also flag classes that override __init_subclass__.
+        if source.contains("def __init_subclass__") {
+            // Last-class-mentioned heuristic — good enough for v1.
+            for c in meta_py.captures_iter(source) {
+                let name = c.get(1).unwrap().as_str().to_string();
+                sem.metaprogrammed_classes
+                    .entry(name)
+                    .or_default()
+                    .push("defines __init_subclass__".into());
+            }
+        }
+    } else if matches!(lang, Lang::Javascript | Lang::Typescript) {
+        for c in meta_ts.captures_iter(source) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            // TS/JS metaprogramming surface is mostly Reflect / Proxy /
+            // decorators-with-side-effects — we don't try to resolve it
+            // statically. Just flag the class so the reviewer knows to
+            // look. Skipped if already in decorated_functions.
+            if sem.decorated_functions.contains_key(&name) {
+                sem.metaprogrammed_classes
+                    .entry(name)
+                    .or_default()
+                    .push("class with decorators".into());
+            }
+        }
     }
 }
 

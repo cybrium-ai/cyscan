@@ -102,11 +102,28 @@ impl Snapshot {
         for entry in fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
             let entry = entry?;
             let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) != Some("jsonl") { continue; }
+            // Accept `.jsonl` (legacy / dev) and `.jsonl.gz` (shipped
+            // form — gzipped to fit in regular git, see the migration
+            // out of LFS). Skip everything else.
+            let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+            let is_gz = name.ends_with(".jsonl.gz");
+            let is_plain = name.ends_with(".jsonl");
+            if !is_gz && !is_plain { continue; }
             file_count += 1;
 
-            let raw = fs::read_to_string(&path)
-                .with_context(|| format!("reading {}", path.display()))?;
+            let raw = if is_gz {
+                let bytes = fs::read(&path)
+                    .with_context(|| format!("reading {}", path.display()))?;
+                let mut decoder = flate2::read::GzDecoder::new(bytes.as_slice());
+                let mut s = String::new();
+                use std::io::Read;
+                decoder.read_to_string(&mut s)
+                    .with_context(|| format!("decompressing {}", path.display()))?;
+                s
+            } else {
+                fs::read_to_string(&path)
+                    .with_context(|| format!("reading {}", path.display()))?
+            };
             for (ln, line) in raw.lines().enumerate() {
                 let line = line.trim();
                 if line.is_empty() { continue; }

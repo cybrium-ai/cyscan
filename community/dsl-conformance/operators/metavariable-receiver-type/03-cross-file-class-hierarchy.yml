@@ -1,0 +1,42 @@
+test_id: metavariable-receiver-type/03-cross-file-class-hierarchy
+description: |
+  Class SqlCommand : DbCommand declared in B.cs. cmd.Execute() is
+  called in A.cs against a SqlCommand local. The rule allow-lists
+  DbCommand only. Without cross-file class-hierarchy walking the
+  match would miss; with it, the project walker follows
+  SqlCommand → DbCommand and the rule fires.
+
+  Tests project-wide class hierarchy aggregation — the engine MUST
+  walk parent edges across files, not just within the file the
+  match originates in.
+language: csharp
+extensions:
+  - metavariable-receiver-type
+tags:
+  - cross-file
+multi_file:
+  files:
+    B.cs: |
+      namespace App;
+      public class DbCommand { public void Execute() {} }
+      public class SqlCommand : DbCommand { }
+    A.cs: |
+      namespace App;
+      class Caller {
+          void Run() {
+              SqlCommand cmd = new SqlCommand();
+              cmd.Execute();
+          }
+      }
+rule:
+  id: TEST-RECV-XFILE
+  severity: medium
+  languages: [csharp]
+  regex: '(\w+)\.Execute\('
+  metavariable_receiver_type:
+    match:
+      - DbCommand
+  message: matched
+expected:
+  - line: 5
+    snippet_contains: "cmd.Execute"

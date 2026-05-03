@@ -40,6 +40,7 @@ pub struct EndpointReport {
 
 /// Run all endpoint checks for the current platform.
 pub fn scan() -> EndpointReport {
+    #[allow(unused_assignments, unused_mut)]
     let mut checks: Vec<EndpointCheck> = Vec::new();
 
     #[cfg(target_os = "macos")]
@@ -51,6 +52,10 @@ pub fn scan() -> EndpointReport {
     {
         checks = linux::run_checks();
     }
+
+    // Other platforms (Windows, etc.) currently have no endpoint
+    // checks — `checks` stays empty. The report still emits with a
+    // zero score so callers don't have to special-case the platform.
 
     let passed = checks.iter().filter(|c| c.passed).count();
     let failed = checks.iter().filter(|c| !c.passed).count();

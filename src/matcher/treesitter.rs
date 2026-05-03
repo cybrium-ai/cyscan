@@ -10,7 +10,14 @@ use tree_sitter::{Parser, Query, QueryCursor, Tree};
 
 use crate::{finding::Finding, lang::Lang, rule::Rule};
 
-use super::dsl::{metavariable_comparisons_match, metavariable_types_match, CaptureMeta};
+use super::dsl::{
+    metavariable_analysis_passes, metavariable_comparisons_match,
+    metavariable_pattern_ast_match, metavariable_pattern_match,
+    metavariable_receiver_type_match, metavariable_regex_match,
+    metavariable_types_match, pattern_not_regex_passes,
+    pattern_where_match, CaptureMeta,
+};
+use super::semantics::FileSemantics;
 
 pub fn parse(lang: Lang, source: &str) -> Result<Tree> {
     let mut parser = Parser::new();
@@ -23,11 +30,13 @@ pub fn parse(lang: Lang, source: &str) -> Result<Tree> {
 }
 
 pub fn match_rule(
-    rule:   &Rule,
-    lang:   Lang,
-    path:   &Path,
-    source: &str,
-    tree:   &Tree,
+    rule:      &Rule,
+    lang:      Lang,
+    path:      &Path,
+    source:    &str,
+    tree:      &Tree,
+    semantics: &FileSemantics,
+    project:   Option<&crate::dataflow::ProjectSemantics>,
 ) -> Vec<Finding> {
     let Some(q_str) = rule.query.as_deref() else { return Vec::new() };
 
@@ -108,6 +117,43 @@ pub fn match_rule(
         if !rule.metavariable_types.is_empty()
             && !metavariable_types_match(&rule.metavariable_types, &captures)
         {
+            continue;
+        }
+        // Semgrep-max DSL parity (Phase B): per-capture regex +
+        // sub-pattern, plus matched-span negative regex.
+        if !metavariable_regex_match(&rule.metavariable_regex, &captures) {
+            continue;
+        }
+        if !metavariable_pattern_match(&rule.metavariable_pattern, &captures) {
+            continue;
+        }
+        // Per-capture analyzer (Semgrep Pro `metavariable-analysis`
+        // parity — redos / entropy).
+        if !metavariable_analysis_passes(&rule.metavariable_analysis, &captures) {
+            continue;
+        }
+        // Nested AST / cross-language sub-pattern.
+        if !metavariable_pattern_ast_match(&rule.metavariable_pattern_ast, &captures) {
+            continue;
+        }
+        // Compound boolean — Semgrep beta `pattern-where`.
+        if !pattern_where_match(rule.pattern_where.as_deref(), &captures) {
+            continue;
+        }
+        // Resolved-receiver-type — Checkmarx-style semantic
+        // disambiguation. v0.22.0 additionally consults the
+        // project-wide class hierarchy (cross-file extends/impl).
+        if !metavariable_receiver_type_match(
+            &rule.metavariable_receiver_type,
+            &captures,
+            semantics,
+            project,
+            start.row + 1,
+        ) {
+            continue;
+        }
+        let span_text = node.utf8_text(bytes).unwrap_or("");
+        if !pattern_not_regex_passes(&rule.pattern_not_regex, span_text) {
             continue;
         }
 

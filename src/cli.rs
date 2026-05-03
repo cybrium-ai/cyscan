@@ -88,6 +88,14 @@ enum Cmd {
         #[arg(long)]
         offline: bool,
 
+        /// Verify each dependency's declared checksum against the upstream
+        /// registry's published checksum (npm / crates.io / PyPI / Go
+        /// proxy / Packagist). Catches tampered lockfiles that pass
+        /// offline consistency checks. Off by default for CI friendliness;
+        /// requires outbound HTTPS to the relevant registries.
+        #[arg(long)]
+        verify_integrity: bool,
+
         #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
         format: Format,
 
@@ -221,6 +229,26 @@ enum Cmd {
         #[command(subcommand)]
         cmd: TriageCmd,
     },
+
+    /// Discover the cross-service API surface — HTTP/gRPC clients
+    /// paired with their target handlers across languages. Closes the
+    /// "C# controller calls Java service calls Python DB helper"
+    /// visibility gap that pure SAST doesn't cover.
+    Xservice {
+        /// Target directory to analyse.
+        #[arg(default_value = ".")]
+        target: PathBuf,
+
+        /// Output format. Adds `dot` and `mermaid` graph renders on
+        /// top of the regular text/JSON output.
+        #[arg(long, short = 'f', value_enum, default_value_t = XserviceFormat::Text)]
+        format: XserviceFormat,
+
+        /// Show only links (paired clients ↔ handlers); skip
+        /// unmatched callers and standalone handlers.
+        #[arg(long, default_value_t = false)]
+        links_only: bool,
+    },
 }
 
 #[derive(Debug, Subcommand)]
@@ -295,6 +323,19 @@ pub enum Format {
     Sarif,
 }
 
+/// Output formats specific to `cyscan xservice`. Adds `dot` and
+/// `mermaid` graph renders on top of the regular text / json shapes.
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+pub enum XserviceFormat {
+    #[default]
+    Text,
+    Json,
+    /// Graphviz DOT — pipe through `dot -Tsvg` to render.
+    Dot,
+    /// Mermaid graph — paste into GitHub markdown / Notion.
+    Mermaid,
+}
+
 fn print_banner() {
     eprintln!("\x1b[35m");
     eprintln!(r#"   ___  _   _  ___   ___    _    _  _ "#);
@@ -366,10 +407,10 @@ pub fn run() -> Result<ExitCode> {
                     Format::Json => {
                         println!("{}", serde_json::to_string_pretty(&cia_scores).unwrap_or_default());
                     }
+                    Format::Sarif => {}
                     _ => {
                         crate::cia::print_summary(&cia_scores, &findings, &pack);
                     }
-                    Format::Sarif => {}
                 }
             }
 
@@ -385,7 +426,7 @@ pub fn run() -> Result<ExitCode> {
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
         }
 
-        Cmd::Supply { target, rules, advisories, no_advisories, offline: _, format, fail_on } => {
+        Cmd::Supply { target, rules, advisories, no_advisories, offline: _, verify_integrity, format, fail_on } => {
             let pack = load_pack(rules.as_deref())?;
             let snapshot = if no_advisories {
                 supply::advisory::Snapshot::default()
@@ -393,7 +434,21 @@ pub fn run() -> Result<ExitCode> {
                 let dir = advisories.unwrap_or_else(bundled_advisories_path);
                 supply::advisory::Snapshot::load_dir(&dir)?
             };
-            let findings = supply::run(&target, &pack, &snapshot)?;
+            let mut findings = supply::run(&target, &pack, &snapshot)?;
+            // Online tampering verification — opt-in. Reuses the
+            // dependency list discovered by `supply::run` rather than
+            // re-walking the tree.
+            if verify_integrity {
+                let deps = supply::lockfile::discover(&target)?;
+                let opts = supply::tampering_online::OnlineOpts::default();
+                let client = supply::tampering_online::HttpRegistryClient;
+                findings.extend(supply::tampering_online::scan_with_client(&deps, &client, &opts));
+                findings.sort_by(|a, b| {
+                    b.severity.cmp(&a.severity)
+                        .then_with(|| a.file.cmp(&b.file))
+                        .then_with(|| a.rule_id.cmp(&b.rule_id))
+                });
+            }
             match format {
                 Format::Text  => output::text::emit(&findings)?,
                 Format::Json  => output::json::emit(&findings)?,
@@ -534,7 +589,7 @@ pub fn run() -> Result<ExitCode> {
             let report = crate::appscan::scan(&target)?;
 
             match format {
-                Format::Json => {
+                Format::Json | Format::Sarif => {
                     println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
                 }
                 _ => {
@@ -593,9 +648,6 @@ pub fn run() -> Result<ExitCode> {
                     }
                     println!();
                 }
-                Format::Sarif => {
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
-                }
             }
 
             let fail_hit = match fail_below {
@@ -610,7 +662,7 @@ pub fn run() -> Result<ExitCode> {
             let report = crate::endpoint::scan();
 
             match format {
-                Format::Json => {
+                Format::Json | Format::Sarif => {
                     println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
                 }
                 _ => {
@@ -650,10 +702,6 @@ pub fn run() -> Result<ExitCode> {
                         }
                     }
                     println!();
-                }
-                Format::Sarif => {
-                    // Convert to findings for SARIF output
-                    println!("{}", serde_json::to_string_pretty(&report).unwrap_or_default());
                 }
             }
 
@@ -745,6 +793,64 @@ pub fn run() -> Result<ExitCode> {
                 Ok(ExitCode::from(0))
             }
         },
+
+        Cmd::Xservice { target, format, links_only } => {
+            print_banner();
+            let map = crate::xservice::build(&target);
+            match format {
+                XserviceFormat::Json => {
+                    println!("{}", serde_json::to_string_pretty(&map).unwrap_or_default());
+                }
+                XserviceFormat::Dot => {
+                    println!("{}", map.to_dot());
+                }
+                XserviceFormat::Mermaid => {
+                    println!("{}", map.to_mermaid());
+                }
+                XserviceFormat::Text => {
+                    eprintln!();
+                    eprintln!("  Cross-service API surface");
+                    eprintln!("  -------------------------");
+                    eprintln!("    clients:  {}", map.clients.len());
+                    eprintln!("    handlers: {}", map.handlers.len());
+                    eprintln!("    specs:    {}", map.specs.len());
+                    eprintln!("    links:    {}", map.links.len());
+                    eprintln!();
+
+                    if !links_only && !map.specs.is_empty() {
+                        println!("API specs discovered:");
+                        for spec in &map.specs {
+                            println!("  {}  ({:?}, {} operations)",
+                                spec.file.display(), spec.kind, spec.operations.len());
+                        }
+                        println!();
+                    }
+
+                    if !map.links.is_empty() {
+                        println!("CLIENT  →  HANDLER  (matched_via)");
+                        for link in &map.links {
+                            if links_only && link.handler.is_none() { continue; }
+                            let h = link.handler.as_ref()
+                                .map(|h| format!("{} {}  [{}/{}:{}]",
+                                    h.method.as_str(), h.path,
+                                    h.framework, h.file.display(), h.line))
+                                .unwrap_or_else(|| "<external / unmatched>".into());
+                            println!("  {} {}  [{}:{}]  →  {}  ({})",
+                                link.client.method.as_str(),
+                                link.client.path,
+                                link.client.file.display(),
+                                link.client.line,
+                                h,
+                                link.matched_via,
+                            );
+                        }
+                    } else {
+                        println!("No client calls discovered.");
+                    }
+                }
+            }
+            Ok(ExitCode::from(0))
+        }
     }
 }
 

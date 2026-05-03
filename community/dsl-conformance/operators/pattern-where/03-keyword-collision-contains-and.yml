@@ -1,0 +1,33 @@
+test_id: pattern-where/03-keyword-collision-contains-and
+description: |
+  The boolean expression `$x contains "android"` looks like it
+  contains the keyword `and` (from "android"). A naive tokenizer
+  splits on the substring `and` and produces malformed tokens.
+
+  This case asserts the operator's tokenizer uses word-boundary
+  detection: only `and`/`or`/`not` as full keywords with whitespace
+  separators trigger boolean parsing. Substrings inside string
+  literals and identifier names do not.
+language: python
+extensions:
+  - pattern-where
+tags:
+  - edge-case
+source: |
+  TARGET = "android"
+  TARGET = "ios"
+  TARGET = "android-tv"
+rule:
+  id: TEST-PWHERE-KEYWORD
+  severity: low
+  languages: [python]
+  regex: 'TARGET\s*=\s*["]([^"]+)["]'
+  pattern_where: '$match contains "android"'
+  message: matched
+expected:
+  - line: 1
+    snippet_contains: '"android"'
+  - line: 3
+    snippet_contains: '"android-tv"'
+  - not_line: 2
+    snippet_contains: '"ios"'

@@ -1,0 +1,38 @@
+test_id: metavariable-receiver-type/02-shadow-suppresses-outer-match
+description: |
+  Inner block declares a String shadow of an outer Connection variable.
+  The receiver-type filter on java.sql.Connection must match the OUTER
+  call but NOT the INNER one — even though the method-name regex
+  matches both call sites. Tests scope-aware symbol resolution
+  interacting with receiver-type filtering.
+language: java
+extensions:
+  - metavariable-receiver-type
+tags:
+  - edge-case
+source: |
+  import java.sql.Connection;
+  class App {
+      void run(Connection makeConn) {
+          Connection conn = makeConn;
+          conn.prepareStatement("SELECT outer");
+          if (true) {
+              String conn = "shadowed";
+              conn.prepareStatement("SELECT inner");
+          }
+      }
+  }
+rule:
+  id: TEST-RECV-SHADOW
+  severity: high
+  languages: [java]
+  regex: '(\w+)\s*\.\s*prepareStatement\('
+  metavariable_receiver_type:
+    match:
+      - java.sql.Connection
+  message: matched
+expected:
+  - line: 5
+    snippet_contains: "SELECT outer"
+  - not_line: 8
+    snippet_contains: "SELECT inner"

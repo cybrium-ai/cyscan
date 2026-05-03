@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cybrium.ai/schemas/type-hierarchy/v0.1.json",
+  "title": "Type Hierarchy Corpus Entry",
+  "description": "Per-package class / type hierarchy mined from real package metadata. One file per (package, version).",
+  "type": "object",
+  "required": ["ecosystem", "package", "version", "harvested_at", "harvester", "types"],
+  "properties": {
+    "ecosystem": {
+      "type": "string",
+      "enum": ["java", "csharp", "python", "javascript", "typescript", "go", "rust", "ruby", "php", "swift", "scala", "kotlin"],
+      "description": "Package ecosystem. Lowercase, no version suffix."
+    },
+    "package": {
+      "type": "string",
+      "description": "Canonical package identifier within the ecosystem (e.g. 'Microsoft.Data.SqlClient' for NuGet, 'requests' for PyPI, 'gin-gonic/gin' for Go)."
+    },
+    "version": {
+      "type": "string",
+      "description": "Specific version string the corpus entry was mined from (e.g. '5.2.0'). Different versions live in different files."
+    },
+    "license": {
+      "type": "string",
+      "description": "SPDX identifier of the upstream package's license. Corpus entries inherit this license."
+    },
+    "harvested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC3339 timestamp of when this entry was generated."
+    },
+    "harvester": {
+      "type": "string",
+      "description": "Name and version of the harvester tool, e.g. 'csharp/v0.1.0'."
+    },
+    "types": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/TypeRecord" },
+      "description": "Map of fully-qualified type name to its hierarchy record. Keys MUST be fully qualified (no short names). Use the ecosystem's native FQN convention (`a.b.C` for Java/Python/C#, `a/b/C` for Go module paths, `a::b::C` for Rust)."
+    }
+  },
+  "$defs": {
+    "TypeRecord": {
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["class", "interface", "trait", "struct", "enum", "abstract_class", "record", "object", "module"],
+          "description": "Native type kind in the source language."
+        },
+        "parents": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Direct superclasses or supertypes, fully qualified. Empty array if no parent (top of hierarchy or interface root). Keep this list small — transitive closure is computed by consumers."
+        },
+        "interfaces": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Implemented interfaces / traits / protocols, fully qualified. Java/C# only — collapsed into `parents` for languages with single-supertype semantics."
+        },
+        "type_parameters": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Generic type-parameter names declared on this type, e.g. ['T', 'K', 'V'] for `Map<K,V>`. Empty for non-generic types."
+        },
+        "methods": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/MethodRecord" },
+          "description": "Public methods defined on this type. Optional — many corpus entries record hierarchy only and omit methods. When present, used by SAST tools to know that e.g. `SqlCommand.ExecuteReader` returns a `SqlDataReader`."
+        },
+        "deprecated": {
+          "type": "boolean",
+          "description": "True if the type is marked deprecated/obsolete in upstream. Allows consumers to deprioritise rules targeting it."
+        }
+      }
+    },
+    "MethodRecord": {
+      "type": "object",
+      "properties": {
+        "returns": {
+          "type": "string",
+          "description": "Return type, fully qualified. Use 'void' / 'unit' / 'None' per language convention; 'object' for fully erased."
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "name": { "type": "string" },
+              "type": { "type": "string" }
+            }
+          },
+          "description": "Parameter types in declaration order. Names are best-effort (some metadata sources erase them)."
+        },
+        "static": {
+          "type": "boolean",
+          "description": "True for static / class methods."
+        },
+        "throws": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Declared exceptions. Java only."
+        }
+      }
+    }
+  }
+}

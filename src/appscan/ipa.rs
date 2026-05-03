@@ -58,7 +58,7 @@ pub fn scan(ipa_path: &Path) -> anyhow::Result<AppReport> {
 
     let mut findings = Vec::new();
     let mut frameworks = Vec::new();
-    let mut entitlements = Vec::new();
+    let entitlements = Vec::new();
 
     // 1. ATS
     let ats_raw = read_plist("NSAppTransportSecurity:NSAllowsArbitraryLoads");

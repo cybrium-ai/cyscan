@@ -47,7 +47,12 @@ pub fn emit(findings: &[Finding]) -> io::Result<()> {
                 }
             })
         };
-        json!({
+        // Cross-service chain → SARIF relatedLocations (one per
+        // upstream caller / linked finding). Lets the SARIF viewer
+        // render the chain as clickable side-by-side navigation.
+        let related_locations = build_related_locations(f);
+
+        let mut result = json!({
             "ruleId": f.rule_id,
             "level":  sarif_level(f.severity),
             "message": { "text": f.message },
@@ -56,7 +61,11 @@ pub fn emit(findings: &[Finding]) -> io::Result<()> {
                 "fix_recipe":        f.fix_recipe,
                 "packageCoordinate": package_coordinate(f),
             }
-        })
+        });
+        if !related_locations.is_empty() {
+            result["relatedLocations"] = json!(related_locations);
+        }
+        result
     }).collect();
 
     let sarif = json!({
@@ -99,6 +108,51 @@ fn package_coordinate(f: &Finding) -> Option<String> {
         return None;
     }
     Some(f.snippet.clone())
+}
+
+/// Build SARIF relatedLocations entries from a finding's
+/// `cross_service_chain` and `cross_service_callers` evidence (when
+/// present). Returns an empty Vec when there's nothing to add.
+fn build_related_locations(f: &Finding) -> Vec<serde_json::Value> {
+    let mut out = Vec::new();
+    if let Some(chain) = f.evidence.get("cross_service_chain").and_then(|v| v.as_array()) {
+        for entry in chain {
+            let file = entry.get("file").and_then(|v| v.as_str()).unwrap_or("");
+            let line = entry.get("line").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+            let snippet = entry.get("snippet").and_then(|v| v.as_str()).unwrap_or("");
+            let rule_id = entry.get("rule_id").and_then(|v| v.as_str()).unwrap_or("");
+            out.push(json!({
+                "physicalLocation": {
+                    "artifactLocation": { "uri": file },
+                    "region": {
+                        "startLine": line.max(1),
+                        "snippet": { "text": snippet },
+                    }
+                },
+                "message": { "text": format!("Linked finding [{rule_id}]: {snippet}") },
+            }));
+        }
+    }
+    if let Some(callers) = f.evidence.get("cross_service_callers").and_then(|v| v.as_array()) {
+        for entry in callers {
+            let file = entry.get("file").and_then(|v| v.as_str()).unwrap_or("");
+            let line = entry.get("line").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+            let language = entry.get("language").and_then(|v| v.as_str()).unwrap_or("");
+            let method = entry.get("method").and_then(|v| v.as_str()).unwrap_or("");
+            let path = entry.get("path").and_then(|v| v.as_str()).unwrap_or("");
+            out.push(json!({
+                "physicalLocation": {
+                    "artifactLocation": { "uri": file },
+                    "region": {
+                        "startLine": line.max(1),
+                        "snippet": { "text": format!("{method} {path}") },
+                    }
+                },
+                "message": { "text": format!("Upstream {language} caller: {method} {path}") },
+            }));
+        }
+    }
+    out
 }
 
 fn security_score(s: Severity) -> f64 {

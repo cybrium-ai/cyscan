@@ -13,6 +13,8 @@ pub mod advisory;
 pub mod license;
 pub mod lockfile;
 pub mod policy;
+pub mod tampering;
+pub mod tampering_online;
 pub mod typosquat;
 
 use std::path::Path;
@@ -33,6 +35,7 @@ pub fn run(target: &Path, pack: &RulePack, advisories: &advisory::Snapshot) -> R
     findings.extend(typosquat::scan(&deps));
     findings.extend(policy::scan(&deps, pack.rules()));
     findings.extend(license::scan(&deps));
+    findings.extend(tampering::scan_offline(&deps));
 
     // Reachability enrichment — write dependency-path + matched
     // import/symbol + call-site evidence onto every finding the advisory
