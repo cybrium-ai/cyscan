@@ -8,5 +8,5 @@ message: |
   OS Login automatically revokes the relevant SSH keys when an IAM user has their access revoked.
   
   Remediation: Enable OS Login at project level
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

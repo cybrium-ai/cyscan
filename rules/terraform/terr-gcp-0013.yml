@@ -8,5 +8,5 @@ message: |
   DNSSEC authenticates DNS responses, preventing MITM attacks and impersonation.
   
   Remediation: Enable DNSSEC
-pattern: |
+regex: |
   resource\s+"google_dns_managed_zone"

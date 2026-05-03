@@ -8,5 +8,5 @@ message: |
   Either cluster-admin or those granted powerful permissions.
   
   Remediation: Remove binding for clusterrole 'cluster-admin', 'admin' or 'edit'
-pattern: |
+regex: |
   name:\s*cluster-admin

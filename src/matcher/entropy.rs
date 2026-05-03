@@ -176,6 +176,30 @@ fn is_false_positive(s: &str, key: &str) -> bool {
         return true;
     }
 
+    // ANSI / VT100 terminal escape sequences. The `\x1b` (ESC), `\033`
+    // (octal ESC), or `` (Unicode ESC) prefixes appear in CLI
+    // banner strings like `"\x1b[35m...\x1b[0m"` — high-entropy because
+    // of the mixed digits + bracket + letter codes, but not secrets.
+    if s.contains("\\x1b") || s.contains("\\033") || s.contains("\\u001b")
+        || s.contains("\\e[") || s.contains("\u{1b}[")
+    {
+        return true;
+    }
+
+    // Format-string heavy content. Logging strings with many `{}`
+    // placeholders or `\n` newline escapes look high-entropy because
+    // of the mix of curly braces, backslashes, and word characters.
+    // Heuristic: if more than 25% of the string is escape sequences
+    // (`\n`, `\t`, `\r`, `{}`, `|`), it's a display template.
+    let display_chars = s.matches("\\n").count() * 2
+        + s.matches("\\t").count() * 2
+        + s.matches("\\r").count() * 2
+        + s.matches("{}").count() * 2
+        + s.matches('|').count();
+    if display_chars * 4 >= s.len() {
+        return true;
+    }
+
     // Base64 encoded small values (< 10 bytes decoded = likely not a secret)
     if s.ends_with('=') || s.ends_with("==") {
         let stripped = s.trim_end_matches('=');

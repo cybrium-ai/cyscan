@@ -8,5 +8,5 @@ message: |
   Using 'allAuthenticatedUsers' provides any GCP user - even those outside of your organisation - access to your BigQuery dataset.
   
   Remediation: Configure access permissions with higher granularity
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

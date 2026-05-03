@@ -10,5 +10,5 @@ message: |
   By enabling S3 bucket logging on target S3 buckets, you can capture all events that might affect objects in a target bucket. Configuring logs to be placed in a separate bucket enables access to log information, which can be useful in security and incident response workflows.
   
   Remediation: Enable access logging on the bucket
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

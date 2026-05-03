@@ -8,5 +8,5 @@ message: |
   By enabling encryption on EBS volumes you protect the volume, the disk I/O and any derived snapshots from compromise if intercepted.
   
   Remediation: Enable encryption of EBS volumes
-pattern: |
+regex: |
   encrypted\s*=\s*false

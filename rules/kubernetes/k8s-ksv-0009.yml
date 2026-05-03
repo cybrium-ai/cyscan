@@ -8,5 +8,5 @@ message: |
   Sharing the host’s network namespace permits processes in the pod to communicate with processes bound to the host’s loopback adapter.
   
   Remediation: Do not set 'spec.template.spec.hostNetwork' to true.
-pattern: |
+regex: |
   hostNetwork:\s*true

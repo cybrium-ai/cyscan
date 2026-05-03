@@ -10,5 +10,5 @@ message: |
   If the authentication record remains, anyone can register the zone
   
   Remediation: Remove verified record
-pattern: |
+regex: |
   resource\s+"google_dns_managed_zone"

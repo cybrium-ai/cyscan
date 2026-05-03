@@ -9,5 +9,5 @@ message: |
   SSH access should not be permitted from the internet (*, 0.0.0.0, /0, internet, any)
   
   Remediation: Block port 22 access from the internet
-pattern: |
+regex: |
   resource\s+"azurerm_(?:network_security_group|virtual_network)"

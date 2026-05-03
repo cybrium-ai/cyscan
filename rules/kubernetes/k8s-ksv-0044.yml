@@ -8,5 +8,5 @@ message: |
   Check whether role permits wildcard verb on wildcard resource
   
   Remediation: Create a role which does not permit wildcard verb on wildcard resource
-pattern: |
+regex: |
   (?:verbs|resources|apiGroups):\s*\n\s*-\s*"\*"

@@ -8,5 +8,5 @@ message: |
   GCP Deployment Manager compute instance uses the default service account with full API access.
   
   Remediation: Create a custom service account with minimum required permissions.
-pattern: |
+regex: |
   (?:compute\.v1\.instance|google_compute_instance)[^}]*(?:default|compute@developer)

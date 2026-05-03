@@ -8,5 +8,5 @@ message: |
   Data stored within an EMR cluster should be encrypted to ensure sensitive data is kept private.
   
   Remediation: Enable at-rest encryption for EMR cluster
-pattern: |
+regex: |
   encrypted\s*=\s*false

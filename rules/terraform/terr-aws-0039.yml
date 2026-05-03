@@ -8,5 +8,5 @@ message: |
   EKS cluster resources should have the encryption_config block set with protection of the secrets resource.
   
   Remediation: Enable encryption of EKS secrets
-pattern: |
+regex: |
   encrypted\s*=\s*false

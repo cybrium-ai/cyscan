@@ -14,5 +14,5 @@ message: |
   recommended to delete expired certificates.
   
   Remediation: Remove expired certificates
-pattern: |
+regex: |
   (?:ssl_enforcement|minimum_tls_version|ssl_mode)

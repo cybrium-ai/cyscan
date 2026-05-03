@@ -9,5 +9,5 @@ message: |
   as these versions no longer receive security patches. This check ensures Python versions are still supported by the Python Foundation.
   
   Remediation: Update to a supported Python version (3.9 or higher). Consider migrating from azurerm_app_service to azurerm_linux_web_app for access to modern Python versions.
-pattern: |
+regex: |
   resource\s+"azurerm_app_service"

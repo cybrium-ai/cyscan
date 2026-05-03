@@ -8,5 +8,5 @@ message: |
   Logging enables end-to-end debugging and analysis of all state machine activities.
   
   Remediation: Enable logging
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

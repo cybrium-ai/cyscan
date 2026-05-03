@@ -8,5 +8,5 @@ message: |
   S3 buckets should restrict public policies for the bucket. By enabling, the restrict_public_buckets, only the bucket owner and AWS Services can access if it has a public policy.
   
   Remediation: Limit the access to public buckets to only the owner or AWS Services (eg; CloudFront)
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

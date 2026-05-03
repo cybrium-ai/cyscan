@@ -8,5 +8,5 @@ message: |
   CloudFormation S3 bucket uses a public ACL, exposing data to the internet.
   
   Remediation: Set AccessControl to Private or remove it entirely. Add PublicAccessBlockConfiguration.
-pattern: |
+regex: |
   AccessControl.*(?:PublicRead|PublicReadWrite|AuthenticatedRead)

@@ -8,5 +8,5 @@ message: |
   Container has NET_ADMIN capability which allows network configuration changes.
   
   Remediation: Remove NET_ADMIN unless the container needs to configure networking.
-pattern: |
+regex: |
   add:\s*\n\s*-\s*(?:NET_ADMIN|"NET_ADMIN")

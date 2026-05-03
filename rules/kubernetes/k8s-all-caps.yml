@@ -8,5 +8,5 @@ message: |
   Container grants ALL capabilities, equivalent to running as --privileged.
   
   Remediation: Drop ALL capabilities and add back only the specific ones needed.
-pattern: |
+regex: |
   add:\s*\n\s*-\s*(?:ALL|"ALL")

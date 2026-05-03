@@ -8,5 +8,5 @@ message: |
   EKS clusters are available publicly by default, this should be explicitly disabled in the vpc_config of the EKS cluster resource.
   
   Remediation: Don't enable public access to EKS Clusters
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

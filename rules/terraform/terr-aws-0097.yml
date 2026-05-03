@@ -9,5 +9,5 @@ message: |
   This ensures that the queue itself cannot be modified or deleted, and prevents possible future additions to queue actions to be implicitly allowed.
   
   Remediation: Keep policy scope to the minimum that is required to be effective
-pattern: |
+regex: |
   (?:actions|principals)\s*=\s*\[\s*"\*"\s*\]

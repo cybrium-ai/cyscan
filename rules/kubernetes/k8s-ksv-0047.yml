@@ -8,5 +8,5 @@ message: |
   Check whether role permits privilege escalation from node proxy
   
   Remediation: Create a role which does not permit privilege escalation from node proxy
-pattern: |
+regex: |
   allowPrivilegeEscalation:\s*true

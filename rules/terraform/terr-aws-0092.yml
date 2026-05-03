@@ -8,5 +8,5 @@ message: |
   Buckets should not have ACLs that allow public access
   
   Remediation: Don't use canned ACLs or switch to private acl
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

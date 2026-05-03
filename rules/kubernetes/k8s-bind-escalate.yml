@@ -8,5 +8,5 @@ message: |
   RBAC role allows bind, escalate, or impersonate verbs which can be used for privilege escalation.
   
   Remediation: Remove these verbs from the role unless absolutely necessary.
-pattern: |
+regex: |
   verbs:\s*\n(?:\s*-\s*\S+\n)*\s*-\s*(?:bind|escalate|impersonate)

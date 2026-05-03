@@ -8,5 +8,5 @@ message: |
   Enabling a network policy allows the segregation of network traffic by namespace
   
   Remediation: Enable network policy
-pattern: |
+regex: |
   network_policy\s*\{

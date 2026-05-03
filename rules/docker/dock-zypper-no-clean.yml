@@ -8,5 +8,5 @@ message: |
   zypper install called without a subsequent zypper clean. This leaves cached packages in the image.
   
   Remediation: Add && zypper clean at the end of the RUN instruction.
-pattern: |
+regex: |
   ^\s*RUN\s+.*zypper\s+install\s+(?!.*zypper\s+clean)

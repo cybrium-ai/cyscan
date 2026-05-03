@@ -8,5 +8,5 @@ message: |
   Ensures that S3 buckets have DNS complaint bucket names.
   
   Remediation: Recreate S3 bucket to use - instead of . in S3 bucket names
-pattern: |
+regex: |
   resource\s+"aws_s3_bucket"

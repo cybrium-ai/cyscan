@@ -8,5 +8,5 @@ message: |
   Logging checkpoints provides useful diagnostic data, which can identify performance issues in an application and potential DoS vectors.
   
   Remediation: Enable checkpoints logging.
-pattern: |
+regex: |
   resource\s+"google_sql_database_instance"

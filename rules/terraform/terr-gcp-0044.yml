@@ -8,5 +8,5 @@ message: |
   The default service account has full project access. Instances should instead be assigned the minimal access they need.
   
   Remediation: Remove use of default service account
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

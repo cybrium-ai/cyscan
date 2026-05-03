@@ -8,5 +8,5 @@ message: |
   dnf install called without a subsequent dnf clean all. This leaves cached packages in the image.
   
   Remediation: Add && dnf clean all at the end of the RUN instruction.
-pattern: |
+regex: |
   ^\s*RUN\s+.*dnf\s+install\s+(?!.*dnf\s+clean)

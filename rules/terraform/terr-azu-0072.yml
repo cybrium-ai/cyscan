@@ -8,5 +8,5 @@ message: |
   Allowing HTTP undermines transport encryption and exposes user data.
   
   Remediation: Set 'HTTPS Only' to true in App Service TLS settings to force encrypted transport.
-pattern: |
+regex: |
   resource\s+"azurerm_app_service"

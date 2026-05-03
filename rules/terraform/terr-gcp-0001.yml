@@ -8,5 +8,5 @@ message: |
   Using 'allUsers' or 'allAuthenticatedUsers' as members in an IAM member/binding causes data to be exposed outside of the organisation.
   
   Remediation: Restrict public access to the bucket.
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

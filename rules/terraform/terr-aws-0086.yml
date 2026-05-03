@@ -8,5 +8,5 @@ message: |
   S3 buckets should block public ACLs on buckets and any objects they contain. By blocking, PUTs with fail if the object has any public ACL a.
   
   Remediation: Enable blocking any PUT calls with a public ACL specified
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

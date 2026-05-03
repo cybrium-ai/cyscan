@@ -8,5 +8,5 @@ message: |
   RBAC role allows creating pod exec subresources which grants shell access to running containers.
   
   Remediation: Restrict this permission to admin roles only.
-pattern: |
+regex: |
   resources:\s*\n(?:\s*-\s*\S+\n)*\s*-\s*(?:"pods/exec"|pods/exec)

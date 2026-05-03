@@ -9,5 +9,5 @@ message: |
   By enabling point-in-time-recovery you can restore to a known point in the event of loss of data.
   
   Remediation: Enable point in time recovery
-pattern: |
+regex: |
   resource\s+"aws_dynamodb_table"

@@ -8,5 +8,5 @@ message: |
   Redis clusters should have a snapshot retention time to ensure that they are backed up and can be restored if required.
   
   Remediation: Configure snapshot retention for redis cluster
-pattern: |
+regex: |
   backup_retention_period\s*=\s*0

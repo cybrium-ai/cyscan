@@ -8,5 +8,5 @@ message: |
   Assigning a password to the compute instance using plaintext could lead to compromise; it would be preferable to use key-pairs as a login mechanism
   
   Remediation: Do not use plaintext passwords in terraform files
-pattern: |
+regex: |
   (?:password|admin_password)\s*=\s*"[^"]*"

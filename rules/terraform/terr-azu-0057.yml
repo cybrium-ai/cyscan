@@ -10,5 +10,5 @@ message: |
   Logging should be enabled for at least one storage service type.
   
   Remediation: Enable logging for at least one storage service (Queue, Table, or Blob)
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

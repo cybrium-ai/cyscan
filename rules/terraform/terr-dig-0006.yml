@@ -8,5 +8,5 @@ message: |
   Space bucket and bucket object permissions should be set to deny public access unless explicitly required.
   
   Remediation: Apply a more restrictive ACL
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

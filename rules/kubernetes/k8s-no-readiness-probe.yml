@@ -8,5 +8,5 @@ message: |
   Container does not define a readiness probe. Without it, traffic may be routed to unready pods.
   
   Remediation: Add a readinessProbe to the container spec.
-pattern: |
+regex: |
   containers:\s*\n\s+-\s+name:

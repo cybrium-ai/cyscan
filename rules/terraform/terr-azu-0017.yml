@@ -10,5 +10,5 @@ message: |
   Set when the resource will be become inactive.
   
   Remediation: Set an expiry for secrets
-pattern: |
+regex: |
   resource\s+"azurerm_key_vault"

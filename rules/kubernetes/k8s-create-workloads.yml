@@ -8,5 +8,5 @@ message: |
   RBAC role allows creating or updating pods/deployments/daemonsets, which could be used to run malicious workloads.
   
   Remediation: Apply namespace-scoped roles and limit to necessary resources.
-pattern: |
+regex: |
   resources:\s*\n(?:\s*-\s*\S+\n)*\s*-\s*(?:pods|deployments|daemonsets)

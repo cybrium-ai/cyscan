@@ -10,5 +10,5 @@ message: |
   When you use virtual MFA for the root user, CIS recommends that the device used is not a personal device. Instead, use a dedicated mobile device (tablet or phone) that you manage to keep charged and secured independent of any individual personal devices. This lessens the risks of losing access to the MFA due to device loss, device trade-in, or if the individual owning the device is no longer employed at the company.
   
   Remediation: Enable MFA on the root user account.
-pattern: |
+regex: |
   mfa_delete\s*=\s*(?:false|"Disabled")

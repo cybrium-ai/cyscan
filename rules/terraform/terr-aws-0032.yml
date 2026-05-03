@@ -8,5 +8,5 @@ message: |
   Allowing public access to the ECR repository risks leaking sensitive of abusable information
   
   Remediation: Do not allow public access in the policy
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

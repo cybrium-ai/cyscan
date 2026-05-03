@@ -8,5 +8,5 @@ message: |
   Encryption should be forced for Kafka clusters, including at rest. This ensures sensitive data is kept private.
   
   Remediation: Enable at rest encryption
-pattern: |
+regex: |
   encrypted\s*=\s*false

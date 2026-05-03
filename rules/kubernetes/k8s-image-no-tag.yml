@@ -8,5 +8,5 @@ message: |
   Container image does not specify a tag, defaulting to :latest. This makes deployments non-reproducible.
   
   Remediation: Pin the image to a specific version tag or digest.
-pattern: |
+regex: |
   image:\s+[a-zA-Z0-9._/-]+\s*$

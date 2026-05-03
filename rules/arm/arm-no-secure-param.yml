@@ -8,5 +8,5 @@ message: |
   ARM template parameter for password/secret uses string type instead of secureString.
   
   Remediation: Change parameter type to secureString.
-pattern: |
+regex: |
   (?:password|secret|key).*type.*string(?!.*secure)

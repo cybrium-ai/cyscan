@@ -8,5 +8,5 @@ message: |
   While upgrading your cluster, workloads will temporarily be moved to new nodes. A small cost will follow, but as a bonus, you won't experience downtime.
   
   Remediation: Enable surge upgrades in your Kubernetes cluster
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

@@ -9,5 +9,5 @@ message: |
   When enabling encryption by setting the kms_key_id, the storage_encrypted must also be set to true.
   
   Remediation: Enable encryption for RDS clusters
-pattern: |
+regex: |
   encrypted\s*=\s*false

@@ -9,5 +9,5 @@ message: |
   Note that SSE-KMS is not supported for S3 server access logging destination buckets; in such cases, use SSE-S3 instead.
   
   Remediation: Use SSE-KMS with a customer managed key (CMK)
-pattern: |
+regex: |
   encrypted\s*=\s*false

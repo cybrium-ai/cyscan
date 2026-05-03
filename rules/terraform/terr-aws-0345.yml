@@ -8,5 +8,5 @@ message: |
   Ensure that the creation of the unrestricted S3 IAM policies is disallowed.
   
   Remediation: Create more restrictive S3 policies
-pattern: |
+regex: |
   resource\s+"aws_iam_(?:policy|role|user)"

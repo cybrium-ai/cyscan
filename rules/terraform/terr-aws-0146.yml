@@ -8,5 +8,5 @@ message: |
   Regularly rotating your IAM credentials helps prevent a compromised set of IAM access keys from accessing components in your AWS account.
   
   Remediation: Rotate keys every 90 days or less
-pattern: |
+regex: |
   access_key\s*=\s*"[^"]*"

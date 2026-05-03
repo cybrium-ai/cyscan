@@ -8,5 +8,5 @@ message: |
   Enabling authentication ensures that all communications in the application are authenticated. The auth_settings block needs to be filled out with the appropriate auth backend settings
   
   Remediation: Enable authentication to prevent anonymous request being accepted
-pattern: |
+regex: |
   resource\s+"azurerm_app_service"

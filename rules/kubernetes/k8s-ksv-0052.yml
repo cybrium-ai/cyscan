@@ -8,5 +8,5 @@ message: |
   Check whether role permits creating role ClusterRoleBindings and association with privileged cluster role
   
   Remediation: Create a role which does not permit to create role clusterrolebindings and associate to privileged cluster role
-pattern: |
+regex: |
   privileged:\s*true

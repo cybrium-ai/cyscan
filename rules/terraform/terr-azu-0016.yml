@@ -10,5 +10,5 @@ message: |
   Purge protection can only be enabled once soft-delete is enabled. It can be turned on via CLI or PowerShell.
   
   Remediation: Enable purge protection for key vaults
-pattern: |
+regex: |
   resource\s+"azurerm_key_vault"

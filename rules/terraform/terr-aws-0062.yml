@@ -10,5 +10,5 @@ message: |
   The account password policy should be set to expire passwords after 90 days or less.
   
   Remediation: Limit the password duration with an expiry in the policy
-pattern: |
+regex: |
   (?:password|admin_password)\s*=\s*"[^"]*"

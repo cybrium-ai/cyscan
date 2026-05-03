@@ -8,5 +8,5 @@ message: |
   apt-get install called without --no-install-recommends. This pulls in unnecessary packages, increasing image size and attack surface.
   
   Remediation: Use apt-get install --no-install-recommends.
-pattern: |
+regex: |
   ^\s*RUN\s+.*apt-get\s+install\s+(?!.*--no-install-recommends)

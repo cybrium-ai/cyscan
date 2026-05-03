@@ -8,5 +8,5 @@ message: |
   You should configure CloudFront Access Logging to create log files that contain detailed information about every user request that CloudFront receives
   
   Remediation: Enable logging for CloudFront distributions
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

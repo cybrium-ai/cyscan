@@ -8,5 +8,5 @@ message: |
   Use a more recent TLS/SSL policy for the App Service
   
   Remediation: The TLS version being outdated and has known vulnerabilities
-pattern: |
+regex: |
   (?:minimum_tls_version|tls_version)\s*=\s*"(?:TLS1_0|TLSv1|1\.0)"

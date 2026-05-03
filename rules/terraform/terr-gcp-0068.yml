@@ -8,5 +8,5 @@ message: |
   In GitHub Actions, one can authenticate to Google Cloud by setting values for workload_identity_provider and service_account and requesting a short-lived OIDC token which is then used to execute commands as that Service Account. If you don't specify a condition in the workload identity provider pool configuration, then any GitHub Action can assume this role and act as that Service Account.
   
   Remediation: Set conditions on this provider, for example by restricting it to only be allowed from repositories in your GitHub organization
-pattern: |
+regex: |
   resource\s+"aws_iam_(?:policy|role|user)"

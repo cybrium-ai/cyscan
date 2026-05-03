@@ -8,5 +8,5 @@ message: |
   Subscription owners should be notified when there are security alerts. By ensuring the administrators of the account have been notified they can quickly assist in any required remediation
   
   Remediation: Enable email to subscription owners
-pattern: |
+regex: |
   resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

@@ -8,5 +8,5 @@ message: |
   The GKE control plane is exposed to the public internet by default.
   
   Remediation: Use private nodes and master authorised networks to prevent exposure
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

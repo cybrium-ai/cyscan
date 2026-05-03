@@ -8,5 +8,5 @@ message: |
   Tiller (Helm v2 server) is deployed in the cluster. Tiller has full cluster access and is a known attack vector.
   
   Remediation: Upgrade to Helm v3, which does not require Tiller.
-pattern: |
+regex: |
   name:\s*tiller-deploy

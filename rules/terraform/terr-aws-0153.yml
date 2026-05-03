@@ -9,5 +9,5 @@ message: |
   CIS recommends that you create a metric filter and alarm for customer managed keys that have changed state to disabled or scheduled deletion. Data encrypted with disabled or deleted keys is no longer accessible.
   
   Remediation: Create an alarm to alert on CMKs being disabled or scheduled for deletion
-pattern: |
+regex: |
   resource\s+"aws_cloudwatch_(?:log_group|metric_alarm)"

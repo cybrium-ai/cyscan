@@ -8,5 +8,5 @@ message: |
   Allowing plain FTP risks credentials and data being transmitted unencrypted.
   
   Remediation: Set FTPS state to 'FTPS Only' in App Service settings to prevent plaintext FTP.
-pattern: |
+regex: |
   resource\s+"azurerm_app_service"

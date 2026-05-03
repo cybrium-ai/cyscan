@@ -8,5 +8,5 @@ message: |
   Data can be read if the Athena Database is compromised. Athena databases and workspace result sets should be encrypted at rests. These databases and query sets are generally derived from data in S3 buckets and should have the same level of at rest protection.
   
   Remediation: Enable encryption at rest for Athena databases and workgroup configurations
-pattern: |
+regex: |
   encrypted\s*=\s*false

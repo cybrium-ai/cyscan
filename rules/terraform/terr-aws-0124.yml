@@ -10,5 +10,5 @@ message: |
   Simplifies auditing, debugging, and managing security groups.
   
   Remediation: Add descriptions for all security groups rules
-pattern: |
+regex: |
   resource\s+"aws_instance"

@@ -8,5 +8,5 @@ message: |
   Workspace volumes for both user and root should be encrypted to protect the data stored on them.
   
   Remediation: Root and user volume encryption should be enabled
-pattern: |
+regex: |
   encrypted\s*=\s*false

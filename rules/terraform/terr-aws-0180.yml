@@ -8,5 +8,5 @@ message: |
   Ensures RDS instances and RDS Cluster instances are not launched into the public cloud.
   
   Remediation: Remove the public endpoint from the RDS instance.
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

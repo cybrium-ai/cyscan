@@ -10,5 +10,5 @@ message: |
   During the retention period, you can restore a soft-deleted blob to its state at the time it was deleted.
   
   Remediation: Enable soft delete for blobs with an appropriate retention period
-pattern: |
+regex: |
   resource\s+"google_storage_bucket"

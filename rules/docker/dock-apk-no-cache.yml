@@ -8,5 +8,5 @@ message: |
   apk add called without --no-cache flag. This leaves the package index in the image, increasing its size.
   
   Remediation: Use apk add --no-cache to avoid caching the index.
-pattern: |
+regex: |
   ^\s*RUN\s+.*apk\s+add\s+(?!.*--no-cache)

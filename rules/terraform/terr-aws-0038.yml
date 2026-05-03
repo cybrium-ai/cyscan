@@ -8,5 +8,5 @@ message: |
   By default cluster control plane logging is not turned on. Logging is available for audit, api, authenticator, controllerManager and scheduler. All logging should be turned on for cluster control plane.
   
   Remediation: Enable logging for the EKS control plane
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

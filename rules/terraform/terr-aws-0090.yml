@@ -14,5 +14,5 @@ message: |
   When you enable versioning, also keep in mind the potential costs of storing noncurrent versions of objects. To help manage those costs, consider setting up an S3 Lifecycle configuration.
   
   Remediation: Enable versioning to protect against accidental/malicious removal or modification
-pattern: |
+regex: |
   versioning\s*\{[^}]*enabled\s*=\s*false

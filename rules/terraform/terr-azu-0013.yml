@@ -10,5 +10,5 @@ message: |
   The default action of the Network ACL should be set to deny for when IPs are not matched. Azure services can be allowed to bypass.
   
   Remediation: Set a network ACL for the key vault
-pattern: |
+regex: |
   resource\s+"azurerm_key_vault"

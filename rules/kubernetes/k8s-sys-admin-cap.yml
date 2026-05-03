@@ -8,5 +8,5 @@ message: |
   Container has SYS_ADMIN capability which grants near-root level privileges and is a common container escape vector.
   
   Remediation: Remove SYS_ADMIN from capabilities. If needed, use more specific capabilities.
-pattern: |
+regex: |
   add:\s*\n\s*-\s*(?:SYS_ADMIN|"SYS_ADMIN")

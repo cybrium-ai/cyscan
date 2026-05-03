@@ -8,5 +8,5 @@ message: |
   Datalake storage encryption defaults to Enabled, it shouldn't be overridden to Disabled.
   
   Remediation: Enable encryption of data lake storage
-pattern: |
+regex: |
   encrypted\s*=\s*false

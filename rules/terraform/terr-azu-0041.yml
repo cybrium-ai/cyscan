@@ -8,5 +8,5 @@ message: |
   The API server is the central way to interact with and manage a cluster. To improve cluster security and minimize attacks, the API server should only be accessible from a limited set of IP address ranges.
   
   Remediation: Limit the access to the API server to a limited IP range
-pattern: |
+regex: |
   resource\s+"google_container_cluster"

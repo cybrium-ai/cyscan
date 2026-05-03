@@ -8,5 +8,5 @@ message: |
   The default network which is provided for a project contains multiple insecure firewall rules which allow ingress to the project's infrastructure. Creation of this network should therefore be disabled.
   
   Remediation: Disable automatic default network creation
-pattern: |
+regex: |
   resource\s+"aws_iam_(?:policy|role|user)"

@@ -8,5 +8,5 @@ message: |
   When creating Launch Configurations, user data can be used for the initial configuration of the instance. User data must not contain any sensitive data.
   
   Remediation: Don't use sensitive data in user data
-pattern: |
+regex: |
   resource\s+"aws_instance"

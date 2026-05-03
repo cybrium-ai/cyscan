@@ -8,5 +8,5 @@ message: |
   Ensure AKS logging to Azure Monitoring is configured for containers to monitor the performance of workloads.
   
   Remediation: Enable logging for AKS
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

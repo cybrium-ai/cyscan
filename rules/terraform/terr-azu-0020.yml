@@ -8,5 +8,5 @@ message: |
   SSL connections should be enforced were available to ensure secure transfer and reduce the risk of compromising data in flight.
   
   Remediation: Enable SSL enforcement
-pattern: |
+regex: |
   (?:ssl_enforcement|minimum_tls_version|ssl_mode)

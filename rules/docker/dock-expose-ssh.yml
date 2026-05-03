@@ -8,5 +8,5 @@ message: |
   Dockerfile exposes port 22 (SSH). Containers should not run SSH servers.
   
   Remediation: Remove EXPOSE 22 and use kubectl exec or docker exec for container access.
-pattern: |
+regex: |
   ^\s*EXPOSE\s+22\b

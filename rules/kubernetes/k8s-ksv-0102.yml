@@ -8,5 +8,5 @@ message: |
   Check if Helm Tiller component is deployed.
   
   Remediation: Migrate to Helm v3 which no longer has Tiller component
-pattern: |
+regex: |
   name:\s*tiller

@@ -8,5 +8,5 @@ message: |
   Encryption should be forced for Kafka clusters, including for communication between nodes. This ensure sensitive data is kept private.
   
   Remediation: Enable in transit encryption
-pattern: |
+regex: |
   encrypted\s*=\s*false

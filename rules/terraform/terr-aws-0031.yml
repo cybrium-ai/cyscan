@@ -9,5 +9,5 @@ message: |
   This can be done by setting <code>image_tag_mutability</code> to <code>IMMUTABLE</code>
   
   Remediation: Only use immutable images in ECR
-pattern: |
+regex: |
   resource\s+"aws_ecr_repository"

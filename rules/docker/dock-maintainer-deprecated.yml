@@ -8,5 +8,5 @@ message: |
   MAINTAINER instruction is deprecated since Docker 1.13.
   
   Remediation: Use LABEL maintainer="name <email>" instead.
-pattern: |
+regex: |
   ^\s*MAINTAINER\s+

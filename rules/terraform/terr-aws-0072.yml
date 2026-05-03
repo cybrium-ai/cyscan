@@ -8,5 +8,5 @@ message: |
   Public access of the MQ broker should be disabled and only allow routes to applications that require access.
   
   Remediation: Disable public access when not required
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

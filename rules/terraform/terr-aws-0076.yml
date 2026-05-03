@@ -8,5 +8,5 @@ message: |
   Encryption of Neptune storage ensures that if their is compromise of the disks, the data is still protected.
   
   Remediation: Enable encryption of Neptune storage
-pattern: |
+regex: |
   encrypted\s*=\s*false

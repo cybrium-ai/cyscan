@@ -8,5 +8,5 @@ message: |
   RUN instruction uses sudo. During image build, commands run as root by default — sudo is unnecessary and may mask privilege issues.
   
   Remediation: Remove sudo from RUN instructions. Use USER to switch to non-root after installing packages.
-pattern: |
+regex: |
   ^\s*RUN\s+.*\bsudo\b

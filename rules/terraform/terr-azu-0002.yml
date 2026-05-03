@@ -8,5 +8,5 @@ message: |
   Registering the identity used by an App with AD allows it to interact with other services without using username and password
   
   Remediation: Register the app identity with AD
-pattern: |
+regex: |
   resource\s+"azurerm_app_service"

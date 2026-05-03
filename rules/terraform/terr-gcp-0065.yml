@@ -8,5 +8,5 @@ message: |
   Keys should be rotated on a regular basis to limit exposure if a given key should become compromised.
   
   Remediation: Set key rotation period to 90 days
-pattern: |
+regex: |
   resource\s+"aws_kms_key"

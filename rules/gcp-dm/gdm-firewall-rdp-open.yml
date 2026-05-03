@@ -8,5 +8,5 @@ message: |
   GCP firewall rule exposes RDP (port 3389) to 0.0.0.0/0.
   
   Remediation: Restrict source ranges or use IAP for remote access.
-pattern: |
+regex: |
   (?:ports.*3389|port.*3389)[^}]*sourceRanges.*0\.0\.0\.0/0

@@ -8,5 +8,5 @@ message: |
   Firewall rules should restrict SSH (TCP/22) access to specific IPs. Open SSH can be a security risk.
   
   Remediation: Restrict SSH (TCP port 22) access in firewall rules to known IP addresses or ranges. Avoid open 0.0.0.0/0 access for SSH.
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

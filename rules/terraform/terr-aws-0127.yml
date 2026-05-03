@@ -9,5 +9,5 @@ message: |
   In order to benefit from the additional security features achieved with using an owned VPC, the subnet should be set.
   
   Remediation: Deploy Redshift cluster into a non default VPC
-pattern: |
+regex: |
   resource\s+"aws_redshift_cluster"

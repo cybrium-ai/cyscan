@@ -8,5 +8,5 @@ message: |
   Lock waits are often an indication of poor performance and often an indicator of a potential denial of service vulnerability, therefore occurrences should be logged for analysis.
   
   Remediation: Enable lock wait logging.
-pattern: |
+regex: |
   resource\s+"google_sql_database_instance"

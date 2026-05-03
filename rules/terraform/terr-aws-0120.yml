@@ -9,5 +9,5 @@ message: |
   This means you should specify each exact permission required without using wildcards, as this could cause the granting of access to certain undesired actions, resources and principals.
   
   Remediation: Specify the exact permissions required, and to which resources they should apply instead of using wildcards.
-pattern: |
+regex: |
   (?:actions|principals)\s*=\s*\[\s*"\*"\s*\]

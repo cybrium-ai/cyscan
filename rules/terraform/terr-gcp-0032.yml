@@ -8,5 +8,5 @@ message: |
   When serial port access is enabled, the access is not governed by network security rules meaning the port can be exposed publicly.
   
   Remediation: Disable serial port access
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

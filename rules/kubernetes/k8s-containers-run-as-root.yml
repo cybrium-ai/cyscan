@@ -8,5 +8,5 @@ message: |
   Container is configured to run as root user (UID 0). Running as root increases the risk of container escape.
   
   Remediation: Set runAsUser to a non-zero value in the pod security context.
-pattern: |
+regex: |
   runAsUser:\s*0\s*$

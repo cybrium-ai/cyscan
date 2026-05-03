@@ -8,5 +8,5 @@ message: |
   IAM user accounts should be protected with multi factor authentication to add safe guards to password compromise.
   
   Remediation: Enable MFA for the user account
-pattern: |
+regex: |
   mfa_delete\s*=\s*(?:false|"Disabled")

@@ -11,5 +11,5 @@ message: |
   This provides double encryption for enhanced security.
   
   Remediation: Enable infrastructure encryption for storage account
-pattern: |
+regex: |
   encrypted\s*=\s*false

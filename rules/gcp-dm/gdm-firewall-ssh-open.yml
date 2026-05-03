@@ -8,5 +8,5 @@ message: |
   GCP firewall rule exposes SSH (port 22) to 0.0.0.0/0.
   
   Remediation: Restrict source ranges or use IAP for SSH access.
-pattern: |
+regex: |
   (?:ports.*22|port.*22)[^}]*sourceRanges.*0\.0\.0\.0/0

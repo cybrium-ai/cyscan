@@ -8,5 +8,5 @@ message: |
   Traffic flowing between Elasticache replication nodes should be encrypted to ensure sensitive data is kept private.
   
   Remediation: Enable in transit encryption for replication group
-pattern: |
+regex: |
   encrypted\s*=\s*false

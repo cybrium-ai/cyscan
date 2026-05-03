@@ -8,5 +8,5 @@ message: |
   Using AWS managed keys does not allow for fine grained control. DynamoDB tables are encrypted by default using AWS managed encryption keys. To increase control of the encryption and control the management of factors like key rotation, use a Customer Managed Key.
   
   Remediation: Enable server side encryption with a customer managed key
-pattern: |
+regex: |
   resource\s+"aws_dynamodb_table"

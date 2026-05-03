@@ -8,5 +8,5 @@ message: |
   You should not expose infrastructure to the public internet except where explicitly required
   
   Remediation: Remove public access except where explicitly required
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

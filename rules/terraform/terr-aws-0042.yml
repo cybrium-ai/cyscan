@@ -11,5 +11,5 @@ message: |
   All the logs are disabled by default.
   
   Remediation: Enable logging for ElasticSearch domains
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

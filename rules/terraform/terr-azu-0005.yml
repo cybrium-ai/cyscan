@@ -8,5 +8,5 @@ message: |
   Use the latest version of HTTP to ensure you are benefiting from security fixes
   
   Remediation: Use the latest version of HTTP
-pattern: |
+regex: |
   resource\s+"azurerm_app_service"

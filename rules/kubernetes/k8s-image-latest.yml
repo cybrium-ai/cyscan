@@ -8,5 +8,5 @@ message: |
   Container image uses :latest tag. This makes deployments non-reproducible and may pull unexpected versions.
   
   Remediation: Pin the image to a specific version tag or SHA256 digest.
-pattern: |
+regex: |
   image:\s+\S+:latest\b

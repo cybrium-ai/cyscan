@@ -8,5 +8,5 @@ message: |
   Check whether role permits impersonating privileged groups
   
   Remediation: Create a role which does not permit to impersonate privileged groups if not needed
-pattern: |
+regex: |
   privileged:\s*true

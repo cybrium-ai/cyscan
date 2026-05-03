@@ -9,5 +9,5 @@ message: |
   CIS recommends that you create a metric filter and alarm console logins that  aren't protected by MFA. Monitoring for single-factor console logins increases visibility into accounts that aren't protected by MFA.
   
   Remediation: Create an alarm to alert on non MFA logins
-pattern: |
+regex: |
   mfa_delete\s*=\s*(?:false|"Disabled")

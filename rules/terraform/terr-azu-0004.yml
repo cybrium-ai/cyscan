@@ -8,5 +8,5 @@ message: |
   By default, clients can connect to function endpoints by using both HTTP or HTTPS. You should redirect HTTP to HTTPs because HTTPS uses the SSL/TLS protocol to provide a secure connection, which is both encrypted and authenticated.
   
   Remediation: You can redirect all HTTP requests to the HTTPS port.
-pattern: |
+regex: |
   resource\s+"azurerm_app_service"

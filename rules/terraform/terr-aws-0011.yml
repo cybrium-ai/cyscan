@@ -8,5 +8,5 @@ message: |
   You should configure a Web Application Firewall in front of your CloudFront distribution. This will mitigate many types of attacks on your web application.
   
   Remediation: Enable WAF for the CloudFront distribution
-pattern: |
+regex: |
   resource\s+"aws_cloudfront_distribution"

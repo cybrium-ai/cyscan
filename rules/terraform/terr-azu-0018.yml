@@ -8,5 +8,5 @@ message: |
   SQL Server sends alerts for threat detection via email, if there are no email addresses set then mitigation will be delayed.
   
   Remediation: Provide at least one email address for threat alerts
-pattern: |
+regex: |
   resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

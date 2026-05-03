@@ -11,5 +11,5 @@ message: |
   The only option when using the cloudfront.net domain name is to ignore this rule.
   
   Remediation: Use the most modern TLS/SSL policies available
-pattern: |
+regex: |
   (?:minimum_tls_version|tls_version)\s*=\s*"(?:TLS1_0|TLSv1|1\.0)"

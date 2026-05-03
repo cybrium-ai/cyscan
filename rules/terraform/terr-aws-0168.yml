@@ -14,5 +14,5 @@ message: |
   recommended to delete expired certificates.
   
   Remediation: Remove expired certificates
-pattern: |
+regex: |
   resource\s+"aws_iam_(?:policy|role|user)"

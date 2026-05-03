@@ -8,5 +8,5 @@ message: |
   
   
   Remediation: Set maintenance policy deterministically when auto upgrades are enabled
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

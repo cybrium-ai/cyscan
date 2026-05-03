@@ -8,5 +8,5 @@ message: |
   Need to add a security group to your vpnGateway.
   
   Remediation: Add security group for all vpnGateways
-pattern: |
+regex: |
   resource\s+"azurerm_(?:network_security_group|virtual_network)"

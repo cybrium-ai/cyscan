@@ -9,5 +9,5 @@ message: |
   You should use HTTPS, which is HTTP over an encrypted (TLS) connection, meaning eavesdroppers cannot read your traffic.
   
   Remediation: Only allow HTTPS for CloudFront distribution communication
-pattern: |
+regex: |
   resource\s+"aws_cloudfront_distribution"
