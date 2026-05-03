@@ -9,7 +9,6 @@
 //!   version:   { min: "1.0.0", max: "2.0.0" }  — semver range (inclusive)
 
 use regex::RegexBuilder;
-use std::collections::HashMap;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 

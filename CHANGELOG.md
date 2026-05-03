@@ -2,6 +2,172 @@
 
 All notable changes to cyscan are documented here.
 
+## [1.0.0] — 2026-05-03
+
+cyscan ships. v1.0.0 is the first stable release — the 13 internal
+preview tags between v0.12.0 and v1.0.0 never published binaries
+(Git LFS budget issues blocked every release matrix), so this is
+the first version users can actually consume from the public
+release page or `brew install`.
+
+The historical per-feature commits and the v0.13–v0.24 internal
+preview tags are preserved on the `archive/v0.x-history` branch
+for anyone who wants to see the per-feature evolution.
+
+### Matcher / DSL parity
+
+cyscan now ships **every advertised Semgrep DSL operator** plus
+two operators that are Semgrep-Pro-only today:
+
+- `pattern`, `patterns`, `pattern-either`, `pattern-either-groups`,
+  `pattern-not`, `pattern-inside`, `pattern-not-inside`,
+  `pattern-not-regex`
+- `metavariable-comparison` (single + list form),
+  `metavariable-regex`, `metavariable-pattern` (regex + nested AST
+  + cross-language `language:` re-parse), `metavariable-types`
+- **`metavariable-analysis`** — `redos` (catastrophic-backtracking
+  risk in regex literals) and `entropy` (high-entropy strings
+  signalling secrets / tokens). These are Semgrep Pro-only;
+  cyscan ships them under the OSS license.
+- **`metavariable-receiver-type`** — Checkmarx-style semantic
+  disambiguation. The match fires only when the captured
+  identifier resolves (via the per-file symbol / import / type-
+  hierarchy graph in `FileSemantics`) to one of the listed types.
+  Closes the false-positive class where two libraries name a
+  method the same way (`db.execute(...)` for sqlite3 vs a local
+  `class Foo: def execute(self, ...)`).
+- **`pattern-where`** — Semgrep beta operator. Compound boolean
+  expressions over metavariables (`and`, `or`, `not`, parens, plus
+  the comparison primitives `==`, `!=`, `>`, `<`, `>=`, `<=`,
+  `contains`, `starts_with`, `ends_with`, `matches`, `len(...)`).
+  Word-boundary keyword detection so `$x contains "android"`
+  doesn't false-split on the inner `and`.
+
+### Scope-aware symbol tables for all 12 supported languages
+
+| Language | Scope model | Imports | Receiver typing | Shadowing |
+|---|---|---|---|---|
+| Python | indent | ✓ | ✓ | ✓ |
+| JavaScript / TypeScript | curly braces | ✓ | ✓ | ✓ |
+| Java | curly braces | ✓ | ✓ | ✓ |
+| C# | curly braces | ✓ | ✓ | ✓ |
+| Go | curly braces | ✓ | ✓ | ✓ |
+| Rust | curly braces | ✓ | ✓ | ✓ |
+| PHP | curly braces | ✓ | ✓ | ✓ |
+| Ruby | `def`/`end` | ✓ | ✓ | ✓ |
+| Swift | curly braces | ✓ | ✓ | ✓ |
+| Scala | curly braces | ✓ | ✓ | ✓ |
+| C | curly braces | ✓ | ✓ | ✓ |
+| Bash | function blocks | ✓ | ✓ | ✓ |
+
+In-method shadowing is correctly resolved across all 12
+languages — when an outer `Connection conn` is shadowed by an
+inner `String conn` in a nested block, receiver-type filters
+match the outer call and skip the inner.
+
+### Cross-file class hierarchy
+
+`ProjectSemantics::class_hierarchy` aggregates every file's
+per-file `type_hierarchy` and exposes `supertypes_of(t)` and
+`is_subtype_of(child, parent)` walkers. The receiver-type matcher
+consults this graph after the per-file hierarchy is exhausted,
+so a `class SqlCommand : DbCommand` declared in `B.cs` and
+instantiated in `A.cs` is correctly walked when a rule allow-lists
+`DbCommand` only.
+
+### Cross-service taint engine
+
+`xservice` discovers HTTP and gRPC clients and handlers across 18
+frameworks, pairs them via path normalisation
+(`/users/{id}` ≡ `/users/:id` ≡ `/users/<id>`), and propagates
+taint summaries across service boundaries. K8s topology
+resolution parses `Service` / `Deployment` YAML so a C# client
+calling `https://user-svc/api/users` is connected to the Java
+handler running in the matching pod. GraphQL schemas, OpenAPI
+specs, and Protobuf definitions are parsed for additional
+client/handler discovery.
+
+Cross-service findings carry related-location SARIF links so
+reviewers see the call chain in their IDE. DOT and Mermaid graph
+renderers ship for debugging.
+
+### `cyscan supply` lockfile tampering detection (sprint-49)
+
+Six new finding IDs covering both offline (always on) and online
+(opt-in) tampering checks:
+
+| ID | Severity | Mode | Catches |
+|---|---|---|---|
+| CYSCAN-TAMPER-001 | medium | offline | Missing integrity (downgrade signature) |
+| CYSCAN-TAMPER-002 | high | offline | Malformed integrity |
+| CYSCAN-TAMPER-003 | high | offline | Conflicting integrity (lockfile injection) |
+| CYSCAN-TAMPER-004 | low | offline | Weak hash (sha1 / md5) |
+| CYSCAN-TAMPER-005 | critical | online | Registry mismatch — actual tampering signal |
+| CYSCAN-TAMPER-006 | info | online | Registry unreachable (graceful) |
+
+Online verification is opt-in via `cyscan supply --verify-integrity`.
+Five registry clients ship: npm, crates.io, PyPI, Go proxy,
+Packagist. Off by default for CI friendliness.
+
+Per-ecosystem checksum extraction added to every lockfile parser:
+`Cargo.lock`, `package-lock.json` (v1/v2/v3), `yarn.lock`,
+`go.sum`, `poetry.lock`, `Pipfile.lock`, `composer.lock`, plus
+opt-in `--hash=` lines in `requirements.txt`. New
+`Ecosystem::Composer` variant.
+
+### Inter-procedural taint propagation
+
+`ProjectSemantics` runs a fixed-point taint propagator across file
+boundaries. Forward + backward reachability through
+`param_call_edges`, `return_param_indices`, `direct_return_sources`,
+and `return_param_sanitizers`. Findings carry
+`evidence.dataflow_function`, `evidence.dataflow_reachable`,
+`evidence.dataflow_path`, `evidence.dataflow_reaching_sources`.
+Dynamic-dispatch resolution via `callable_aliases` (`f = eval` →
+`f` and `eval` taint-mirror), decorator-based framework propagation
+via `decorated_functions` (`@app.route` ⇒ Flask handler context
+even when the file-level framework set doesn't list flask),
+metaprogramming surface tagged via `metaprogrammed_classes`.
+
+### Supply-chain reachability
+
+`cyscan supply` reports findings with `evidence.dependency_path`
+(top-down chain that brought the dep in), `matched_imports`
+(which Python/JS imports actually pull the vulnerable symbol),
+and `callsites` (line-level call sites of the vulnerable function).
+
+### CI / release infrastructure
+
+Migrated `rules/advisories/*.jsonl` out of Git LFS. Files now ship
+gzipped (`*.jsonl.gz`) in regular git — JSONL with repeated keys
+compresses 8–12× (npm.jsonl: 185 MB → 15 MB), comfortably under
+GitHub's 100 MB single-file limit. Advisory loader decompresses
+transparently via `flate2`. The advisories-refresh nightly
+workflow writes deterministic gzip output (`mtime=0`,
+`compresslevel=6`) so unchanged advisories produce zero diff.
+
+`reqwest` switched from `native-tls` to `rustls-tls` so cross-
+compilation (aarch64-linux, etc.) doesn't need target-arch
+`libssl-dev`. Pure-Rust TLS keeps the matrix portable.
+
+`endpoint::scan()` now compiles on Windows and other targets
+that don't have platform-specific endpoint checks (returns an
+empty checks vector + zero score rather than an uninitialised-
+binding compile error).
+
+### Test surface
+
+77 unit tests + 42 integration tests covering every operator,
+symbol-table builder, taint path, supply-chain finding, and the
+full DSL parity matrix. 0 cargo audit advisories.
+
+### Repository hygiene
+
+History reset to a single commit on top of v0.12.0. The 13 internal
+preview tags (v0.13.0 – v0.24.0) and their constituent commits live
+on `archive/v0.x-history` for anyone who wants the granular
+evolution.
+
 ## [0.12.0] — 2026-05-02
 
 ### Added

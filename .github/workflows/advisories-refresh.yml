@@ -20,10 +20,6 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-          lfs: true
-
-      - name: Install Git LFS
-        run: git lfs install
 
       - name: Download OSV archive
         run: |
@@ -39,8 +35,11 @@ jobs:
       - name: Build trimmed snapshot
         run: |
           mkdir -p rules/advisories
+          # Output is gzipped JSONL — keeps the npm advisory file under
+          # GitHub's 100 MB single-file limit and avoids LFS entirely.
+          # Loader (src/supply/advisory.rs) decompresses transparently.
           python3 - <<'PY'
-          import json, os, pathlib
+          import gzip, json, os, pathlib
           KEEP = ["id", "summary", "details", "affected", "severity"]
           def trim(adv):
               out = {k: adv[k] for k in KEEP if k in adv}
@@ -53,11 +52,16 @@ jobs:
           for eco in ["crates.io", "npm", "PyPI", "Go"]:
               slug = eco.lower().replace(".", "-")
               src = pathlib.Path("osv-raw") / slug
-              dst = pathlib.Path("rules/advisories") / f"{slug}.jsonl"
-              with dst.open("w") as f:
+              dst = pathlib.Path("rules/advisories") / f"{slug}.jsonl.gz"
+              # mtime=0 + compresslevel=6 keeps the gzip stream
+              # deterministic so identical advisory contents produce
+              # identical bytes — git diff stays clean across reruns.
+              with gzip.GzipFile(filename=str(dst), mode="wb",
+                                 compresslevel=6, mtime=0) as f:
                   for p in sorted(src.glob("*.json")):
                       adv = json.loads(p.read_text())
-                      f.write(json.dumps(trim(adv), separators=(",", ":")) + "\n")
+                      line = json.dumps(trim(adv), separators=(",", ":")) + "\n"
+                      f.write(line.encode("utf-8"))
               print(f"{eco}: wrote {dst}")
           PY
 
@@ -77,7 +81,6 @@ jobs:
           added=$(git diff --staged --numstat rules/advisories/ | awk '{s+=$1} END {print s+0}')
           echo "added_lines=$added" >> "$GITHUB_OUTPUT"
           git commit -m "advisories: refresh OSV snapshot ($added new lines)"
-          git lfs push --all origin main
           git push
           if [ "$added" -ge 50 ]; then
             echo "cut_release=true" >> "$GITHUB_OUTPUT"

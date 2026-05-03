@@ -9,17 +9,47 @@ use regex::Regex;
 
 use crate::{finding::Finding, rule::Rule};
 
-use super::dsl::{metavariable_comparisons_match, metavariable_types_match, CaptureMeta};
+use super::dsl::{
+    metavariable_analysis_passes, metavariable_comparisons_match,
+    metavariable_pattern_ast_match, metavariable_pattern_match,
+    metavariable_receiver_type_match, metavariable_regex_match,
+    metavariable_types_match, pattern_not_regex_passes,
+    pattern_where_match, CaptureMeta,
+};
+use super::semantics::FileSemantics;
 
 /// Convert semgrep-style AST pattern to regex.
 ///
 /// Semgrep uses `$VAR` for metavariables and `...` for wildcards.
 /// We convert these to regex equivalents so imported rules work
 /// without a full semgrep engine.
-fn semgrep_to_regex(pattern: &str) -> String {
+pub(super) fn semgrep_to_regex(pattern: &str) -> String {
     // If pattern already looks like valid regex (no $VAR or ...), return as-is
     if !pattern.contains('$') && !pattern.contains("...") {
         return pattern.to_string();
+    }
+
+    // If every `$` in the pattern is preceded by `\` (escaped — i.e.
+    // the user wrote `\$` to mean a literal dollar sign), there's no
+    // semgrep-style metavariable in play. Run through a focused
+    // pass that only handles `\$` and `...` and otherwise hands the
+    // user's regex through verbatim. This keeps literal-regex rules
+    // (PHP variables, JS template strings) working without the
+    // aggressive metacharacter escaping that semgrep mode applies.
+    if !pattern.contains("...") {
+        let chars: Vec<char> = pattern.chars().collect();
+        let mut all_escaped = true;
+        for i in 0..chars.len() {
+            if chars[i] == '$' && (i == 0 || chars[i - 1] != '\\') {
+                all_escaped = false;
+                break;
+            }
+        }
+        if all_escaped {
+            // Just turn `\$` into `\$` (no-op for the regex engine —
+            // both forms are a valid escape) and return.
+            return pattern.to_string();
+        }
     }
 
     let mut result = String::with_capacity(pattern.len() * 2);
@@ -28,6 +58,13 @@ fn semgrep_to_regex(pattern: &str) -> String {
 
     while i < chars.len() {
         match chars[i] {
+            // `\$` is the escape for a literal `$` — used by PHP rules
+            // that want to match the variable sigil itself. Without this
+            // escape the `$` would be eaten as a metavariable marker.
+            '\\' if i + 1 < chars.len() && chars[i + 1] == '$' => {
+                result.push_str(r"\$");
+                i += 2;
+            }
             '$' => {
                 // $VAR_NAME → \w+ (match any identifier)
                 i += 1;
@@ -70,7 +107,13 @@ fn is_regex_alternation(chars: &[char], pos: usize) -> bool {
     false // Default: treat | as literal in semgrep patterns
 }
 
-pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
+pub fn match_rule(
+    rule:      &Rule,
+    path:      &Path,
+    source:    &str,
+    semantics: &FileSemantics,
+    project:   Option<&crate::dataflow::ProjectSemantics>,
+) -> Vec<Finding> {
     // YAML block literal `|` keeps a trailing newline, which the regex
     // crate treats as a literal \n requirement. Trim any surrounding
     // whitespace so rule authors don't have to remember `|-` every time.
@@ -85,7 +128,7 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
         {
             return Vec::new();
         }
-        return dsl_only_match(rule, path, source);
+        return dsl_only_match(rule, path, source, semantics, project);
     };
     if pat.is_empty() { return Vec::new() }
 
@@ -122,9 +165,22 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
     // ranges for the fixer. `source.lines()` strips newlines, so we walk
     // the source manually to keep offsets honest on \r\n and \n alike.
     let mut line_start = 0usize;
+    let has_group = re.captures_len() > 1;
     for (line_ix, line) in source.split_inclusive('\n').enumerate() {
         let trimmed = line.trim_end_matches(['\r', '\n']);
-        for m in re.find_iter(trimmed) {
+        // Walk captures so metavariable analyzers see group 1 (when
+        // present) rather than the full match. Falls back to the
+        // overall match when the regex has no groups.
+        let iter: Box<dyn Iterator<Item = (regex::Match, Option<regex::Match>)>> = if has_group {
+            Box::new(re.captures_iter(trimmed).map(|c| {
+                let whole = c.get(0).unwrap();
+                let group = c.get(1);
+                (whole, group)
+            }))
+        } else {
+            Box::new(re.find_iter(trimmed).map(|m| (m, None)))
+        };
+        for (m, group) in iter {
             let abs_start = line_start + m.start();
             let abs_end   = line_start + m.end();
             // pattern_not_inside: drop if absolute span lives inside a
@@ -141,11 +197,61 @@ pub fn match_rule(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
             }
             // metavariable_comparison(s) + metavariable_types — captures
             // are per-match snippet; for regex we expose only `text`.
-            let captures = single_match_captures(&m.as_str());
+            // Capture text for metavariable analyzers — group 1 if the
+            // rule's regex has a capturing group, otherwise the whole
+            // match. This lets `regex: TOKEN\s*=\s*['"]([^'"]+)['"]`
+            // feed just the literal value (not the surrounding TOKEN=
+            // wrapper) into entropy / redos / metavar checks.
+            let capture_text = group.map(|g| g.as_str()).unwrap_or(m.as_str());
+            let captures = single_match_captures(capture_text);
             if !metavariable_comparisons_match(metavar_multi, metavar_singular, &captures) {
                 continue;
             }
             if !metavar_types.is_empty() && !metavariable_types_match(metavar_types, &captures) {
+                continue;
+            }
+            // Semgrep-max DSL parity: per-capture regex + sub-pattern,
+            // and matched-span negative regex.
+            if !metavariable_regex_match(&rule.metavariable_regex, &captures) {
+                continue;
+            }
+            if !metavariable_pattern_match(&rule.metavariable_pattern, &captures) {
+                continue;
+            }
+            // Per-capture analyzer (Semgrep Pro `metavariable-analysis`
+            // parity — redos / entropy).
+            if !metavariable_analysis_passes(&rule.metavariable_analysis, &captures) {
+                continue;
+            }
+            // Nested AST / cross-language sub-pattern (Semgrep
+            // `metavariable-pattern: { language: ..., pattern: ... }`).
+            if !metavariable_pattern_ast_match(&rule.metavariable_pattern_ast, &captures) {
+                continue;
+            }
+            // Compound boolean — Semgrep beta `pattern-where`.
+            if !pattern_where_match(rule.pattern_where.as_deref(), &captures) {
+                continue;
+            }
+            // Resolved-receiver-type filter — Checkmarx-style
+            // semantic disambiguation. `db.execute(...)` only fires
+            // when `db` resolves to one of the listed types. v0.22.0
+            // additionally consults the project-wide class hierarchy
+            // (cross-file `class A : B` / `extends` / `impl Trait`).
+            if !metavariable_receiver_type_match(
+                &rule.metavariable_receiver_type,
+                &captures,
+                semantics,
+                project,
+                line_ix + 1,
+            ) {
+                continue;
+            }
+            // pattern_not_regex matches against the whole line so a
+            // rule like `regex: "SELECT * FROM"` + `pattern_not_regex:
+            // ["WHERE id ="]` correctly suppresses `SELECT * FROM
+            // users WHERE id = 1` even though the matched span itself
+            // doesn't carry the "WHERE id =" text.
+            if !pattern_not_regex_passes(&rule.pattern_not_regex, trimmed) {
                 continue;
             }
             out.push(Finding {
@@ -233,7 +339,13 @@ fn single_match_captures(text: &str) -> HashMap<String, CaptureMeta<'_>> {
 /// the new aggregate sources (patterns / pattern_either /
 /// pattern_either_groups). We OR every supplied pattern into a single
 /// alternation regex and run the standard line-by-line scan.
-fn dsl_only_match(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
+fn dsl_only_match(
+    rule:      &Rule,
+    path:      &Path,
+    source:    &str,
+    semantics: &FileSemantics,
+    project:   Option<&crate::dataflow::ProjectSemantics>,
+) -> Vec<Finding> {
     let mut all: Vec<&str> = Vec::new();
     all.extend(rule.patterns.iter().map(String::as_str));
     all.extend(rule.pattern_either.iter().map(String::as_str));
@@ -256,5 +368,5 @@ fn dsl_only_match(rule: &Rule, path: &Path, source: &str) -> Vec<Finding> {
     synthetic.patterns.clear();
     synthetic.pattern_either.clear();
     synthetic.pattern_either_groups.clear();
-    match_rule(&synthetic, path, source)
+    match_rule(&synthetic, path, source, semantics, project)
 }

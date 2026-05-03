@@ -102,6 +102,91 @@ pub struct Rule {
     /// Capture type constraints such as `arg: string` or `fn: identifier`.
     #[serde(default)]
     pub metavariable_types: HashMap<String, String>,
+    /// Per-capture regex constraint — `{ arg: "^https?://" }`. The capture
+    /// must satisfy its regex for the match to fire. Semgrep parity for
+    /// `metavariable-regex`.
+    #[serde(default)]
+    pub metavariable_regex:   HashMap<String, String>,
+    /// Per-capture sub-pattern — `{ arg: "TAINTED" }`. The capture's text
+    /// must additionally contain a substring/regex matching the supplied
+    /// pattern. Semgrep parity for `metavariable-pattern` (regex form;
+    /// nested AST patterns deferred to a future release).
+    #[serde(default)]
+    pub metavariable_pattern: HashMap<String, String>,
+    /// Negative regex filter on the matched span. If any of these regexes
+    /// match the matched text, the finding is suppressed. Semgrep parity
+    /// for `pattern-not-regex`.
+    #[serde(default)]
+    pub pattern_not_regex:    Vec<String>,
+    /// Per-capture analyzers — `{ x: redos }`, `{ token: entropy }`,
+    /// or `{ regex: redos, secret: entropy }`. The capture must
+    /// satisfy the analyzer for the match to fire. Closes the
+    /// Semgrep Pro `metavariable-analysis` gap; Semgrep OSS doesn't
+    /// have this.
+    ///
+    /// Currently supported analyzer keys:
+    ///   * `redos`   — catastrophic-backtracking risk in a regex literal
+    ///   * `entropy` — high-entropy string (likely a secret / token)
+    #[serde(default)]
+    pub metavariable_analysis: HashMap<String, String>,
+    /// Nested AST / cross-language sub-patterns. Each entry runs an
+    /// inner pattern against the captured node's text, optionally
+    /// re-parsing it as a different language. Closes the Semgrep
+    /// `metavariable-pattern: { language: ..., pattern: ... }` gap.
+    ///
+    /// Example — match JS inside an HTML <script> block:
+    ///
+    /// ```yaml
+    /// query: |
+    ///   (script_element (raw_text) @js)
+    /// metavariable_pattern_ast:
+    ///   js:
+    ///     language: javascript
+    ///     pattern: eval(...)
+    /// ```
+    #[serde(default)]
+    pub metavariable_pattern_ast: HashMap<String, NestedPatternSpec>,
+    /// Compound boolean expression over metavariables — Semgrep beta
+    /// `pattern-where`. Supports `and`, `or`, `not`, and the same
+    /// comparison primitives as `metavariable-comparison`. Empty =
+    /// no constraint.
+    ///
+    /// Example: `len($x) > 10 and $fn != "eval" and not $x contains "test"`
+    #[serde(default)]
+    pub pattern_where: Option<String>,
+    /// Resolved-receiver-type filter — Checkmarx-style semantic
+    /// disambiguation. Each entry maps a capture name to a list of
+    /// accepted receiver types. The match fires only when the
+    /// captured identifier resolves (via the per-file symbol /
+    /// import / type-hierarchy graph in `FileSemantics`) to one
+    /// of the listed types.
+    ///
+    /// Closes the false-positive class where two libraries name a
+    /// method the same way (`db.execute(...)` for SQLite vs. a local
+    /// `class Foo: def execute(self, ...)`). Type matching is
+    /// substring-or-regex against the resolved type, so a rule can
+    /// list either the short name (`SqlConnection`) or the fully
+    /// qualified path (`Microsoft.Data.SqlClient.SqlConnection`).
+    /// Type-hierarchy walks are followed automatically — a rule
+    /// listing `DbCommand` will match `SqlCommand` when the
+    /// inheritance chain is known.
+    ///
+    /// Example:
+    ///
+    /// ```yaml
+    /// query: |
+    ///   (invocation_expression
+    ///     (member_access_expression
+    ///       expression: (identifier) @recv
+    ///       name: (identifier) @method))
+    /// metavariable_receiver_type:
+    ///   recv:
+    ///     - sqlite3
+    ///     - psycopg2
+    ///     - Microsoft.Data.SqlClient
+    /// ```
+    #[serde(default)]
+    pub metavariable_receiver_type: HashMap<String, Vec<String>>,
     pub message:   String,
     #[serde(default)]
     pub fix_recipe: Option<String>,
@@ -133,6 +218,28 @@ pub struct Rule {
     /// finding accordingly.
     #[serde(default)]
     pub dataflow:  Option<DataflowSpec>,
+}
+
+/// Nested-pattern spec used by `metavariable_pattern_ast`. Mirrors
+/// Semgrep's `metavariable-pattern` shape: an inner pattern (regex or
+/// AST query) optionally re-parsed in a different language.
+///
+///   pattern  — inner Semgrep-style pattern (lowered to regex by our
+///              regex matcher; passed as a tree-sitter query string
+///              when `language` resolves to a tier-1 grammar).
+///   regex    — explicit regex; takes precedence over `pattern`.
+///   language — language to re-parse the captured text as. Required
+///              for cross-language nesting (`<script>` JS-in-HTML);
+///              optional otherwise (defaults to the host rule's
+///              language).
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct NestedPatternSpec {
+    #[serde(default)]
+    pub pattern:  Option<String>,
+    #[serde(default)]
+    pub regex:    Option<String>,
+    #[serde(default)]
+    pub language: Option<Lang>,
 }
 
 /// Dataflow gating block on a rule.

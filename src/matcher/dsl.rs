@@ -68,6 +68,547 @@ pub(super) fn metavariable_types_match<'a>(
     })
 }
 
+/// Per-capture regex match — Semgrep `metavariable-regex` parity.
+/// Returns true only when EVERY constraint is satisfied; an unknown
+/// capture or an unparseable regex causes failure for that pair.
+pub(super) fn metavariable_regex_match<'a>(
+    constraints: &HashMap<String, String>,
+    captures: &HashMap<String, CaptureMeta<'a>>,
+) -> bool {
+    if constraints.is_empty() { return true; }
+    constraints.iter().all(|(raw_name, pattern)| {
+        let name = raw_name.trim().trim_start_matches('$');
+        let Some(meta) = captures.get(name) else { return false };
+        match ::regex::Regex::new(pattern) {
+            Ok(re) => re.is_match(meta.text),
+            Err(_) => false,
+        }
+    })
+}
+
+/// Per-capture sub-pattern match — Semgrep `metavariable-pattern`
+/// parity (regex flavour). Tries substring first (cheap), then regex.
+/// Nested AST patterns are out of scope for this OSS engine and
+/// deferred to a future release.
+pub(super) fn metavariable_pattern_match<'a>(
+    constraints: &HashMap<String, String>,
+    captures: &HashMap<String, CaptureMeta<'a>>,
+) -> bool {
+    if constraints.is_empty() { return true; }
+    constraints.iter().all(|(raw_name, pattern)| {
+        let name = raw_name.trim().trim_start_matches('$');
+        let Some(meta) = captures.get(name) else { return false };
+        if meta.text.contains(pattern.as_str()) { return true; }
+        match ::regex::Regex::new(pattern) {
+            Ok(re) => re.is_match(meta.text),
+            Err(_) => false,
+        }
+    })
+}
+
+/// Matched-span negative regex filter — Semgrep `pattern-not-regex`
+/// parity. Returns true when the span SURVIVES the filter.
+pub(super) fn pattern_not_regex_passes(patterns: &[String], text: &str) -> bool {
+    if patterns.is_empty() { return true; }
+    !patterns.iter().any(|p| {
+        ::regex::Regex::new(p).map(|re| re.is_match(text)).unwrap_or(false)
+    })
+}
+
+/// Per-capture nested AST / cross-language sub-pattern matcher.
+/// Closes the Semgrep `metavariable-pattern: { language: ..., pattern:
+/// ... }` gap. For the regex-only matcher we collapse the inner
+/// pattern to a regex via the standard semgrep_to_regex translator;
+/// the cross-language re-parse is best-effort (we treat the capture
+/// text as plain string and run the inner regex against it). For the
+/// tree-sitter matcher, callers parse with the inner-spec's language
+/// and run the inner pattern as a tree-sitter query.
+/// Resolved-receiver-type filter — Checkmarx-style semantic
+/// disambiguation. For each `$X: [allowed types]` constraint, look
+/// up the captured identifier in the file's symbol/import graph
+/// (`FileSemantics`) and accept the match only when the resolved
+/// type appears in the allow-list.
+///
+/// Resolution order:
+///   1. `variable_types[$X]` — direct receiver type from
+///      `db = sqlite3.connect(...)` style assignments.
+///   2. `imported_symbols[$X]` — `using SqlConnection;` style
+///      qualified imports.
+///   3. `alias_to_module[$X]` — `import sqlite3 as sql` style
+///      module aliases.
+///
+/// Type matching against each allowed entry tries (in order):
+///   * exact equality
+///   * substring containment in either direction (`SqlConnection`
+///     matches `Microsoft.Data.SqlClient.SqlConnection` and vice
+///     versa)
+///   * regex
+///
+/// Type-hierarchy walk: each resolved type is followed up through
+/// `type_hierarchy` so a rule listing `DbCommand` accepts
+/// `SqlCommand : DbCommand`.
+pub(super) fn metavariable_receiver_type_match<'a>(
+    constraints: &HashMap<String, Vec<String>>,
+    captures:    &HashMap<String, CaptureMeta<'a>>,
+    semantics:   &super::semantics::FileSemantics,
+    project:     Option<&crate::dataflow::ProjectSemantics>,
+    match_line:  usize,
+) -> bool {
+    if constraints.is_empty() { return true; }
+    use ::regex::Regex;
+    constraints.iter().all(|(raw_name, allow)| {
+        if allow.is_empty() { return true; }
+        let name = raw_name.trim().trim_start_matches('$');
+        let Some(meta) = captures.get(name) else { return false };
+        let ident = meta.text.trim();
+        if ident.is_empty() { return false }
+
+        // Build the candidate set: the resolved type plus its
+        // transitive supertypes via type_hierarchy.
+        let mut candidates: Vec<String> = Vec::new();
+        // v0.22.0: prefer scope-aware symbol-table resolution when
+        // available — this is what makes in-file shadowing work
+        // correctly (the same identifier can resolve to different
+        // types depending on which line we're at).
+        if let Some(table) = semantics.symbol_table.as_ref() {
+            if let Some(sym) = table.resolve(match_line, ident) {
+                if let Some(k) = sym.kind.as_ref() {
+                    candidates.push(k.clone());
+                }
+            }
+        }
+        if let Some(t) = semantics.variable_types.get(ident) {
+            candidates.push(t.clone());
+        }
+        if let Some(t) = semantics.imported_symbols.get(ident) {
+            candidates.push(t.clone());
+        }
+        if let Some(t) = semantics.alias_to_module.get(ident) {
+            candidates.push(t.clone());
+        }
+        // Also consider the identifier itself as a candidate — covers
+        // the case where the capture text *is* the type (e.g.
+        // matching a static-method call `SqlCommand.Execute(...)`).
+        candidates.push(ident.to_string());
+
+        // Walk per-file type_hierarchy upward.
+        let mut expanded: Vec<String> = Vec::new();
+        let mut seen: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        let mut queue: Vec<String> = candidates.clone();
+        while let Some(cur) = queue.pop() {
+            if !seen.insert(cur.clone()) { continue; }
+            expanded.push(cur.clone());
+            if let Some(parents) = semantics.type_hierarchy.get(&cur) {
+                queue.extend(parents.iter().cloned());
+            }
+        }
+        // Then walk the cross-file project hierarchy on every
+        // expanded type. v0.22.0: closes the limitation where
+        // `class A : B` declared in B.cs and instantiated in A.cs
+        // wasn't followed transitively.
+        if let Some(proj) = project {
+            let snapshot: Vec<String> = expanded.clone();
+            for t in snapshot {
+                for sup in proj.supertypes_of(&t) {
+                    if seen.insert(sup.clone()) {
+                        expanded.push(sup);
+                    }
+                }
+            }
+        }
+
+        // Cheap check first: exact equality / substring either way.
+        let try_match = |needle: &str, hay: &str| -> bool {
+            if needle.is_empty() { return false }
+            if needle == hay { return true }
+            // `Microsoft.Data.SqlClient` matches
+            // `Microsoft.Data.SqlClient.SqlConnection` (allow-list is
+            // a prefix/segment of the resolved type)…
+            if hay.contains(needle) { return true }
+            // …and vice-versa: rule allows the FQN, code reports the
+            // short name.
+            if needle.contains(hay) { return true }
+            false
+        };
+
+        allow.iter().any(|raw| {
+            let pat = raw.trim();
+            if pat.is_empty() { return false }
+            for c in &expanded {
+                if try_match(pat, c) { return true }
+            }
+            // Last try: regex.
+            if let Ok(re) = Regex::new(pat) {
+                return expanded.iter().any(|c| re.is_match(c));
+            }
+            false
+        })
+    })
+}
+
+pub(super) fn metavariable_pattern_ast_match<'a>(
+    constraints: &std::collections::HashMap<String, crate::rule::NestedPatternSpec>,
+    captures: &HashMap<String, CaptureMeta<'a>>,
+) -> bool {
+    if constraints.is_empty() { return true; }
+    use ::regex::Regex;
+    constraints.iter().all(|(raw_name, spec)| {
+        let name = raw_name.trim().trim_start_matches('$');
+        let Some(meta) = captures.get(name) else { return false };
+        let pattern = spec.regex.clone()
+            .or_else(|| spec.pattern.as_ref().map(|p| super::regex::semgrep_to_regex(p.trim())));
+        let Some(p) = pattern else { return true }; // empty spec = no-op
+        // (?s) so `.*` spans newlines — captures from large nodes
+        // are typically multi-line.
+        let pat = format!("(?s){p}");
+        match Regex::new(&pat) {
+            Ok(re) => re.is_match(meta.text),
+            Err(_) => false,
+        }
+    })
+}
+
+/// Boolean-expression evaluator — Semgrep beta `pattern-where`.
+/// Accepts `and`, `or`, `not` (case-insensitive) plus the same
+/// comparison primitives as `metavariable-comparison`. Parentheses
+/// supported for grouping.
+///
+/// Examples:
+///   len($x) > 10 and $x != "admin"
+///   not ($fn == "eval" or $fn == "exec")
+///   $x contains "http" and len($x) > 8
+pub(super) fn pattern_where_match<'a>(
+    expr: Option<&str>,
+    captures: &HashMap<String, CaptureMeta<'a>>,
+) -> bool {
+    let Some(raw) = expr else { return true };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() { return true; }
+    let tokens = tokenize_where(trimmed);
+    let mut iter = tokens.iter().peekable();
+    eval_or(&mut iter, captures)
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum WhereTok {
+    LParen,
+    RParen,
+    And,
+    Or,
+    Not,
+    /// A leaf comparison expression — passed verbatim to
+    /// `metavariable_comparison_matches`.
+    Leaf(String),
+}
+
+/// Tokenise a `pattern-where` expression into LParen/RParen, And/Or/
+/// Not, and Leaf comparison strings. Word-boundary aware: `and` /
+/// `or` / `not` only split when surrounded by whitespace or parens
+/// at top level (so `$x contains "android"` doesn't split on the
+/// inner `and`).
+fn tokenize_where(s: &str) -> Vec<WhereTok> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut out = Vec::new();
+    let mut buf = String::new();
+    let mut depth = 0i32;          // parens INSIDE a leaf
+    let mut in_quote: Option<char> = None;
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+
+        // If we're at the start of a fresh leaf (buf empty/whitespace,
+        // not in a quote or paren-deep), try to consume a leading
+        // keyword (`not (...)`, `and ...`, `or ...`).
+        if in_quote.is_none() && depth == 0 && buf.trim().is_empty() {
+            if let Some((kw, kw_len)) = keyword_at(&chars, i) {
+                out.push(kw);
+                i += kw_len;
+                while i < chars.len() && chars[i].is_whitespace() { i += 1; }
+                continue;
+            }
+        }
+
+        if let Some(q) = in_quote {
+            buf.push(c);
+            if c == q { in_quote = None; }
+            i += 1; continue;
+        }
+        match c {
+            '"' | '\'' => { in_quote = Some(c); buf.push(c); i += 1; }
+            '(' if depth == 0 && buf.trim().is_empty() => {
+                out.push(WhereTok::LParen);
+                i += 1;
+            }
+            ')' if depth == 0 => {
+                flush_leaf(&mut buf, &mut out);
+                out.push(WhereTok::RParen);
+                i += 1;
+            }
+            '(' => { buf.push(c); depth += 1; i += 1; }
+            ')' => { buf.push(c); depth -= 1; i += 1; }
+            _ if depth == 0 && c.is_whitespace() => {
+                // Whitespace at top level — peek for a keyword starting
+                // at the next non-whitespace char.
+                let mut probe = i + 1;
+                while probe < chars.len() && chars[probe].is_whitespace() { probe += 1; }
+                if let Some((kw, kw_len)) = keyword_at(&chars, probe) {
+                    flush_leaf(&mut buf, &mut out);
+                    out.push(kw);
+                    i = probe + kw_len;
+                    while i < chars.len() && chars[i].is_whitespace() { i += 1; }
+                } else {
+                    buf.push(c);
+                    i += 1;
+                }
+            }
+            _ => { buf.push(c); i += 1; }
+        }
+    }
+    flush_leaf(&mut buf, &mut out);
+    out
+}
+
+/// If a known keyword (`and` / `or` / `not`) starts at `pos` and is
+/// followed by whitespace, paren, or EOF, return (token, length).
+fn keyword_at(chars: &[char], pos: usize) -> Option<(WhereTok, usize)> {
+    for (lit, tok) in [
+        ("and", WhereTok::And),
+        ("or",  WhereTok::Or),
+        ("not", WhereTok::Not),
+    ] {
+        let n = lit.len();
+        if pos + n <= chars.len()
+            && chars[pos..pos+n].iter().collect::<String>().eq_ignore_ascii_case(lit)
+        {
+            // Word boundary on the right side
+            let after = chars.get(pos + n).copied();
+            if after.is_none() || after == Some('(') || after.map(|c| c.is_whitespace()).unwrap_or(false) {
+                // Word boundary on the left — pos > 0 means the prev
+                // char must be whitespace or LParen (which we ate).
+                let before = if pos == 0 { None } else { chars.get(pos - 1).copied() };
+                if before.is_none()
+                    || before.map(|c| c.is_whitespace() || c == '(').unwrap_or(false)
+                {
+                    return Some((tok, n));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn flush_leaf(buf: &mut String, out: &mut Vec<WhereTok>) {
+    let s = buf.trim().to_string();
+    buf.clear();
+    if s.is_empty() { return; }
+    out.push(WhereTok::Leaf(s));
+}
+
+fn eval_or<'a, I: Iterator<Item = &'a WhereTok>>(
+    iter: &mut std::iter::Peekable<I>,
+    captures: &HashMap<String, CaptureMeta<'_>>,
+) -> bool {
+    let mut acc = eval_and(iter, captures);
+    while matches!(iter.peek(), Some(WhereTok::Or)) {
+        iter.next();
+        let rhs = eval_and(iter, captures);
+        acc = acc || rhs;
+    }
+    acc
+}
+
+fn eval_and<'a, I: Iterator<Item = &'a WhereTok>>(
+    iter: &mut std::iter::Peekable<I>,
+    captures: &HashMap<String, CaptureMeta<'_>>,
+) -> bool {
+    let mut acc = eval_not(iter, captures);
+    while matches!(iter.peek(), Some(WhereTok::And)) {
+        iter.next();
+        let rhs = eval_not(iter, captures);
+        acc = acc && rhs;
+    }
+    acc
+}
+
+fn eval_not<'a, I: Iterator<Item = &'a WhereTok>>(
+    iter: &mut std::iter::Peekable<I>,
+    captures: &HashMap<String, CaptureMeta<'_>>,
+) -> bool {
+    if matches!(iter.peek(), Some(WhereTok::Not)) {
+        iter.next();
+        return !eval_not(iter, captures);
+    }
+    eval_atom(iter, captures)
+}
+
+fn eval_atom<'a, I: Iterator<Item = &'a WhereTok>>(
+    iter: &mut std::iter::Peekable<I>,
+    captures: &HashMap<String, CaptureMeta<'_>>,
+) -> bool {
+    match iter.next() {
+        Some(WhereTok::LParen) => {
+            let v = eval_or(iter, captures);
+            // consume matching `)`
+            if matches!(iter.peek(), Some(WhereTok::RParen)) { iter.next(); }
+            v
+        }
+        Some(WhereTok::Leaf(expr)) => metavariable_comparison_matches(expr, captures),
+        // Anything else here is a parse error — return false to fail
+        // closed (rule won't fire, reviewer notices).
+        _ => false,
+    }
+}
+
+/// Per-capture analyzer — Semgrep Pro `metavariable-analysis` parity.
+/// Each entry maps a capture name to one of:
+///   * "redos"   — catastrophic-backtracking risk in a regex literal
+///   * "entropy" — high-entropy string (>= 4.5 bits/char, length ≥ 16)
+/// All analyzers must pass for the match to fire.
+pub(super) fn metavariable_analysis_passes<'a>(
+    constraints: &HashMap<String, String>,
+    captures: &HashMap<String, CaptureMeta<'a>>,
+) -> bool {
+    if constraints.is_empty() { return true; }
+    constraints.iter().all(|(raw_name, analyzer)| {
+        let name = raw_name.trim().trim_start_matches('$');
+        let Some(meta) = captures.get(name) else { return false };
+        match analyzer.trim().to_lowercase().as_str() {
+            "redos"   => has_redos_risk(meta.text),
+            "entropy" => has_high_entropy(meta.text),
+            _         => false,
+        }
+    })
+}
+
+/// Conservative ReDoS detector — flags regex literals with the
+/// catastrophic-backtracking patterns documented in OWASP ReDoS.
+/// Heuristic but high-signal: catches `(a+)+`, `(a|a)+`, `(.*)*`,
+/// `(.+)+`, alternations of overlapping branches inside repeats.
+pub fn has_redos_risk(regex_str: &str) -> bool {
+    let s = regex_str;
+    // 1. Nested unbounded quantifier — `(...)+` or `(...)*` immediately
+    //    followed by `+` or `*`. Classic catastrophic backtracking.
+    if has_nested_quantifier(s) { return true; }
+
+    // 2. `.*` or `.+` more than once with intervening fixed text — not
+    //    always pathological but flagged for review.
+    let dotstar_count = s.matches(".*").count() + s.matches(".+").count();
+    if dotstar_count >= 2 { return true; }
+
+    // 3. Alternation inside a quantifier where alternatives overlap
+    //    (e.g. `(a|a)+`, `(\d|\d+)+`). Cheap-but-imperfect detector:
+    //    look for `(...|...)+` where the alternatives are equal after
+    //    trimming whitespace.
+    if let Some(start) = s.find("(") {
+        if let Some(close) = s[start..].find(")+").or_else(|| s[start..].find(")*")) {
+            let inner = &s[start+1..start+close];
+            if inner.contains('|') {
+                let parts: Vec<&str> = inner.split('|').map(str::trim).collect();
+                for i in 0..parts.len() {
+                    for j in i+1..parts.len() {
+                        if parts[i] == parts[j]
+                            || (parts[i].len() < parts[j].len() && parts[j].contains(parts[i]))
+                            || (parts[j].len() < parts[i].len() && parts[i].contains(parts[j]))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+fn has_nested_quantifier(s: &str) -> bool {
+    // Look for `)+` or `)*` immediately preceded by a quantifier inside
+    // the group (`+` or `*` on the inner side of `)`).
+    let bytes = s.as_bytes();
+    for (i, &c) in bytes.iter().enumerate() {
+        if (c == b'+' || c == b'*') && i + 1 < bytes.len() {
+            let nxt = bytes[i + 1];
+            if nxt == b')' && i + 2 < bytes.len() {
+                let after = bytes[i + 2];
+                if after == b'+' || after == b'*' || after == b'{' {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Shannon-entropy gate. Returns true when the string looks like a
+/// secret / token: length ≥ 16, Shannon entropy ≥ 3.5 bits/char,
+/// AND the string mixes at least two of {upper, lower, digit} —
+/// matches real API keys / JWTs / base64 secrets without flagging
+/// natural-language sentences (which clear the entropy bar but are
+/// usually all-lowercase).
+pub fn has_high_entropy(s: &str) -> bool {
+    if s.len() < 16 { return false; }
+    if !mixes_two_char_classes(s) { return false; }
+    let mut counts = [0u32; 256];
+    let mut total = 0u32;
+    for &b in s.as_bytes() {
+        counts[b as usize] += 1;
+        total += 1;
+    }
+    if total == 0 { return false; }
+    let total_f = total as f64;
+    let entropy: f64 = counts.iter()
+        .filter(|&&c| c > 0)
+        .map(|&c| {
+            let p = c as f64 / total_f;
+            -p * p.log2()
+        })
+        .sum();
+    entropy >= 3.5
+}
+
+fn mixes_two_char_classes(s: &str) -> bool {
+    let mut classes = 0u8;
+    if s.bytes().any(|b| b.is_ascii_lowercase()) { classes += 1; }
+    if s.bytes().any(|b| b.is_ascii_uppercase()) { classes += 1; }
+    if s.bytes().any(|b| b.is_ascii_digit())     { classes += 1; }
+    classes >= 2
+}
+
+#[cfg(test)]
+mod analyzer_tests {
+    use super::*;
+
+    #[test]
+    fn redos_detects_nested_unbounded_quantifier() {
+        assert!(has_redos_risk("(a+)+"));
+        assert!(has_redos_risk("(.*)*"));
+        assert!(has_redos_risk("(.+)+"));
+    }
+
+    #[test]
+    fn redos_skips_safe_patterns() {
+        assert!(!has_redos_risk(r"^[A-Za-z0-9_-]+$"));
+        assert!(!has_redos_risk("hello"));
+    }
+
+    #[test]
+    fn redos_detects_overlapping_alternation_in_quantifier() {
+        assert!(has_redos_risk(r"(a|a)+"));
+    }
+
+    #[test]
+    fn entropy_flags_high_entropy_token() {
+        assert!(has_high_entropy("aGVsbG93b3JsZGZvb2Jhcg=="));
+        assert!(has_high_entropy("xK7zP9mNvL2qR5tY8wB3aE6h"));
+    }
+
+    #[test]
+    fn entropy_skips_low_entropy_strings() {
+        assert!(!has_high_entropy("hello world"));
+        assert!(!has_high_entropy("aaaaaaaaaaaaaaaa"));
+    }
+}
+
 fn split_comparison(expr: &str) -> Option<(&str, &'static str, &str)> {
     for op in [
         " starts_with ",

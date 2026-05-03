@@ -14,7 +14,7 @@ pub mod image_scan;
 pub mod summary;
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 

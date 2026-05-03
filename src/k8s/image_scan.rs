@@ -478,7 +478,7 @@ fn lookup_vulns(packages: &[OsPackage], image: &str) -> Result<Vec<Finding>> {
     // ── Source 3: GitHub Security Advisories (GHSA) ──
     // Query for ecosystem-specific advisories
     for pkg in packages.iter().take(100) {
-        let ghsa_ecosystem = match pkg.source.as_str() {
+        let _ghsa_ecosystem = match pkg.source.as_str() {
             "dpkg" => "RUST",  // GHSA doesn't have a Debian ecosystem — skip for OS pkgs
             _ => continue,     // GHSA is best for app-level deps, not OS packages
         };

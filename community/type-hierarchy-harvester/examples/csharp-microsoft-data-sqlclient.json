@@ -1,0 +1,41 @@
+{
+  "ecosystem": "csharp",
+  "package": "Microsoft.Data.SqlClient",
+  "version": "5.2.0",
+  "license": "MIT",
+  "harvested_at": "2026-05-02T00:00:00Z",
+  "harvester": "csharp/v0.1.0",
+  "types": {
+    "Microsoft.Data.SqlClient.SqlConnection": {
+      "kind": "class",
+      "parents":  ["System.Data.Common.DbConnection"],
+      "interfaces": ["System.IDisposable", "System.ICloneable"]
+    },
+    "Microsoft.Data.SqlClient.SqlCommand": {
+      "kind": "class",
+      "parents":  ["System.Data.Common.DbCommand"],
+      "interfaces": ["System.IDisposable", "System.ICloneable"],
+      "methods": {
+        "ExecuteReader":   { "returns": "Microsoft.Data.SqlClient.SqlDataReader" },
+        "ExecuteScalar":   { "returns": "object" },
+        "ExecuteNonQuery": { "returns": "int" },
+        "ExecuteXmlReader":{ "returns": "System.Xml.XmlReader" }
+      }
+    },
+    "Microsoft.Data.SqlClient.SqlDataReader": {
+      "kind": "class",
+      "parents":  ["System.Data.Common.DbDataReader"],
+      "interfaces": ["System.IDisposable", "System.Collections.IEnumerable"]
+    },
+    "System.Data.Common.DbCommand": {
+      "kind": "abstract_class",
+      "parents": ["System.ComponentModel.Component"],
+      "interfaces": ["System.Data.IDbCommand", "System.IDisposable", "System.IAsyncDisposable"]
+    },
+    "System.Data.Common.DbConnection": {
+      "kind": "abstract_class",
+      "parents": ["System.ComponentModel.Component"],
+      "interfaces": ["System.Data.IDbConnection", "System.IDisposable", "System.IAsyncDisposable"]
+    }
+  }
+}

@@ -69,6 +69,33 @@ pub struct ProjectSemantics {
     /// from at least one caller. After the fixed-point pass this carries
     /// the full transitive set.
     pub tainted_params: HashMap<String, HashSet<usize>>,
+
+    /// Reverse call-graph: callee → list of (caller, caller_param_idx,
+    /// callee_arg_idx). Built during `build()` so backwards reachability
+    /// queries don't have to re-walk every file's param_call_edges.
+    pub reverse_param_edges: HashMap<String, Vec<ReverseEdge>>,
+
+    /// Per-function source kinds that originate the taint reaching it.
+    /// Populated during the fixed-point pass: when a tainted_call seeds
+    /// `(callee, arg_idx, kind)`, we propagate `kind` along param_call_edges
+    /// so any function transitively reached records WHICH source got it
+    /// here. Findings can surface this as `evidence.reaching_sources`.
+    pub reaching_sources: HashMap<String, HashSet<String>>,
+
+    /// Project-wide class / type hierarchy. Aggregates every file's
+    /// `FileSemantics::type_hierarchy` so a `class A : B` declared in
+    /// `B.cs` and instantiated in `A.cs` is walkable transitively.
+    /// Index: `child_type -> set(direct_parent)`. Walks are
+    /// cycle-protected via `supertypes_of`.
+    pub class_hierarchy: HashMap<String, HashSet<String>>,
+}
+
+/// Reverse-direction call edge — used by backwards reachability queries.
+#[derive(Debug, Clone)]
+pub struct ReverseEdge {
+    pub caller:           String,
+    pub caller_param_idx: usize,
+    pub callee_arg_idx:   usize,
 }
 
 /// Pointer back to where a function lives. Identity is (file, name).
@@ -86,7 +113,10 @@ impl ProjectSemantics {
         let mut me = ProjectSemantics::default();
 
         // Pass 1 — populate function index + seed tainted_params from
-        // direct sources and tainted_calls.
+        // direct sources and tainted_calls. Resolve callable_aliases
+        // (Phase A — dynamic dispatch): when `f = eval` and a tainted
+        // call lands on `f`, we mirror it onto `eval` so the propagator
+        // sees them as the same sink.
         for (path, sem) in &files {
             for (name, params) in &sem.function_definitions {
                 me.functions
@@ -102,14 +132,39 @@ impl ProjectSemantics {
             for (name, _kinds) in &sem.direct_return_sources {
                 me.tainted_returning_fns.insert(name.clone());
             }
-            // Seed tainted_calls into tainted_params: a call site that
-            // passes a known source as its Nth arg means the callee's
-            // Nth param is tainted on at least this call path.
-            for (callee_name, arg_idx, _kind) in &sem.tainted_calls {
+            // Seed tainted_calls into tainted_params + reaching_sources.
+            for (callee_name, arg_idx, kind) in &sem.tainted_calls {
                 me.tainted_params
                     .entry(callee_name.clone())
                     .or_default()
                     .insert(*arg_idx);
+                me.reaching_sources
+                    .entry(callee_name.clone())
+                    .or_default()
+                    .insert(kind.clone());
+                // Phase A: if the callee is a callable_alias to another
+                // function, mirror the taint onto the underlying name.
+                if let Some(real) = sem.callable_aliases.get(callee_name) {
+                    me.tainted_params
+                        .entry(real.clone())
+                        .or_default()
+                        .insert(*arg_idx);
+                    me.reaching_sources
+                        .entry(real.clone())
+                        .or_default()
+                        .insert(kind.clone());
+                }
+            }
+            // Build the reverse call graph from forward param_call_edges.
+            for edge in &sem.param_call_edges {
+                me.reverse_param_edges
+                    .entry(edge.callee.clone())
+                    .or_default()
+                    .push(ReverseEdge {
+                        caller:           edge.caller.clone(),
+                        caller_param_idx: edge.caller_param_idx,
+                        callee_arg_idx:   edge.callee_arg_idx,
+                    });
             }
         }
 
@@ -143,6 +198,16 @@ impl ProjectSemantics {
                         .or_default()
                         .insert(edge.callee_arg_idx);
                     if inserted { changed = true; }
+
+                    // Propagate reaching_sources from caller to callee
+                    // along the same edge so the sink-side knows WHICH
+                    // sources brought the taint.
+                    if let Some(caller_sources) = me.reaching_sources.get(&edge.caller).cloned() {
+                        let entry = me.reaching_sources.entry(edge.callee.clone()).or_default();
+                        for s in caller_sources {
+                            if entry.insert(s) { changed = true; }
+                        }
+                    }
                 }
 
                 // (b) return_param_indices: if a function returns its
@@ -173,9 +238,65 @@ impl ProjectSemantics {
             }
         }
 
+        // Pass 3 — class hierarchy aggregation. Each file's local
+        // type_hierarchy is merged into a project-wide index. Cross-file
+        // walks (`SqlCommand : DbCommand` declared in `B.cs`, used in
+        // `A.cs`) become tractable here.
+        for (_path, sem) in &files {
+            for (child, parents) in &sem.type_hierarchy {
+                let entry = me.class_hierarchy.entry(child.clone()).or_default();
+                for p in parents {
+                    entry.insert(p.clone());
+                }
+            }
+        }
+
         // Stash the by-file view last so the borrow on `files` ended.
         me.by_file = files.into_iter().collect();
         me
+    }
+
+    /// Transitive supertypes of `type_name` walked through the
+    /// project-wide class hierarchy. Includes the type itself in the
+    /// returned set (so callers can do straight membership checks).
+    /// Cycle-protected.
+    pub fn supertypes_of(&self, type_name: &str) -> HashSet<String> {
+        let mut out: HashSet<String> = HashSet::new();
+        let mut frontier: Vec<String> = vec![type_name.to_string()];
+        while let Some(cur) = frontier.pop() {
+            if !out.insert(cur.clone()) { continue; }
+            if let Some(parents) = self.class_hierarchy.get(&cur) {
+                for p in parents {
+                    if !out.contains(p) { frontier.push(p.clone()); }
+                }
+            }
+            // Also try the trailing-segment match — Java/C# often
+            // store FQNs (`com.acme.SqlCommand`) but rules will list
+            // the short name. If `cur` matches the tail of a stored
+            // key, descend through that key's parents too.
+            for (k, parents) in &self.class_hierarchy {
+                if k != &cur && (k.ends_with(&format!(".{cur}")) || k.ends_with(&format!("::{cur}"))) {
+                    for p in parents {
+                        if !out.contains(p) { frontier.push(p.clone()); }
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// True when `child` resolves (transitively, through the project
+    /// class hierarchy) to a type that equals or extends `parent`.
+    /// Substring containment in either direction is accepted so
+    /// `SqlCommand` ≡ `Microsoft.Data.SqlClient.SqlCommand`.
+    pub fn is_subtype_of(&self, child: &str, parent: &str) -> bool {
+        if child == parent { return true; }
+        let supers = self.supertypes_of(child);
+        supers.iter().any(|t| {
+            t == parent
+                || t.contains(parent)
+                || parent.contains(t.as_str())
+        })
     }
 
     /// Return true if any parameter of the function `fn_name` is known
@@ -203,6 +324,67 @@ impl ProjectSemantics {
         self.tainted_returning_fns
             .iter()
             .any(|k| k == fn_name || k.ends_with(&format!("::{fn_name}")))
+    }
+
+    /// Backwards reachability — given a sink function name, walk the
+    /// reverse call graph upward and collect every source kind that
+    /// transitively reaches it. Phase B closes the
+    /// "Semgrep-Pro asks 'what sources hit this sink' starting from the
+    /// finding, not from the sources" gap.
+    ///
+    /// Returns the deduplicated set of source kinds plus the chain of
+    /// caller function names that brought them. The caller chain is
+    /// best-effort and stops on cycles.
+    pub fn sources_reaching(&self, sink_fn: &str) -> Vec<String> {
+        let canonical = self.canonicalise(sink_fn).unwrap_or(sink_fn.to_string());
+        let mut sources: HashSet<String> = HashSet::new();
+        if let Some(set) = self.reaching_sources.get(&canonical) {
+            sources.extend(set.iter().cloned());
+        }
+
+        // Walk reverse edges to harvest sources from callers we wouldn't
+        // otherwise see (e.g. a caller that's tainted but never directly
+        // reaches the canonical sink in tainted_params).
+        let mut frontier  = vec![canonical.clone()];
+        let mut visited   = HashSet::new();
+        while let Some(cur) = frontier.pop() {
+            if !visited.insert(cur.clone()) { continue; }
+            if let Some(set) = self.reaching_sources.get(&cur) {
+                sources.extend(set.iter().cloned());
+            }
+            if let Some(reverse_edges) = self.reverse_param_edges.get(&cur) {
+                for re in reverse_edges {
+                    frontier.push(re.caller.clone());
+                }
+            }
+        }
+
+        let mut out: Vec<String> = sources.into_iter().collect();
+        out.sort();
+        out
+    }
+
+    /// Backwards caller chain — returns the list of caller functions
+    /// that lead from any source to `sink_fn`. Best-effort,
+    /// breadth-first, stops on cycle.
+    pub fn callers_of(&self, sink_fn: &str) -> Vec<String> {
+        let canonical = self.canonicalise(sink_fn).unwrap_or(sink_fn.to_string());
+        let mut visited: HashSet<String> = HashSet::new();
+        let mut frontier: Vec<String> = vec![canonical];
+        let mut chain:    Vec<String> = Vec::new();
+        while let Some(cur) = frontier.pop() {
+            if !visited.insert(cur.clone()) { continue; }
+            if let Some(reverse_edges) = self.reverse_param_edges.get(&cur) {
+                for re in reverse_edges {
+                    if !visited.contains(&re.caller) {
+                        chain.push(re.caller.clone());
+                        frontier.push(re.caller.clone());
+                    }
+                }
+            }
+        }
+        chain.dedup();
+        chain
     }
 
     /// Best-effort dataflow path — list the [source_fn, ..., target_fn]

@@ -1,6 +1,6 @@
 [package]
 name        = "cyscan"
-version     = "0.12.0"
+version     = "1.0.0"
 edition     = "2021"
 description = "Cybrium Scan — fast multi-language SAST engine"
 license     = "Apache-2.0"
@@ -51,8 +51,14 @@ semver      = "1"
 # SARIF shape types — we emit SARIF manually via serde_json rather than
 # dragging in the sarif crate, which is heavy and overkill for v0.1.
 
-# Self-update (blocking HTTP for sync CLI)
-reqwest     = { version = "0.12", features = ["blocking", "json", "rustls-tls"], default-features = false }
+# Self-update + supply-chain registry verification. Uses native-tls
+# (not rustls) — earlier work moved to native-tls specifically to drop
+# the `ring` dep behind RUSTSEC-2025-0009. Cross-compile (aarch64-linux,
+# etc.) is handled by the `openssl` vendored feature below: build
+# scripts compile openssl from source for the target arch instead of
+# requiring `libssl-dev:arm64` etc. on the runner.
+reqwest     = { version = "0.12", features = ["blocking", "json", "native-tls"], default-features = false }
+openssl     = { version = "0.10", features = ["vendored"] }
 walkdir = "2.5.0"
 flate2 = "1.1.9"
 urlencoding = "2"

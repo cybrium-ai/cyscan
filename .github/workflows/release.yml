@@ -43,9 +43,11 @@ jobs:
           - { target: x86_64-pc-windows-msvc,    os: windows-latest }
 
     steps:
+      # Plain checkout — no LFS. Advisory JSONL files used to live in
+      # LFS (npm.jsonl was 185 MB), but they compress 8–12× as gzip and
+      # now ship as `*.jsonl.gz` in regular git (advisory loader does
+      # the decompression at startup). LFS is gone from this repo.
       - uses: actions/checkout@v5
-        with:
-          lfs: true
 
       - name: Resolve version
         id: ver
@@ -173,9 +175,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      # No LFS needed here — every required asset is already packaged
+      # into the matrix's tarballs by the build step above.
       - uses: actions/checkout@v5
-        with:
-          lfs: true
 
       - name: Resolve version
         id: ver
