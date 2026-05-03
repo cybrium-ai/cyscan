@@ -75,9 +75,13 @@ pub fn run(target: &Path, pack: &RulePack) -> Result<Vec<Finding>> {
     let mut findings: Vec<Finding> = files
         .par_iter()
         .flat_map_iter(|path| {
-            let lang = Lang::from_path(path).expect("filtered above");
+            let initial_lang = Lang::from_path(path).expect("filtered above");
             match fs::read_to_string(path) {
                 Ok(source) => {
+                    // Refine via content sniff — currently upgrades a
+                    // YAML file to Kubernetes when its head contains
+                    // `apiVersion:` + `kind:`. Cheap.
+                    let lang = initial_lang.refine_with_content(&source);
                     let mut found = matcher::run_rules_with_project(
                         pack.rules(),
                         lang,

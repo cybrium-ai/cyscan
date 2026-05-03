@@ -2,6 +2,69 @@
 
 All notable changes to cyscan are documented here.
 
+## [1.1.0] — 2026-05-03
+
+### Added — Kubernetes precision + path-glob rule scoping
+
+Two complementary primitives that let rule authors target specific
+file types or path patterns without resorting to over-broad
+`languages: ['yaml']` rules.
+
+#### `Lang::Kubernetes` — content-sniffing pseudo-language
+
+YAML files whose head contains both `apiVersion:` and `kind:` are
+reclassified as `Kubernetes` at scan time. Rules opt in via
+`languages: ['kubernetes']` and only fire on actual K8s manifests —
+not on GitHub Actions workflows, Helm chart `values.yaml`, kustomize
+patches, ansible playbooks, or any other YAML that happens to share
+the file extension.
+
+```yaml
+languages: ['kubernetes']
+regex: |
+  (?i)(?:password|secret|token|api_key|credentials)\s*:\s*\S+
+```
+
+Detection happens in `Lang::refine_with_content`, called from the
+scanner immediately after `Lang::from_path`. Multi-document YAML
+streams (`---` separators) are handled by inspecting the first 4 KB.
+Cheap — one regex pass per file.
+
+#### `paths:` filter on the Rule schema
+
+```yaml
+languages: ['terraform']
+paths:
+  include: ["**/cloud/**", "**/prod/**"]
+  exclude: ["**/test/**", "**/fixtures/**"]
+```
+
+Globs use `globset` syntax (transitively a dep, now pinned directly).
+Empty `include` matches everything; `exclude` always overrides. Bad
+globs warn but don't disable the rule pack.
+
+Filtering happens in `matcher::run_rules` before per-file dispatch —
+zero overhead when the rule has no `paths:` block (the common case).
+
+#### Restored: `kubernetes/k8s-configmap-sensitive.yml`
+
+Deleted in v1.0.1 because there was no way to scope it to actual
+K8s manifests. Restored with `languages: ['kubernetes']` — fires on
+`secret:` / `password:` / `token:` keys in real ConfigMap manifests,
+silent on workflow YAML.
+
+### Validation
+
+- **cydeep regression**: 0 findings (matches v1.0.1)
+- **Synthetic K8s ConfigMap with `password:` / `secret:` keys**: 6 findings, all legitimate hardcoded credentials
+- **GitHub Actions workflow with `${{ secrets.MY_SECRET }}`**: 0 findings (correctly classified as plain YAML)
+
+10 new unit tests (6 K8s detection cases + 4 path-glob cases),
+2 new integration tests (`k8s_rule_fires_on_manifest_but_not_on_github_workflow`,
+`paths_include_filter_scopes_rule_to_glob`).
+
+87/87 unit + 44/44 integration tests pass. 0 cargo audit advisories.
+
 ## [1.0.1] — 2026-05-03
 
 ### Fixed — false-positive elimination
