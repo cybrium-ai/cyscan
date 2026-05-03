@@ -1,6 +1,6 @@
 [package]
 name        = "cyscan"
-version     = "1.0.1"
+version     = "1.1.0"
 edition     = "2021"
 description = "Cybrium Scan — fast multi-language SAST engine"
 license     = "Apache-2.0"
@@ -24,6 +24,11 @@ serde_yaml  = "0.9"
 # File walking + parallelism
 ignore      = "0.4"
 rayon       = "1.10"
+
+# Path-glob matching for the rule schema's `paths.include` /
+# `paths.exclude` fields (transitively comes via `ignore`, but we
+# pin a direct dep so the API is stable here).
+globset     = "0.4"
 
 # Regex fallback matcher — RE2-style engine, no backtracking
 regex       = "1.11"

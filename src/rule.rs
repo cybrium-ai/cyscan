@@ -218,6 +218,28 @@ pub struct Rule {
     /// finding accordingly.
     #[serde(default)]
     pub dataflow:  Option<DataflowSpec>,
+    /// Path-glob filter. When set, the rule only applies to files
+    /// whose path matches `include` AND does not match `exclude`.
+    /// Globs use the `globset` syntax (`**/*.tf`, `**/k8s/**`, etc.).
+    /// Empty / unset = applies to every file the language filter
+    /// already accepts.
+    ///
+    /// Useful for narrowing rules whose `languages:` is intentionally
+    /// broad (e.g. a Terraform-Cloud-specific rule wants
+    /// `languages: [terraform]` plus `paths.include: [**/cloud/**]`).
+    #[serde(default)]
+    pub paths:     Option<PathFilter>,
+}
+
+/// Path-glob filter for rules. Both lists are optional. A path matches
+/// when (`include` is empty OR any include glob matches) AND
+/// (`exclude` is empty OR no exclude glob matches).
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct PathFilter {
+    #[serde(default)]
+    pub include: Vec<String>,
+    #[serde(default)]
+    pub exclude: Vec<String>,
 }
 
 /// Nested-pattern spec used by `metavariable_pattern_ast`. Mirrors

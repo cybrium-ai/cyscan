@@ -195,6 +195,109 @@ checksum = "{}"
 }
 
 #[test]
+fn k8s_rule_fires_on_manifest_but_not_on_github_workflow() {
+    // A rule with `languages: ['kubernetes']` only applies to YAML
+    // files whose head sniffs as K8s (apiVersion: + kind:).
+    // GitHub Actions workflows look like YAML but are not K8s — they
+    // must NOT be matched.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("k8s-only.yml"), r#"
+id: TEST-K8S-ONLY
+title: "Sensitive ConfigMap key"
+severity: medium
+languages: ['kubernetes']
+regex: |
+  (?i)(?:password|secret|token)\s*:\s*\S+
+message: "matched"
+"#).unwrap();
+
+    fs::write(tmp.path().join("configmap.yaml"), r#"
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app
+data:
+  password: "dontstoreme"
+"#).unwrap();
+    fs::write(tmp.path().join("workflow.yaml"), r#"
+name: CI
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      SECRET: ${{ secrets.MY_SECRET }}
+"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-K8S-ONLY"))
+        .collect();
+    let files: Vec<&str> = hits.iter()
+        .filter_map(|f| f["file"].as_str().and_then(|p| p.split('/').last()))
+        .collect();
+    assert!(files.contains(&"configmap.yaml"),
+        "rule must fire on the K8s manifest; got {files:?}");
+    assert!(!files.contains(&"workflow.yaml"),
+        "rule must NOT fire on the GitHub workflow YAML; got {files:?}");
+}
+
+#[test]
+fn paths_include_filter_scopes_rule_to_glob() {
+    // A rule with `paths.include: ["**/k8s/**"]` should only fire on
+    // files under a `k8s/` directory anywhere in the tree.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("scoped.yml"), r#"
+id: TEST-PATHS-INCLUDE
+title: "Scoped rule"
+severity: low
+languages: ['generic']
+regex: "TODO"
+paths:
+  include:
+    - "**/k8s/**"
+message: "matched"
+"#).unwrap();
+
+    // .conf is routed to Lang::Generic by the file walker.
+    fs::create_dir(tmp.path().join("k8s")).unwrap();
+    fs::write(tmp.path().join("k8s/deploy.conf"), "some TODO here\n").unwrap();
+    fs::write(tmp.path().join("readme.conf"),     "another TODO here\n").unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-PATHS-INCLUDE"))
+        .collect();
+    let files: Vec<&str> = hits.iter()
+        .filter_map(|f| f["file"].as_str().and_then(|p| p.split('/').last()))
+        .collect();
+    assert!(files.contains(&"deploy.conf"),
+        "rule must fire on k8s/ file; got {files:?}");
+    assert!(!files.contains(&"readme.conf"),
+        "rule must NOT fire outside k8s/; got {files:?}");
+}
+
+#[test]
 fn supply_no_advisories_flag_skips_osv() {
     let manifest = env!("CARGO_MANIFEST_DIR");
     let target = format!("{manifest}/tests/fixtures/lockfiles");

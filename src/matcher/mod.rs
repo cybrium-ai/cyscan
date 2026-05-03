@@ -41,6 +41,7 @@ pub fn run_rules_with_project<'a>(
 ) -> Vec<Finding> {
     let applicable: Vec<&Rule> = rules.iter()
         .filter(|r| r.languages.contains(&lang) || r.languages.contains(&Lang::Generic))
+        .filter(|r| path_matches_rule(path, r))
         .collect();
 
     if applicable.is_empty() {
@@ -271,4 +272,87 @@ fn enclosing_function_name(source: &str, line: usize, _sem: &semantics::FileSema
     }
     let _ = current_line;
     current
+}
+
+/// True when `path` is accepted by the rule's `paths:` filter.
+/// Returns true when the rule has no filter set (the common case).
+fn path_matches_rule(path: &Path, rule: &Rule) -> bool {
+    path_matches_filter(path, rule.paths.as_ref(), &rule.id)
+}
+
+/// Pure path/filter checker — no `Rule` dep so tests can drive it
+/// without spinning up a full Rule object. Globs use `globset` syntax
+/// (`**/k8s/**`, `**/*.tf`, etc.).
+fn path_matches_filter(
+    path: &Path,
+    filter: Option<&crate::rule::PathFilter>,
+    rule_id: &str,
+) -> bool {
+    let Some(filter) = filter else { return true };
+    let path_str = path.to_string_lossy();
+
+    // If a glob fails to compile, treat the rule's filter as empty so
+    // a typo doesn't silently disable a rule pack-wide.
+    let build_set = |patterns: &[String]| {
+        let mut builder = globset::GlobSetBuilder::new();
+        for p in patterns {
+            if let Ok(g) = globset::Glob::new(p) {
+                builder.add(g);
+            } else {
+                log::warn!("rule {rule_id}: bad path glob: {p}");
+            }
+        }
+        builder.build().ok()
+    };
+
+    if !filter.include.is_empty() {
+        if let Some(set) = build_set(&filter.include) {
+            if !set.is_match(path_str.as_ref()) { return false; }
+        }
+    }
+    if !filter.exclude.is_empty() {
+        if let Some(set) = build_set(&filter.exclude) {
+            if set.is_match(path_str.as_ref()) { return false; }
+        }
+    }
+    true
+}
+
+#[cfg(test)]
+mod path_filter_tests {
+    use super::*;
+    use crate::rule::PathFilter;
+
+    fn filter(include: Vec<&str>, exclude: Vec<&str>) -> PathFilter {
+        PathFilter {
+            include: include.into_iter().map(String::from).collect(),
+            exclude: exclude.into_iter().map(String::from).collect(),
+        }
+    }
+
+    #[test]
+    fn no_filter_matches_everything() {
+        assert!(path_matches_filter(Path::new("any/path.yaml"), None, "T"));
+    }
+
+    #[test]
+    fn include_only_matches_when_pattern_hits() {
+        let f = filter(vec!["**/k8s/**/*.yaml"], vec![]);
+        assert!( path_matches_filter(Path::new("infra/k8s/deploy.yaml"), Some(&f), "T"));
+        assert!(!path_matches_filter(Path::new(".github/workflows/ci.yaml"), Some(&f), "T"));
+    }
+
+    #[test]
+    fn exclude_overrides_include() {
+        // Exclude any values*.yaml file under a `charts/` ancestor.
+        let f = filter(vec!["**/*.yaml"], vec!["**/charts/**/values*.yaml"]);
+        assert!( path_matches_filter(Path::new("infra/k8s/deploy.yaml"), Some(&f), "T"));
+        assert!(!path_matches_filter(Path::new("charts/myapp/values.yaml"), Some(&f), "T"));
+    }
+
+    #[test]
+    fn empty_filter_matches_everything() {
+        let f = filter(vec![], vec![]);
+        assert!(path_matches_filter(Path::new("any/file.yaml"), Some(&f), "T"));
+    }
 }

@@ -29,6 +29,13 @@ pub enum Lang {
     Latex, Rst,                                 // docs
     // Generic / config
     Generic, Json, Yaml, Terraform, Docker,
+    // Kubernetes — pseudo-language for YAML files that contain a
+    // K8s manifest (have `apiVersion:` + `kind:` headers). Detected
+    // via content sniff in `Lang::refine_with_content`. Lets K8s
+    // rules opt in via `languages: ['kubernetes']` instead of
+    // `['yaml']` (too broad — fires on GitHub Actions, Helm
+    // values, kustomize, ansible playbooks, etc.).
+    Kubernetes,
 }
 
 impl Lang {
@@ -181,6 +188,24 @@ impl Lang {
         Self::from_extension(ext)
     }
 
+    /// Refine the language classification using a peek at the file
+    /// content. Currently used for one purpose: a YAML file whose
+    /// head contains both `apiVersion:` and `kind:` is reclassified
+    /// as `Kubernetes`. Catches K8s manifests wherever they live —
+    /// `helm template` outputs, GitOps app manifests, mixed-content
+    /// directories — without forcing rule authors to enumerate
+    /// every plausible path glob.
+    ///
+    /// Pass the first ~2 KB of the file (cheap to read up-front).
+    /// Returns the refined language; falls back to the original if
+    /// no refinement applies.
+    pub fn refine_with_content(self, source_head: &str) -> Self {
+        if matches!(self, Self::Yaml) && looks_like_k8s_manifest(source_head) {
+            return Self::Kubernetes;
+        }
+        self
+    }
+
     /// Returns the tree-sitter grammar if available. Languages without
     /// a grammar (Java, Ruby, etc.) return None and use regex-only matching.
     pub fn tree_sitter(self) -> Option<Language> {
@@ -291,7 +316,89 @@ impl Lang {
             Self::Yaml       => "yaml",
             Self::Terraform  => "terraform",
             Self::Docker     => "docker",
+            Self::Kubernetes => "kubernetes",
         }
+    }
+}
+
+/// True when the leading bytes of a YAML file look like a Kubernetes
+/// manifest. Heuristic: contains both `apiVersion:` and `kind:` in
+/// the first ~2 KB. The two together are universal across every K8s
+/// resource (Deployment, Service, ConfigMap, RBAC, CRDs, etc.) and
+/// vanishingly unlikely to appear in non-K8s YAML by accident.
+///
+/// Multi-document YAML (`---` separators) only needs the first
+/// document to look like a manifest — every doc that follows is
+/// almost certainly also K8s.
+fn looks_like_k8s_manifest(head: &str) -> bool {
+    // Trim large heads — we only inspect the front of the file.
+    let head = if head.len() > 4096 {
+        &head[..4096]
+    } else {
+        head
+    };
+
+    let mut has_api_version = false;
+    let mut has_kind = false;
+    for raw in head.lines() {
+        let line = raw.trim_start();
+        // `apiVersion:` and `kind:` always appear at the document's
+        // top level (zero indent in K8s) but Helm-template outputs
+        // can have minor leading whitespace from comment blocks.
+        if !has_api_version && line.starts_with("apiVersion:") {
+            has_api_version = true;
+        }
+        if !has_kind && line.starts_with("kind:") {
+            has_kind = true;
+        }
+        if has_api_version && has_kind {
+            return true;
+        }
+    }
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn k8s_manifest_detected() {
+        let src = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: app-config\n";
+        assert_eq!(Lang::Yaml.refine_with_content(src), Lang::Kubernetes);
+    }
+
+    #[test]
+    fn github_actions_workflow_stays_yaml() {
+        let src = "name: CI\non:\n  push:\n    branches: [main]\njobs:\n  test:\n    runs-on: ubuntu-latest\n";
+        assert_eq!(Lang::Yaml.refine_with_content(src), Lang::Yaml);
+    }
+
+    #[test]
+    fn helm_chart_values_stays_yaml() {
+        let src = "image:\n  repository: nginx\n  tag: latest\nreplicaCount: 1\n";
+        assert_eq!(Lang::Yaml.refine_with_content(src), Lang::Yaml);
+    }
+
+    #[test]
+    fn ansible_playbook_stays_yaml() {
+        // Ansible has `- name:` and `tasks:` but no `apiVersion:`.
+        let src = "- name: install nginx\n  hosts: web\n  tasks:\n    - apt:\n        name: nginx\n";
+        assert_eq!(Lang::Yaml.refine_with_content(src), Lang::Yaml);
+    }
+
+    #[test]
+    fn multi_doc_k8s_stream_detected_from_first_doc() {
+        let src = "apiVersion: v1\nkind: Service\n---\napiVersion: apps/v1\nkind: Deployment\n";
+        assert_eq!(Lang::Yaml.refine_with_content(src), Lang::Kubernetes);
+    }
+
+    #[test]
+    fn non_yaml_lang_is_not_refined() {
+        // Even if the source head looks K8s-shaped, a Python file
+        // stays Python.
+        let src = "apiVersion: v1\nkind: thing";
+        assert_eq!(Lang::Python.refine_with_content(src), Lang::Python);
     }
 }
 
