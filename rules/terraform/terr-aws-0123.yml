@@ -8,5 +8,5 @@ message: |
   IAM groups should be protected with multi factor authentication to add safe guards to password compromise.
   
   Remediation: Use terraform-module/enforce-mfa/aws to ensure that MFA is enforced
-pattern: |
+regex: |
   mfa_delete\s*=\s*(?:false|"Disabled")

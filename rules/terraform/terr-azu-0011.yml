@@ -10,5 +10,5 @@ message: |
   This check will warn if the minimum TLS version is set lower than TLS1_2. TLS1_2 and TLS1_3 are both allowed.
   
   Remediation: Use a more recent TLS version for the storage account
-pattern: |
+regex: |
   (?:minimum_tls_version|tls_version)\s*=\s*"(?:TLS1_0|TLSv1|1\.0)"

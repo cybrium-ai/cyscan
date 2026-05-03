@@ -9,5 +9,5 @@ message: |
   Explicitly overriding publicAccess to anything other than off should be avoided.
   
   Remediation: Disable public access to storage containers
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

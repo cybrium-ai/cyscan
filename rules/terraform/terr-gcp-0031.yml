@@ -8,5 +8,5 @@ message: |
   Instances should not be publicly exposed to the internet
   
   Remediation: Remove public IP
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

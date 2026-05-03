@@ -8,5 +8,5 @@ message: |
   Integrity monitoring helps you understand and make decisions about the state of your VM instances.
   
   Remediation: Enable Shielded VM Integrity Monitoring
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

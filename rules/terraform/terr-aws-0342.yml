@@ -8,5 +8,5 @@ message: |
   Ensures any IAM pass role attached to roles are flagged and warned.
   
   Remediation: Resolve permission escalations by denying pass role'
-pattern: |
+regex: |
   resource\s+"aws_iam_(?:policy|role|user)"

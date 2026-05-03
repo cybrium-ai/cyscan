@@ -10,5 +10,5 @@ message: |
   Azure Storage encrypts all data at rest by default, but transport encryption is also critical.
   
   Remediation: Enable secure transfer and set minimum TLS version to TLS1_2 or higher
-pattern: |
+regex: |
   encrypted\s*=\s*false

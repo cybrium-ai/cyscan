@@ -8,5 +8,5 @@ message: |
   S3 buckets should ignore public ACLs on buckets and any objects they contain. By ignoring rather than blocking, PUT calls with public ACLs will still be applied but the ACL will be ignored.
   
   Remediation: Enable ignoring the application of public ACLs in PUT calls
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

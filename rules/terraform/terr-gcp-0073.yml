@@ -9,5 +9,5 @@ message: |
   The default network comes with pre-populated firewall rules that allow broad access and should be replaced with more restrictive custom rules.
   
   Remediation: Replace default firewall rules with custom, more restrictive rules appropriate for your security requirements
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

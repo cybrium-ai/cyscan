@@ -10,5 +10,5 @@ message: |
   CIS recommends that you create a metric filter and alarm for changes to NACLs. Monitoring these changes helps ensure that AWS resources and services aren't unintentionally exposed.
   
   Remediation: Create an alarm to alert on network acl changes
-pattern: |
+regex: |
   resource\s+"aws_cloudwatch_(?:log_group|metric_alarm)"

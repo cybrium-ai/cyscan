@@ -8,5 +8,5 @@ message: |
   Log profiles should capture all regions to ensure that all events are logged
   
   Remediation: Enable capture for all locations
-pattern: |
+regex: |
   resource\s+"azurerm_monitor_(?:log_profile|diagnostic_setting)"

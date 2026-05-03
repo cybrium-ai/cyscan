@@ -10,5 +10,5 @@ message: |
   remote server administration ports, such as SSH to port 22 and RDP to port 3389.
   
   Remediation: Set a more restrictive CIDR range
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

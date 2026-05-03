@@ -12,5 +12,5 @@ message: |
   Permissions should be granted on roles, groups, services accounts instead.
   
   Remediation: Roles should be granted permissions and assigned to users
-pattern: |
+regex: |
   resource\s+"aws_iam_(?:policy|role|user)"

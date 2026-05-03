@@ -10,5 +10,5 @@ message: |
   IAM account password policies should ensure that passwords content including at least one uppercase character.
   
   Remediation: Enforce longer, more complex passwords in the policy
-pattern: |
+regex: |
   (?:password|admin_password)\s*=\s*"[^"]*"

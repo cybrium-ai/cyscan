@@ -9,5 +9,5 @@ message: |
   resources in a VPC instead.
   
   Remediation: Switch to VPC resources
-pattern: |
+regex: |
   resource\s+"aws_redshift_cluster"

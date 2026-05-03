@@ -8,5 +8,5 @@ message: |
   Default service accounts should not be used - consider creating specialised service accounts for individual purposes.
   
   Remediation: Use specialised service accounts for specific purposes.
-pattern: |
+regex: |
   resource\s+"aws_iam_(?:policy|role|user)"

@@ -8,5 +8,5 @@ message: |
   Without NSG flow logs, network activity is not auditable, hindering incident investigation.
   
   Remediation: Enable NSG flow logs via Network Watcher and configure a storage account for log export.
-pattern: |
+regex: |
   resource\s+"azurerm_(?:network_security_group|virtual_network)"

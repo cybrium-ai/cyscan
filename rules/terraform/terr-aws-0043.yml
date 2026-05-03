@@ -8,5 +8,5 @@ message: |
   Traffic flowing between Elasticsearch nodes should be encrypted to ensure sensitive data is kept private.
   
   Remediation: Enable encrypted node to node communication
-pattern: |
+regex: |
   encrypted\s*=\s*false

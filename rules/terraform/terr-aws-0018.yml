@@ -8,5 +8,5 @@ message: |
   All artifacts produced by your CodeBuild project pipeline should always be encrypted
   
   Remediation: Enable encryption for CodeBuild project artifacts
-pattern: |
+regex: |
   encrypted\s*=\s*false

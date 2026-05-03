@@ -8,5 +8,5 @@ message: |
   apt-get update or apk update is in a separate RUN instruction from install. This creates a cached layer that may serve stale package lists.
   
   Remediation: Combine update and install in the same RUN instruction.
-pattern: |
+regex: |
   ^\s*RUN\s+(?:apt-get|apk)\s+update\s*$

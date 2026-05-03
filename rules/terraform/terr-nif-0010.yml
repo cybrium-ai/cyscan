@@ -8,5 +8,5 @@ message: |
   When handling sensitive data between servers, please consider using a private LAN to isolate the private side network from the shared network.
   
   Remediation: Use private LAN
-pattern: |
+regex: |
   (?:private_cluster|enable_private_nodes)\s*=\s*false

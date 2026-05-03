@@ -8,5 +8,5 @@ message: |
   The virtual TPM provides numerous security measures to your VM.
   
   Remediation: Enable Shielded VM VTPM
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

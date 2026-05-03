@@ -8,5 +8,5 @@ message: |
   Service accounts should have a minimal set of permissions assigned in order to do their job. They should never have excessive access as if compromised, an attacker can escalate privileges and take over the entire account.
   
   Remediation: Limit service account access to minimal required set
-pattern: |
+regex: |
   resource\s+"aws_iam_(?:policy|role|user)"

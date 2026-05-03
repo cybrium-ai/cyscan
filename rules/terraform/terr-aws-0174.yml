@@ -12,5 +12,5 @@ message: |
   rolled back.
   
   Remediation: Create an alarm to alert on organisation changes
-pattern: |
+regex: |
   resource\s+"aws_cloudwatch_(?:log_group|metric_alarm)"

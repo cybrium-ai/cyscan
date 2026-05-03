@@ -8,5 +8,5 @@ message: |
   Using Kubernetes role-based access control (RBAC), you can grant users, groups, and service accounts access to only the resources they need.
   
   Remediation: Enable RBAC
-pattern: |
+regex: |
   resource\s+"google_container_cluster"

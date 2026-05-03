@@ -8,5 +8,5 @@ message: |
   GCP Cloud Storage bucket grants access to allUsers or allAuthenticatedUsers.
   
   Remediation: Remove public access and use IAM for fine-grained control.
-pattern: |
+regex: |
   (?:allUsers|allAuthenticatedUsers)

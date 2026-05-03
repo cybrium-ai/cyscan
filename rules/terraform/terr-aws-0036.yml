@@ -8,5 +8,5 @@ message: |
   You should not make secrets available to a user in plaintext in any scenario. Secrets can instead be pulled from a secure secret storage system by the service requiring them.
   
   Remediation: Use secrets for the task definition
-pattern: |
+regex: |
   resource\s+"aws_ecs_(?:service|task_definition)"

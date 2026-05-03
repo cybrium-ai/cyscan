@@ -117,7 +117,27 @@ pub fn match_rule(
     // YAML block literal `|` keeps a trailing newline, which the regex
     // crate treats as a literal \n requirement. Trim any surrounding
     // whitespace so rule authors don't have to remember `|-` every time.
-    let raw = rule.regex.as_deref().or(rule.pattern.as_deref());
+    //
+    // Field semantics:
+    //   `regex:`   — literal Rust regex. Pass through verbatim.
+    //                  Used by the gitleaks-derived secret rules whose
+    //                  authors wrote real regex syntax with `(?i)`,
+    //                  `(?:...)`, character classes, etc.
+    //   `pattern:` — semgrep-flavour. Run through `semgrep_to_regex`
+    //                  which translates `$VAR` to `\w+`, `...` to `.*`
+    //                  and escapes regex metacharacters so authors
+    //                  don't have to know regex.
+    //
+    // The historical bug: applying `semgrep_to_regex` to a real regex
+    // destroyed it — `(?i)` became `\(\?i\)` (literal text), capture
+    // groups became literal `(`/`)`, etc. The result still compiled but
+    // matched arbitrary noise (typically a single backslash) on every
+    // line, producing a flood of false positives.
+    let (raw, is_semgrep_pattern) = match (rule.regex.as_deref(), rule.pattern.as_deref()) {
+        (Some(r), _)    => (Some(r), false),
+        (None, Some(p)) => (Some(p), true),
+        (None, None)    => (None, false),
+    };
     let Some(pat) = raw.map(str::trim) else {
         // Even with no primary pattern, the rule may use only the new
         // Semgrep-DSL aggregate sources (patterns/pattern_either/...).
@@ -132,12 +152,13 @@ pub fn match_rule(
     };
     if pat.is_empty() { return Vec::new() }
 
-    // Convert semgrep AST patterns to regex:
-    //   $VAR, $NAME, $FUNC  →  \w+  (any identifier)
-    //   ...                  →  .*   (any code)
-    //   [...]                →  \[.*\]
-    //   $FUNC(...)           →  \w+\(.*\)
-    let converted = semgrep_to_regex(pat);
+    // Only convert when the author wrote semgrep-flavour. Real regexes
+    // from `regex:` go straight to the engine.
+    let converted = if is_semgrep_pattern {
+        semgrep_to_regex(pat)
+    } else {
+        pat.to_string()
+    };
 
     // Skip patterns that are too short/broad after conversion (would match everything)
     let meaningful = converted.replace(r"\w+", "").replace(".*", "").replace(r"\s+", "");

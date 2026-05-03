@@ -10,5 +10,5 @@ message: |
   Microsoft recommends that you always require secure transfer for all of your storage accounts.
   
   Remediation: Only allow secure connection for transferring data into storage accounts
-pattern: |
+regex: |
   resource\s+"google_storage_bucket"

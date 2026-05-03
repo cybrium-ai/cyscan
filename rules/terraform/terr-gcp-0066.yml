@@ -8,5 +8,5 @@ message: |
   Using unmanaged keys makes rotation and general management difficult.
   
   Remediation: Encrypt Cloud Storage buckets using customer-managed keys.
-pattern: |
+regex: |
   encrypted\s*=\s*false

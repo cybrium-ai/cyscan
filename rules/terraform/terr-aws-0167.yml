@@ -8,5 +8,5 @@ message: |
   Multiple active access keys widens the scope for compromise.
   
   Remediation: Limit the number of active access keys to one key per user.
-pattern: |
+regex: |
   access_key\s*=\s*"[^"]*"

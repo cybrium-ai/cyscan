@@ -8,5 +8,5 @@ message: |
   Object versioning in Cloud Storage is recommended to protect against accidental or malicious deletions.
   
   Remediation: Enable object versioning on Cloud Storage buckets to preserve older versions of objects. In Terraform, set `versioning { enabled = true }` for the bucket resource.
-pattern: |
+regex: |
   versioning\s*\{[^}]*enabled\s*=\s*false

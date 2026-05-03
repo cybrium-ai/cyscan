@@ -8,5 +8,5 @@ message: |
   TLS versions prior to 1.2 are outdated and insecure. You should use 1.2 as aminimum version.
   
   Remediation: Enforce a minimum TLS version of 1.2
-pattern: |
+regex: |
   (?:minimum_tls_version|tls_version)\s*=\s*"(?:TLS1_0|TLSv1|1\.0)"

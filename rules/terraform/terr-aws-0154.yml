@@ -9,5 +9,5 @@ message: |
   CIS recommends that you create a metric filter and alarm for changes to S3 bucket policies. Monitoring these changes might reduce time to detect and correct permissive policies on sensitive S3 buckets.
   
   Remediation: Create an alarm to alert on S3 Bucket policy changes
-pattern: |
+regex: |
   resource\s+"aws_cloudwatch_(?:log_group|metric_alarm)"

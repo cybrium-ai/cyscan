@@ -10,5 +10,5 @@ message: |
   You can do this by either setting <code>private</code> attribute to 'true' or <code>visibility</code> attribute to 'internal' or 'private'.
   
   Remediation: Make sensitive or commercially important repositories private
-pattern: |
+regex: |
   (?:private_cluster|enable_private_nodes)\s*=\s*false

@@ -8,5 +8,5 @@ message: |
   Method cache encryption ensures that any sensitive data in the cache is not vulnerable to compromise in the event of interception
   
   Remediation: Enable cache encryption
-pattern: |
+regex: |
   encrypted\s*=\s*false

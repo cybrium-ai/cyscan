@@ -10,5 +10,5 @@ message: |
   Requests are logged on a best-effort basis.
   
   Remediation: Enable logging for Queue Services
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

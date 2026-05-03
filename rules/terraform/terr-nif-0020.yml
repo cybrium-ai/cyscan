@@ -8,5 +8,5 @@ message: |
   You should not use outdated/insecure TLS versions for encryption. You should be using TLS v1.2+.
   
   Remediation: Use a more recent TLS/SSL policy for the load balancer
-pattern: |
+regex: |
   (?:minimum_tls_version|tls_version)\s*=\s*"(?:TLS1_0|TLSv1|1\.0)"

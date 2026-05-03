@@ -14,5 +14,5 @@ message: |
   For a trail that is enabled in all Regions in an account, CloudTrail sends log files from all those Regions to a CloudWatch Logs log group.
   
   Remediation: Enable logging to CloudWatch
-pattern: |
+regex: |
   resource\s+"aws_cloudtrail"

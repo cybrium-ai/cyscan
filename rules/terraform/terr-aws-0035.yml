@@ -8,5 +8,5 @@ message: |
   ECS task definitions that have volumes using EFS configuration should explicitly enable in transit encryption to prevent the risk of data loss due to interception.
   
   Remediation: Enable in transit encryption when using efs
-pattern: |
+regex: |
   encrypted\s*=\s*false

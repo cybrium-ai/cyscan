@@ -8,5 +8,5 @@ message: |
   When working with a server, you’ll likely spend most of your time in a terminal session connected to your server through SSH. A more secure alternative to password-based logins, SSH keys use encryption to provide a secure way of logging into your server and are recommended for all users.
   
   Remediation: Use ssh keys for login
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

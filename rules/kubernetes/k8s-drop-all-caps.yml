@@ -8,5 +8,5 @@ message: |
   Container does not drop all Linux capabilities. Capabilities grant fine-grained root privileges.
   
   Remediation: Add drop: ["ALL"] under securityContext.capabilities and only add back required ones.
-pattern: |
+regex: |
   capabilities:\s*\n\s+(?!.*drop)

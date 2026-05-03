@@ -12,5 +12,5 @@ message: |
   security groups which will in-turn reduce the exposure of those resources.
   
   Remediation: Configure default security group to restrict all traffic
-pattern: |
+regex: |
   resource\s+"aws_instance"

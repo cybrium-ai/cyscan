@@ -8,5 +8,5 @@ message: |
   Private Google Access allows instances in a subnet to reach Google APIs and services via internal IP, which should be enabled for private networks.
   
   Remediation: Enable Private Google Access on subnets. In Terraform, set `private_ip_google_access = true` in the `google_compute_subnetwork` resource.
-pattern: |
+regex: |
   (?:private_cluster|enable_private_nodes)\s*=\s*false

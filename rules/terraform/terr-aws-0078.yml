@@ -9,5 +9,5 @@ message: |
   The encryption key specified in `performance_insights_kms_key_id` references a KMS ARN
   
   Remediation: Use Customer Managed Keys to encrypt Performance Insights data
-pattern: |
+regex: |
   encrypted\s*=\s*false

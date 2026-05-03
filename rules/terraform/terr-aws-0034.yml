@@ -8,5 +8,5 @@ message: |
   Cloudwatch Container Insights provide more metrics and logs for container based applications and micro services.
   
   Remediation: Enable Container Insights
-pattern: |
+regex: |
   resource\s+"aws_ecs_(?:service|task_definition)"

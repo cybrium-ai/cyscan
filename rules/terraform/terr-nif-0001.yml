@@ -10,5 +10,5 @@ message: |
   When publishing web applications, use a load balancer instead of publishing directly to instances.
   
   Remediation: Set a more restrictive cidr range
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

@@ -8,5 +8,5 @@ message: |
   Pod has automountServiceAccountToken enabled. This exposes the SA token to all containers in the pod.
   
   Remediation: Set automountServiceAccountToken to false unless the pod needs Kubernetes API access.
-pattern: |
+regex: |
   automountServiceAccountToken:\s*true

@@ -8,5 +8,5 @@ message: |
   Use of project-wide SSH keys means that a compromise of any one of these key pairs can result in all instances being compromised. It is recommended to use instance-level keys.
   
   Remediation: Disable project-wide SSH keys
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

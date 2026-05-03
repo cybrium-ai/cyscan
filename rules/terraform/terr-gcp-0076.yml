@@ -8,5 +8,5 @@ message: |
   Flow logs for subnets should be enabled to capture network traffic details for security analysis.
   
   Remediation: Enable VPC Flow Logs for subnets.
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

@@ -8,5 +8,5 @@ message: |
   Setting the minimum log severity too high will cause errors not to be logged
   
   Remediation: Set the minimum log severity to at least ERROR
-pattern: |
+regex: |
   resource\s+"google_sql_database_instance"

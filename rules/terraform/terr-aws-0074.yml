@@ -8,5 +8,5 @@ message: |
   Managed streaming for Kafka can log to Cloud Watch, Kinesis Firehose and S3, at least one of these locations should be logged to
   
   Remediation: Enable logging
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

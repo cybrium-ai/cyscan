@@ -8,5 +8,5 @@ message: |
   RBAC role allows modifying the aws-auth ConfigMap in kube-system, which controls cluster access.
   
   Remediation: Restrict access to aws-auth ConfigMap to cluster admins only.
-pattern: |
+regex: |
   resourceNames:\s*\n\s*-\s*(?:"aws-auth"|aws-auth)

@@ -8,5 +8,5 @@ message: |
   Disabling IP forwarding ensures the instance can only receive packets addressed to the instance and can only send packets with a source address of the instance.
   
   Remediation: Disable IP forwarding
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

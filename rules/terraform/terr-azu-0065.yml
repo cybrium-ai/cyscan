@@ -8,5 +8,5 @@ message: |
   A public AKS API server endpoint increases exposure to unauthorized access or attack. Enable private cluster to ensure the API server endpoint is only accessible from within the virtual network.
   
   Remediation: Provision the AKS cluster with `private_cluster_enabled = true` and use private endpoints.
-pattern: |
+regex: |
   (?:private_cluster|enable_private_nodes)\s*=\s*false

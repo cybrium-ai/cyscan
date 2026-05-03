@@ -12,5 +12,5 @@ message: |
   Setting an retention policy will help ensure as much information is available for review.
   
   Remediation: Ensure flow log retention is turned on with an expiry of >90 days
-pattern: |
+regex: |
   resource\s+"azurerm_(?:network_security_group|virtual_network)"

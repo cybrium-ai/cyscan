@@ -10,5 +10,5 @@ message: |
   If the retention period is to be explicitly set, it should be set for no less than 90 days.
   
   Remediation: Set retention periods of database auditing to greater than 90 days
-pattern: |
+regex: |
   resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

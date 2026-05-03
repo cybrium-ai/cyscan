@@ -8,5 +8,5 @@ message: |
   Multiple ENTRYPOINT instructions found. Only the last one takes effect, which may be confusing.
   
   Remediation: Use only one ENTRYPOINT per Dockerfile.
-pattern: |
+regex: |
   ^\s*ENTRYPOINT\s+

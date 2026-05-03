@@ -8,5 +8,5 @@ message: |
   Checks whether a workload is running in the default namespace.
   
   Remediation: Set 'metadata.namespace' to a non-default namespace.
-pattern: |
+regex: |
   namespace:\s*(?:"default"|default)\s*$

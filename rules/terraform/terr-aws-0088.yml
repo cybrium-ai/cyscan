@@ -8,5 +8,5 @@ message: |
   S3 Buckets should be encrypted to protect the data that is stored within them if access is compromised.
   
   Remediation: Configure bucket encryption
-pattern: |
+regex: |
   encrypted\s*=\s*false

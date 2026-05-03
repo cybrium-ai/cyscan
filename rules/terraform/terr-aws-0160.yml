@@ -10,5 +10,5 @@ message: |
   CIS recommends that you create a metric filter and alarm for changes to VPCs. Monitoring these changes helps ensure that authentication and authorization controls remain intact.
   
   Remediation: Create an alarm to alert on route table changes
-pattern: |
+regex: |
   resource\s+"aws_cloudwatch_(?:log_group|metric_alarm)"

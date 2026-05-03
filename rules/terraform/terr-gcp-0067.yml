@@ -8,5 +8,5 @@ message: |
   Secure boot helps ensure that the system only runs authentic software.
   
   Remediation: Enable Shielded VM secure boot
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

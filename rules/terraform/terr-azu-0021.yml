@@ -8,5 +8,5 @@ message: |
   Postgresql can generate logs for connection throttling to improve visibility for audit and configuration issue resolution.
   
   Remediation: Enable connection throttling logging
-pattern: |
+regex: |
   resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

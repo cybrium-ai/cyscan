@@ -8,5 +8,5 @@ message: |
   Avoid assigning public IP addresses to network interfaces unless necessary.
   
   Remediation: Remove public IP addresses from network interfaces unless they are specifically required for internet connectivity.
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

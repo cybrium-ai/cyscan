@@ -8,5 +8,5 @@ message: |
   In-transit data should be encrypted so that if traffic is intercepted data will not be exposed in plaintext to attackers.
   
   Remediation: Enforce SSL for all connections
-pattern: |
+regex: |
   encrypted\s*=\s*false

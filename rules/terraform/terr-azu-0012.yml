@@ -9,5 +9,5 @@ message: |
   The default action should be set to Deny.
   
   Remediation: Set network rules to deny
-pattern: |
+regex: |
   resource\s+"google_storage_bucket"

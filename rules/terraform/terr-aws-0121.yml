@@ -8,5 +8,5 @@ message: |
   Encryption should be enabled at all available levels to ensure that data is protected if compromised.
   
   Remediation: Enable server side encryption
-pattern: |
+regex: |
   encrypted\s*=\s*false

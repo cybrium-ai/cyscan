@@ -10,5 +10,5 @@ message: |
   They also provide greater flexibility to audit the encryption keys that are used to protect your data.
   
   Remediation: Configure customer-managed keys for storage account encryption
-pattern: |
+regex: |
   encrypted\s*=\s*false

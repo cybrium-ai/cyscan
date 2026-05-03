@@ -9,5 +9,5 @@ message: |
   For example, information about active sessions could help diagose a compromise or assist in the investigation
   
   Remediation: Enable performance insights
-pattern: |
+regex: |
   resource\s+"aws_(?:db_instance|rds_cluster)"

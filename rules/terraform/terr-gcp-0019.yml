@@ -8,5 +8,5 @@ message: |
   Cross-database ownership chaining, also known as cross-database chaining, is a security feature of SQL Server that allows users of databases access to other databases besides the one they are currently using.
   
   Remediation: Disable cross database ownership chaining
-pattern: |
+regex: |
   resource\s+"google_sql_database_instance"

@@ -8,5 +8,5 @@ message: |
   Container has no CPU limit set. Without limits, a single container can starve other workloads.
   
   Remediation: Set resources.limits.cpu in the container spec.
-pattern: |
+regex: |
   resources:\s*\{\s*\}

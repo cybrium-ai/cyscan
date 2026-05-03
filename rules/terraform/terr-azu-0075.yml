@@ -8,5 +8,5 @@ message: |
   IP forwarding should be disabled on network interfaces unless specifically required.
   
   Remediation: Disable IP forwarding on network interfaces unless specifically required for routing purposes.
-pattern: |
+regex: |
   resource\s+"azurerm_(?:network_security_group|virtual_network)"

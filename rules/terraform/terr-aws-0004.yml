@@ -8,5 +8,5 @@ message: |
   API Gateway methods should generally be protected by authorization or api key. OPTION verb calls can be used without authorization
   
   Remediation: Use and authorization method or require API Key
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

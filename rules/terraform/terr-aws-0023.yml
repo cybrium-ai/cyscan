@@ -8,5 +8,5 @@ message: |
   Data can be freely read if compromised. Amazon DynamoDB Accelerator (DAX) encryption at rest provides an additional layer of data protection by helping secure your data from unauthorized access to the underlying storage.
   
   Remediation: Enable encryption at rest for DAX Cluster
-pattern: |
+regex: |
   encrypted\s*=\s*false

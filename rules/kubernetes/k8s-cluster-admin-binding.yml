@@ -8,5 +8,5 @@ message: |
   ClusterRoleBinding grants cluster-admin role, providing full access to the entire cluster.
   
   Remediation: Create a custom ClusterRole with only the required permissions.
-pattern: |
+regex: |
   roleRef:\s*\n\s+.*\n\s+name:\s*cluster-admin

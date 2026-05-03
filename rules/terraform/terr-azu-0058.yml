@@ -10,5 +10,5 @@ message: |
   Options include GRS, RAGRS, GZRS, and RAGZRS for geo-redundancy.
   
   Remediation: Configure storage account to use geo-redundant replication (GRS, RAGRS, GZRS, or RAGZRS)
-pattern: |
+regex: |
   backup_retention_period\s*=\s*0

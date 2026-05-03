@@ -8,5 +8,5 @@ message: |
   Arbitrary files can be read from the system using LOAD_DATA unless this setting is disabled.
   
   Remediation: Disable the local infile setting
-pattern: |
+regex: |
   resource\s+"google_sql_database_instance"

@@ -9,5 +9,5 @@ message: |
   You should use HTTPS, which is HTTP over an encrypted (TLS) connection, meaning eavesdroppers cannot read your traffic.
   
   Remediation: Switch to HTTPS to benefit from TLS security features
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

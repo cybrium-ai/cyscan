@@ -8,5 +8,5 @@ message: |
   Queues should be encrypted to protect queue contents.
   
   Remediation: Turn on SQS Queue encryption
-pattern: |
+regex: |
   encrypted\s*=\s*false

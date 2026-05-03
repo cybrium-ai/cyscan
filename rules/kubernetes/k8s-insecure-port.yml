@@ -8,5 +8,5 @@ message: |
   API server insecure port is enabled, allowing unencrypted and unauthenticated access.
   
   Remediation: Set --insecure-port=0 to disable the insecure port.
-pattern: |
+regex: |
   --insecure-port=[1-9]

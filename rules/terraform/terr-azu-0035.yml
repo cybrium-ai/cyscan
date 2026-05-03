@@ -10,5 +10,5 @@ message: |
   Disabling public network access is applicable only to the self-hosted integration runtime, not to Azure Integration Runtime and SQL Server Integration Services (SSIS) Integration Runtime.
   
   Remediation: Set public access to disabled for Data Factory
-pattern: |
+regex: |
   (?:public_access|publicly_accessible|public)\s*=\s*true

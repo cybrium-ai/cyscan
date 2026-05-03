@@ -8,5 +8,5 @@ message: |
   Topics should be encrypted to protect their contents.
   
   Remediation: Turn on SNS Topic encryption
-pattern: |
+regex: |
   encrypted\s*=\s*false

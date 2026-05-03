@@ -8,5 +8,5 @@ message: |
   Users with ALTER permissions on users can grant access to a contained database without the knowledge of an administrator
   
   Remediation: Disable contained database authentication
-pattern: |
+regex: |
   resource\s+"google_sql_database_instance"

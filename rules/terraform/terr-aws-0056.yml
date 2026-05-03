@@ -10,5 +10,5 @@ message: |
   The account password policy should be set to prevent using any of the last five used passwords.
   
   Remediation: Prevent password reuse in the policy
-pattern: |
+regex: |
   (?:password|admin_password)\s*=\s*"[^"]*"

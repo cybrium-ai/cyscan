@@ -8,5 +8,5 @@ message: |
   Cloud Storage bucket access logs should be enabled for audit purposes.
   
   Remediation: Enable Access and Storage logs for Cloud Storage buckets by configuring a log sink or specifying a `log_bucket` in Terraform.
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

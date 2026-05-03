@@ -8,5 +8,5 @@ message: |
   Data stored within an Elasticache replication node should be encrypted to ensure sensitive data is kept private.
   
   Remediation: Enable at-rest encryption for replication group
-pattern: |
+regex: |
   encrypted\s*=\s*false

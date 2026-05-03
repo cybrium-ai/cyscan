@@ -8,5 +8,5 @@ message: |
   Firewall rules allowing broad port ranges can be risky. Ensure rules are as specific as possible.
   
   Remediation: Limit firewall rules to necessary port ranges only. If a wide range is specified, consider splitting into smaller ranges or specific ports needed for your application.
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

@@ -8,5 +8,5 @@ message: |
   Ensures S3 bucket logging is enabled for S3 buckets
   
   Remediation: Add a logging block to the resource to enable access logging
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

@@ -8,5 +8,5 @@ message: |
   Automated backups are not enabled by default. Backups are an easy way to restore data in a corruption or data-loss scenario.
   
   Remediation: Enable automated backups
-pattern: |
+regex: |
   backup_retention_period\s*=\s*0

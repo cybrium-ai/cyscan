@@ -8,5 +8,5 @@ message: |
   Users with service account access at project level can impersonate any service account. Instead, they should be given access to particular service accounts as required.
   
   Remediation: Provide access at the service-level instead of project-level, if required
-pattern: |
+regex: |
   resource\s+"aws_iam_(?:policy|role|user)"

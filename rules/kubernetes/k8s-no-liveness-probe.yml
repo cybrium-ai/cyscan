@@ -8,5 +8,5 @@ message: |
   Container does not define a liveness probe. Without it, Kubernetes cannot detect and restart unhealthy containers.
   
   Remediation: Add a livenessProbe to the container spec.
-pattern: |
+regex: |
   containers:\s*\n\s+-\s+name:

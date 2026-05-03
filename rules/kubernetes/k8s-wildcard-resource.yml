@@ -8,5 +8,5 @@ message: |
   RBAC role grants access to all resources via wildcard (*). This violates the principle of least privilege.
   
   Remediation: Specify only the resources the role needs access to.
-pattern: |
+regex: |
   resources:\s*\n\s*-\s*"\*"

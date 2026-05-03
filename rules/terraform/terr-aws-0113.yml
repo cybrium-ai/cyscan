@@ -8,5 +8,5 @@ message: |
   API Gateway stages should have access log settings block configured to track all access to a particular stage. This should be applied to both v1 and v2 gateway stages.
   
   Remediation: Enable logging for API Gateway stages
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{

@@ -8,5 +8,5 @@ message: |
   Auditing helps you maintain regulatory compliance, understand database activity, and gain insight into discrepancies and anomalies that could indicate business concerns or suspected security violations.
   
   Remediation: Enable auditing on Azure SQL databases
-pattern: |
+regex: |
   resource\s+"azurerm_(?:mssql|postgresql|mysql)_(?:server|database)"

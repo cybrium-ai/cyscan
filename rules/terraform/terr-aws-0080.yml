@@ -9,5 +9,5 @@ message: |
   When enabling encryption by setting the kms_key_id.
   
   Remediation: Enable encryption for RDS instances
-pattern: |
+regex: |
   encrypted\s*=\s*false

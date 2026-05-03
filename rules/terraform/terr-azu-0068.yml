@@ -8,5 +8,5 @@ message: |
   VMs without NSGs are exposed without traffic control or inspection.
   
   Remediation: Associate an NSG to the VM's NIC or subnet to control traffic.
-pattern: |
+regex: |
   resource\s+"google_compute_(?:instance|firewall|network)"

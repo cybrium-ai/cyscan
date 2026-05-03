@@ -8,5 +8,5 @@ message: |
   Container has NET_RAW capability which allows raw packet crafting and network sniffing.
   
   Remediation: Drop NET_RAW unless the container specifically needs raw socket access.
-pattern: |
+regex: |
   add:\s*\n\s*-\s*(?:NET_RAW|"NET_RAW")

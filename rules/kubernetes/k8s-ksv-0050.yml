@@ -8,5 +8,5 @@ message: |
   Check whether role permits escalate, bind, or impersonate on roles/rolebindings, which can lead to privilege escalation.
   
   Remediation: Remove permissions for escalate, bind, and impersonate verbs on roles and rolebindings
-pattern: |
+regex: |
   allowPrivilegeEscalation:\s*true

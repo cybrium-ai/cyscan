@@ -8,5 +8,5 @@ message: |
   Container has no memory limit set. Without limits, a single container can consume all node memory and cause OOM kills.
   
   Remediation: Set resources.limits.memory in the container spec.
-pattern: |
+regex: |
   resources:\s*\{\s*\}

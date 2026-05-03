@@ -8,5 +8,5 @@ message: |
   Unnecessary access to S3 buckets can lead to unauthorized access or information disclosure.
   
   Remediation: Allowing Get* along with Put* on all Resources can potentially allow unauthorized access and/or information disclosure from sensitive buckets.
-pattern: |
+regex: |
   resource\s+"aws_iam_(?:policy|role|user)"

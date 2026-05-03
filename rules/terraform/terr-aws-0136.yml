@@ -8,5 +8,5 @@ message: |
   Topics should be encrypted with customer managed KMS keys and not default AWS managed keys, in order to allow granular key management.
   
   Remediation: Use a CMK for SNS Topic encryption
-pattern: |
+regex: |
   encrypted\s*=\s*false

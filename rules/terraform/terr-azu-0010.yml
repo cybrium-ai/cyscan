@@ -9,5 +9,5 @@ message: |
   To help this type of service work as intended, allow the set of trusted Microsoft services to bypass the network rules
   
   Remediation: Allow Trusted Microsoft Services to bypass
-pattern: |
+regex: |
   resource\s+"google_storage_bucket"

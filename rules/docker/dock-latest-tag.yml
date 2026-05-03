@@ -8,5 +8,5 @@ message: |
   Base image uses :latest tag, making builds non-reproducible. Image contents can change unexpectedly.
   
   Remediation: Pin base image to a specific version (e.g. python:3.12-slim-bookworm).
-pattern: |
+regex: |
   ^\s*FROM\s+\S+:latest\b

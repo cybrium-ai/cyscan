@@ -9,5 +9,5 @@ message: |
   This will help limit the risk of any unmonitored configuration in regions that are thought to be unused.
   
   Remediation: Set the aggregator to cover all regions
-pattern: |
+regex: |
   resource\s+"aws_config_configuration_recorder"

@@ -8,5 +8,5 @@ message: |
   RBAC role grants wildcard (*) verbs, allowing all operations on the specified resources.
   
   Remediation: Restrict verbs to only those needed (get, list, watch, etc.).
-pattern: |
+regex: |
   verbs:\s*\n\s*-\s*"\*"

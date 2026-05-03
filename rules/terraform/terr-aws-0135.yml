@@ -8,5 +8,5 @@ message: |
   Queues should be encrypted with customer managed KMS keys and not default AWS managed keys, in order to allow granular control over access to specific queues.
   
   Remediation: Encrypt SQS Queue with a customer-managed key
-pattern: |
+regex: |
   encrypted\s*=\s*false

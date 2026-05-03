@@ -2,6 +2,84 @@
 
 All notable changes to cyscan are documented here.
 
+## [1.0.1] — 2026-05-03
+
+### Fixed — false-positive elimination
+
+The `regex:` vs `pattern:` distinction was being ignored at the matcher
+level: every rule's primary pattern went through `semgrep_to_regex`,
+which is correct for semgrep-flavour patterns but **destroys real
+regexes**. The conversion aggressively escapes `(`, `)`, `[`, `]`,
+`{`, `}`, `?` — so a pattern like `(?i)(?:bitbucket)...([a-z0-9]{32})`
+became `\(\?i\)\(\?:bitbucket\)...\(\[a-z0-9\]\{32\}\)`. The mangled
+regex still compiled and still matched something — typically a single
+backslash character — so every gitleaks-derived rule fired on every
+line of every file containing a backslash.
+
+Concrete repro: scanning a 200-LoC Rust project produced 1,847
+"secret" findings, every one a false positive on `eprintln!` /
+format-string lines.
+
+#### `src/matcher/regex.rs` — split `regex:` from `pattern:`
+
+`regex:` field now passes through verbatim; only `pattern:` (semgrep
+flavour) goes through `semgrep_to_regex`. Comment block in
+`match_rule` documents the rationale so the next contributor doesn't
+re-introduce the bug.
+
+#### Rule pack — switched 678 rules from `pattern:` to `regex:`
+
+- All 189 `sec-gl-*.yml` (gitleaks-derived secret rules)
+- 489 other rules across `terraform/`, `cloudformation/`, `arm/`,
+  `bash/`, `c/`, `csharp/`, `docker/`, `kubernetes/`, etc. that had
+  real-regex syntax stuffed under the `pattern:` field
+
+A rule was renamed when its body contained any of: regex character
+classes (`\w`, `\s`, `\d`, `\b`), grouped flags / non-capturing
+groups (`(?i)`, `(?m)`, `(?:...)`), or character ranges (`[a-z0-9]`).
+
+#### Removed 9 unsalvageable stub rules
+
+- `gene-changed-semgrepignore.yml` — `regex: ^(.*)$` matched every
+  line of every file
+- `gene-unquoted-attribute-var.yml`, `gene-var-in-script-src.yml`,
+  `gene-var-in-script-tag.yml` — all `pattern: {{ ... }}` stubs
+  intended for HTML/Mustache templates; fired on GitHub Actions
+  `${{ matrix.os }}` style YAML and Rust format strings
+- `yaml-curl-eval.yml`, `yaml-detect-shai-hulud-backdoor.yml`,
+  `yaml-run-shell-injection.yml` — all `pattern: run: $SHELL` stubs
+  matching every YAML `run:` line. Real semgrep rules from this
+  family use multi-step `patterns:` with `pattern-inside` and
+  metavariable filters; the imported single-line stubs aren't
+  salvageable
+- `yaml-legacy-api-clusterrole-excessi.yml` — `pattern: "*"` matched
+  every asterisk-quote
+- `kubernetes/k8s-configmap-sensitive.yml` — pattern was correct but
+  scope was too broad (no `paths:` filter); fired on GitHub Actions
+  workflow secrets blocks. Reintroduce when path filtering ships.
+
+#### `src/matcher/entropy.rs` — ANSI escape + format-string suppression
+
+The entropy detector was firing on banner strings like
+`"\x1b[35m\n   ___..."` (terminal colour codes — high entropy
+because of the mixed digit + bracket + letter codes). Added FP
+suppression for:
+
+- ANSI / VT100 escape sequences (`\x1b`, `\033`, ``, `\e[`)
+- Format-string heavy content (>25% characters being `\n` / `\t` /
+  `\r` / `{}` / `|` placeholders)
+
+#### Validation
+
+Scanning a 200-LoC Rust project (`cydeep`):
+
+  | Build  | Findings on cydeep |
+  |--------|--------------------|
+  | v1.0.0 | 1,933 (all FP) |
+  | v1.0.1 | 0 |
+
+77/77 unit + 42/42 integration tests pass. 0 cargo audit advisories.
+
 ## [1.0.0] — 2026-05-03
 
 cyscan ships. v1.0.0 is the first stable release — the 13 internal

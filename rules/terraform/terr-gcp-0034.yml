@@ -8,5 +8,5 @@ message: |
   Using unmanaged keys makes rotation and general management difficult.
   
   Remediation: Use managed keys to encrypt disks.
-pattern: |
+regex: |
   encrypted\s*=\s*false

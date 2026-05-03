@@ -8,5 +8,5 @@ message: |
   RSA SHA1 is a weaker algorithm than SHA2-based algorithms such as RSA SHA256/512
   
   Remediation: Use RSA SHA512
-pattern: |
+regex: |
   resource\s+"google_dns_managed_zone"

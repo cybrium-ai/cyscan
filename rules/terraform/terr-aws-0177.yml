@@ -8,5 +8,5 @@ message: |
   Ensure deletion protection is enabled for RDS database instances.
   
   Remediation: Modify the RDS instances to enable deletion protection.
-pattern: |
+regex: |
   resource\s+"aws_(?:db_instance|rds_cluster)"

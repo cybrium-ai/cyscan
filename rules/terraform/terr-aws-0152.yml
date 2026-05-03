@@ -9,5 +9,5 @@ message: |
   CIS recommends that you create a metric filter and alarm for failed console authentication attempts. Monitoring failed console logins might decrease lead time to detect an attempt to brute-force a credential, which might provide an indicator, such as source IP, that you can use in other event correlations.
   
   Remediation: Create an alarm to alert on console login failures
-pattern: |
+regex: |
   resource\s+"aws_cloudwatch_(?:log_group|metric_alarm)"

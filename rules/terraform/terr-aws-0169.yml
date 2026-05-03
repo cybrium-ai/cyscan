@@ -9,5 +9,5 @@ message: |
   IAM Policy to allow Support Center Access in order to manage Incidents with AWS Support.
   
   Remediation: Create an IAM role with the necessary permissions to manage incidents with AWS Support.
-pattern: |
+regex: |
   resource\s+"aws_iam_(?:policy|role|user)"

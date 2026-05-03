@@ -8,5 +8,5 @@ message: |
   Ensure access to specific required ports is allowed, and nothing else.
   
   Remediation: Set specific allowed ports
-pattern: |
+regex: |
   resource\s+"aws_instance"

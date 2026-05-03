@@ -8,5 +8,5 @@ message: |
   Logging should be enabled to allow tracing of issues and activity to be investigated more fully. Logs provide additional information and context which is often invalauble during investigation
   
   Remediation: Enable general logging
-pattern: |
+regex: |
   (?:logging|access_logs)\s*\{
