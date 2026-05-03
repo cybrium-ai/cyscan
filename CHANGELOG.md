@@ -2,6 +2,47 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.23.0] — 2026-05-02
+
+### Added
+- **Scope-aware symbol tables for PHP, Ruby, Swift, Scala, C, Bash** — closes the v0.22.0 limitation where these six languages used flat `variable_types` without nested-block shadowing detection. **All 12 supported languages** now have full scope-aware tables with correct receiver-type resolution under shadowing:
+
+  | Lang | Scope model | Imports | Receiver typing |
+  |---|---|---|---|
+  | Python | indent | `import`, `from x import y` | `db = sqlite3.connect(...)` |
+  | JS / TS | curly braces | `import`, `require` | `const db = require('sqlite3')` |
+  | Java | curly braces | `import com.foo.Bar;` | `Bar x = new Bar()` |
+  | C# | curly braces | `using ...; using x = ...;` | `SqlConnection conn = new ...()` |
+  | Go | curly braces | `import ( ... )` | `db, err := sql.Open(...)` |
+  | Rust | curly braces | `use foo::bar;` | `let conn = Connection::open(...)` |
+  | **PHP** | **curly braces** | **`use Foo\Bar;`** | **`$conn = new PDO(...)`** |
+  | **Ruby** | **`def`/`end`** | **`require 'lib'`** | **`db = SQLite3.new`** |
+  | **Swift** | **curly braces** | **`import Foundation`** | **`let url: URL = ...`** |
+  | **Scala** | **curly braces** | **`import x.{Y, Z}`** | **`val conn: Connection = ...`** |
+  | **C** | **curly braces** | **`#include`** | **`sqlite3 *db;`** |
+  | **Bash** | **`fn () { ... }`** | **`source x`** | **`local TOKEN=...`** |
+
+  Ruby uses the `def`/`end` block style — its symbol-table builder is its own implementation analogous to the Python indent walker. The other five new languages share the existing curly-brace walker (`build_braced_scope_table`).
+
+- **Literal-regex pass-through with `\$` escape** — when a rule's `regex:` field uses `\$` to mean a literal dollar sign (rather than a semgrep metavariable marker), the pattern is now passed to the regex engine verbatim instead of being rewritten by `semgrep_to_regex`. Fixes the practical case where PHP rules need to match `$conn->prepare(...)` literally:
+  ```yaml
+  regex: "\\$([A-Za-z_][A-Za-z_0-9]*)\\s*->\\s*prepare\\("
+  ```
+  Previously the `(`, `[`, `]` got over-escaped and the capture group was destroyed. Now the regex is preserved as-is.
+
+### Notes
+This closes the parity scoreboard. **Every supported language now has a scope-aware symbol table.** Combined with v0.22.0's cross-file class hierarchy and v0.21.0's receiver-type filter, the disambiguation engine reaches Checkmarx One-class behaviour across all 12 languages.
+
+8 new unit tests + 2 integration tests:
+- `php_use_import_and_new_assign`
+- `ruby_method_scope_shadows_module_local`
+- `swift_typed_decl_resolves_imported_module`
+- `scala_val_with_new_resolves_class_name`
+- `c_function_scope_local_decl`
+- `bash_function_scope_local_var`
+- `receiver_type_respects_php_method_shadowing`
+- `receiver_type_respects_ruby_method_shadowing`
+
 ## [0.22.0] — 2026-05-02
 
 ### Added

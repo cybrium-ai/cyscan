@@ -692,6 +692,542 @@ fn resolve_imported(table: &SymbolTable, short: &str) -> Option<String> {
         .and_then(|sym| sym.kind.clone())
 }
 
+/// Build a scope-aware symbol table for a single PHP source file.
+/// Curly-brace blocks; variables prefixed with `$`; `use Foo\Bar;`
+/// imports; `class Foo extends Bar`.
+pub fn build_php_symbol_table(source: &str) -> SymbolTable {
+    use ::regex::Regex;
+    let header_class = Regex::new(r"\b(?:class|interface|trait)\s+([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+    let header_fn    = Regex::new(r"\bfunction\s+([A-Za-z_][A-Za-z_0-9]*)\s*\(").unwrap();
+
+    let mut table = build_braced_scope_table(source, |prefix, _through| {
+        if header_class.is_match(prefix) {
+            ScopeKind::Class
+        } else if header_fn.is_match(prefix) {
+            ScopeKind::Function
+        } else {
+            ScopeKind::Function
+        }
+    });
+    let module_end = table.scopes[0].end_line;
+
+    let use_re      = Regex::new(r"^\s*use\s+([A-Za-z_\\][A-Za-z_0-9\\]*)\s*(?:as\s+([A-Za-z_][A-Za-z_0-9]*))?\s*;").unwrap();
+    let new_assign  = Regex::new(r"\$([A-Za-z_][A-Za-z_0-9]*)\s*=\s*new\s+([A-Za-z_\\][A-Za-z_0-9\\]*)").unwrap();
+    let class_re    = Regex::new(r"\b(?:class|interface|trait)\s+([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+    let typed_param = Regex::new(r"\b([A-Z][A-Za-z_0-9\\]*)\s+\$([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+
+    let lines: Vec<&str> = source.lines().collect();
+    for (idx, raw) in lines.iter().enumerate() {
+        let line_no = idx + 1;
+        let scope_idx = scope_for_line(&table, line_no);
+        let scope_end = table.scopes[scope_idx].end_line;
+        let scope_kind = table.scopes[scope_idx].kind;
+
+        if let Some(c) = use_re.captures(raw) {
+            let fqn = c.get(1).unwrap().as_str().replace('\\', "\\");
+            let alias = c.get(2).map(|m| m.as_str().to_string())
+                .unwrap_or_else(|| fqn.rsplit('\\').next().unwrap_or(&fqn).to_string());
+            table.scopes[0].bindings.insert(alias.clone(), Symbol {
+                name: alias, kind: Some(fqn),
+                line: line_no, end_line: module_end,
+                scope_kind: ScopeKind::Module,
+            });
+            continue;
+        }
+
+        if let Some(c) = new_assign.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            let ty   = c.get(2).unwrap().as_str().replace('\\', "\\");
+            let resolved = resolve_imported(&table, &ty).unwrap_or(ty);
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: Some(resolved), line: line_no, end_line: scope_end, scope_kind,
+            });
+            continue;
+        }
+
+        if let Some(c) = typed_param.captures(raw) {
+            let ty   = c.get(1).unwrap().as_str().to_string();
+            let name = c.get(2).unwrap().as_str().to_string();
+            let resolved = resolve_imported(&table, &ty).unwrap_or(ty);
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: Some(resolved), line: line_no, end_line: scope_end, scope_kind,
+            });
+        }
+
+        if let Some(c) = class_re.captures(raw) {
+            let cls = c.get(1).unwrap().as_str().to_string();
+            table.scopes[scope_idx].bindings.insert(cls.clone(), Symbol {
+                name: cls.clone(), kind: Some(cls),
+                line: line_no, end_line: scope_end,
+                scope_kind: ScopeKind::Class,
+            });
+        }
+    }
+
+    table
+}
+
+/// Build a scope-aware symbol table for a single Swift source file.
+/// Curly-brace blocks; `let`/`var` bindings; `import Foundation`;
+/// `class Foo: Bar`; `struct`/`enum`/`protocol` for type decls.
+pub fn build_swift_symbol_table(source: &str) -> SymbolTable {
+    use ::regex::Regex;
+    let header_class = Regex::new(r"\b(?:class|struct|enum|protocol|extension|actor)\s+([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+    let header_fn    = Regex::new(r"\bfunc\s+([A-Za-z_][A-Za-z_0-9]*)\s*[<(]").unwrap();
+
+    let mut table = build_braced_scope_table(source, |prefix, _through| {
+        if header_class.is_match(prefix) {
+            ScopeKind::Class
+        } else if header_fn.is_match(prefix) {
+            ScopeKind::Function
+        } else {
+            ScopeKind::Function
+        }
+    });
+    let module_end = table.scopes[0].end_line;
+
+    let import_re   = Regex::new(r"^\s*import\s+([A-Za-z_][A-Za-z_0-9.]*)").unwrap();
+    let typed_decl  = Regex::new(r"^\s*(?:let|var)\s+([A-Za-z_][A-Za-z_0-9]*)\s*:\s*([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+    let init_decl   = Regex::new(r"^\s*(?:let|var)\s+([A-Za-z_][A-Za-z_0-9]*)\s*=\s*([A-Z][A-Za-z_0-9]*)\s*\(").unwrap();
+    let untyped     = Regex::new(r"^\s*(?:let|var)\s+([A-Za-z_][A-Za-z_0-9]*)\s*=").unwrap();
+    let class_re    = Regex::new(r"\b(?:class|struct|enum|protocol|actor)\s+([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+
+    let lines: Vec<&str> = source.lines().collect();
+    for (idx, raw) in lines.iter().enumerate() {
+        let line_no = idx + 1;
+        let scope_idx = scope_for_line(&table, line_no);
+        let scope_end = table.scopes[scope_idx].end_line;
+        let scope_kind = table.scopes[scope_idx].kind;
+
+        if let Some(c) = import_re.captures(raw) {
+            let module = c.get(1).unwrap().as_str().to_string();
+            table.scopes[0].bindings.insert(module.clone(), Symbol {
+                name: module.clone(), kind: Some(module),
+                line: line_no, end_line: module_end,
+                scope_kind: ScopeKind::Module,
+            });
+            continue;
+        }
+
+        if let Some(c) = typed_decl.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            let ty   = c.get(2).unwrap().as_str().to_string();
+            let resolved = resolve_imported(&table, &ty).unwrap_or(ty);
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: Some(resolved), line: line_no, end_line: scope_end, scope_kind,
+            });
+            continue;
+        }
+
+        if let Some(c) = init_decl.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            let ty   = c.get(2).unwrap().as_str().to_string();
+            let resolved = resolve_imported(&table, &ty).unwrap_or(ty);
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: Some(resolved), line: line_no, end_line: scope_end, scope_kind,
+            });
+            continue;
+        }
+
+        if let Some(c) = untyped.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            // No inferred type — bind name without kind so shadow
+            // detection still works.
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: None, line: line_no, end_line: scope_end, scope_kind,
+            });
+        }
+
+        if let Some(c) = class_re.captures(raw) {
+            let cls = c.get(1).unwrap().as_str().to_string();
+            table.scopes[scope_idx].bindings.insert(cls.clone(), Symbol {
+                name: cls.clone(), kind: Some(cls),
+                line: line_no, end_line: scope_end,
+                scope_kind: ScopeKind::Class,
+            });
+        }
+    }
+
+    table
+}
+
+/// Build a scope-aware symbol table for a single Scala source file.
+/// Curly-brace blocks (Scala 2 and brace-Scala 3); `val`/`var`/`def`
+/// bindings; `import foo.bar.{Baz, Qux}`; `class Foo extends Bar`.
+pub fn build_scala_symbol_table(source: &str) -> SymbolTable {
+    use ::regex::Regex;
+    let header_class = Regex::new(r"\b(?:class|object|trait|case\s+class|enum)\s+([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+    let header_def   = Regex::new(r"\bdef\s+([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+
+    let mut table = build_braced_scope_table(source, |prefix, _through| {
+        if header_class.is_match(prefix) {
+            ScopeKind::Class
+        } else if header_def.is_match(prefix) {
+            ScopeKind::Function
+        } else {
+            ScopeKind::Function
+        }
+    });
+    let module_end = table.scopes[0].end_line;
+
+    let import_re   = Regex::new(r"^\s*import\s+([A-Za-z_][A-Za-z_0-9.]*?)(?:\.\{([^}]+)\})?\s*$").unwrap();
+    let typed_decl  = Regex::new(r"^\s*(?:val|var)\s+([A-Za-z_][A-Za-z_0-9]*)\s*:\s*([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+    let init_decl   = Regex::new(r"^\s*(?:val|var)\s+([A-Za-z_][A-Za-z_0-9]*)\s*=\s*new\s+([A-Z][A-Za-z_0-9]*)").unwrap();
+    let class_re    = Regex::new(r"\b(?:class|object|trait|case\s+class|enum)\s+([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+
+    let lines: Vec<&str> = source.lines().collect();
+    for (idx, raw) in lines.iter().enumerate() {
+        let line_no = idx + 1;
+        let scope_idx = scope_for_line(&table, line_no);
+        let scope_end = table.scopes[scope_idx].end_line;
+        let scope_kind = table.scopes[scope_idx].kind;
+
+        if let Some(c) = import_re.captures(raw.trim_end()) {
+            let path = c.get(1).unwrap().as_str().to_string();
+            if let Some(inner) = c.get(2) {
+                for n in inner.as_str().split(',') {
+                    let raw_n = n.trim();
+                    let parts: Vec<&str> = raw_n.split(" => ").collect();
+                    let original = parts.first().copied().unwrap_or(raw_n).trim().to_string();
+                    let key = parts.get(1).copied().unwrap_or(&original).trim().to_string();
+                    if key.is_empty() { continue; }
+                    table.scopes[0].bindings.insert(key.clone(), Symbol {
+                        name: key, kind: Some(format!("{path}.{original}")),
+                        line: line_no, end_line: module_end,
+                        scope_kind: ScopeKind::Module,
+                    });
+                }
+            } else {
+                let key = path.rsplit('.').next().unwrap_or(&path).to_string();
+                table.scopes[0].bindings.insert(key.clone(), Symbol {
+                    name: key, kind: Some(path),
+                    line: line_no, end_line: module_end,
+                    scope_kind: ScopeKind::Module,
+                });
+            }
+            continue;
+        }
+
+        if let Some(c) = typed_decl.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            let ty   = c.get(2).unwrap().as_str().to_string();
+            let resolved = resolve_imported(&table, &ty).unwrap_or(ty);
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: Some(resolved), line: line_no, end_line: scope_end, scope_kind,
+            });
+            continue;
+        }
+
+        if let Some(c) = init_decl.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            let ty   = c.get(2).unwrap().as_str().to_string();
+            let resolved = resolve_imported(&table, &ty).unwrap_or(ty);
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: Some(resolved), line: line_no, end_line: scope_end, scope_kind,
+            });
+        }
+
+        if let Some(c) = class_re.captures(raw) {
+            let cls = c.get(1).unwrap().as_str().to_string();
+            table.scopes[scope_idx].bindings.insert(cls.clone(), Symbol {
+                name: cls.clone(), kind: Some(cls),
+                line: line_no, end_line: scope_end,
+                scope_kind: ScopeKind::Class,
+            });
+        }
+    }
+
+    table
+}
+
+/// Build a scope-aware symbol table for a single C source file.
+/// Curly-brace blocks; `Type *var = ...` and `Type var = ...`
+/// declarations; `#include <header.h>` for module imports.
+pub fn build_c_symbol_table(source: &str) -> SymbolTable {
+    use ::regex::Regex;
+    let header_fn = Regex::new(r"\b([A-Za-z_][A-Za-z_0-9]*)\s*\([^;]*\)\s*$").unwrap();
+
+    let mut table = build_braced_scope_table(source, |prefix, _through| {
+        if header_fn.is_match(prefix.trim_end()) {
+            ScopeKind::Function
+        } else {
+            ScopeKind::Function
+        }
+    });
+    let module_end = table.scopes[0].end_line;
+
+    let include_re = Regex::new(r#"^\s*#\s*include\s+[<"]([^>"]+)[>"]"#).unwrap();
+    let typed_decl = Regex::new(r"^\s*(?:const\s+|volatile\s+|static\s+|extern\s+|register\s+)*([A-Za-z_][A-Za-z_0-9]*)\s*\*?\s*([A-Za-z_][A-Za-z_0-9]*)\s*(?:=|;|,|\[)").unwrap();
+    let typedef_re = Regex::new(r"^\s*typedef\s+[^;]+\s+([A-Za-z_][A-Za-z_0-9]*)\s*;").unwrap();
+
+    let lines: Vec<&str> = source.lines().collect();
+    for (idx, raw) in lines.iter().enumerate() {
+        let line_no = idx + 1;
+        let scope_idx = scope_for_line(&table, line_no);
+        let scope_end = table.scopes[scope_idx].end_line;
+        let scope_kind = table.scopes[scope_idx].kind;
+
+        if let Some(c) = include_re.captures(raw) {
+            let header = c.get(1).unwrap().as_str().to_string();
+            // Bind the header file's basename as a module-scope hint.
+            let key = std::path::Path::new(&header)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&header).to_string();
+            table.scopes[0].bindings.insert(key.clone(), Symbol {
+                name: key, kind: Some(header),
+                line: line_no, end_line: module_end,
+                scope_kind: ScopeKind::Module,
+            });
+            continue;
+        }
+
+        if let Some(c) = typedef_re.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name: name.clone(), kind: Some(name),
+                line: line_no, end_line: scope_end,
+                scope_kind: ScopeKind::Class,
+            });
+            continue;
+        }
+
+        if let Some(c) = typed_decl.captures(raw) {
+            let ty   = c.get(1).unwrap().as_str().to_string();
+            let name = c.get(2).unwrap().as_str().to_string();
+            // Skip C control keywords and primitive-type-only lines
+            // that happen to look like declarations.
+            if matches!(ty.as_str(),
+                "if" | "for" | "while" | "do" | "switch" | "return"
+                | "case" | "default" | "break" | "continue" | "goto"
+                | "sizeof" | "typedef" | "struct" | "enum" | "union"
+            ) { continue; }
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: Some(ty), line: line_no, end_line: scope_end, scope_kind,
+            });
+        }
+    }
+
+    table
+}
+
+/// Build a scope-aware symbol table for a single Bash source file.
+/// Function blocks `name() { ... }` define Function scope; everything
+/// else is module scope. Variables: `var=value` and `export var=value`.
+pub fn build_bash_symbol_table(source: &str) -> SymbolTable {
+    use ::regex::Regex;
+    let header_fn  = Regex::new(r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z_0-9]*)\s*\(\s*\)\s*$").unwrap();
+    let header_fn2 = Regex::new(r"^\s*(?:function\s+)?([A-Za-z_][A-Za-z_0-9]*)\s*\(\s*\)\s*\{").unwrap();
+
+    let mut table = build_braced_scope_table(source, |prefix, _through| {
+        if header_fn.is_match(prefix.trim_end()) || header_fn2.is_match(prefix.trim_end()) {
+            ScopeKind::Function
+        } else {
+            ScopeKind::Function
+        }
+    });
+    let module_end = table.scopes[0].end_line;
+
+    let assign_re = Regex::new(r"^\s*(?:export\s+|local\s+|declare\s+(?:-\w+\s+)?)?([A-Za-z_][A-Za-z_0-9]*)\s*=\s*(.*)?$").unwrap();
+    let source_re = Regex::new(r#"^\s*(?:source|\.)\s+(?:["']?)([^"'\s]+)"#).unwrap();
+
+    let lines: Vec<&str> = source.lines().collect();
+    for (idx, raw) in lines.iter().enumerate() {
+        let line_no = idx + 1;
+        let scope_idx = scope_for_line(&table, line_no);
+        let scope_end = table.scopes[scope_idx].end_line;
+        let scope_kind = table.scopes[scope_idx].kind;
+
+        if let Some(c) = source_re.captures(raw) {
+            let path = c.get(1).unwrap().as_str().to_string();
+            let key = std::path::Path::new(&path)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or(&path).to_string();
+            table.scopes[0].bindings.insert(key.clone(), Symbol {
+                name: key, kind: Some(path),
+                line: line_no, end_line: module_end,
+                scope_kind: ScopeKind::Module,
+            });
+            continue;
+        }
+
+        if let Some(c) = assign_re.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            // Skip lines where what looks like a var=value is
+            // actually a comparison or env-prefix shell pattern.
+            if name == "if" || name == "while" || name == "for" { continue; }
+            let rhs = c.get(2).map(|m| m.as_str().trim().to_string());
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: rhs, line: line_no, end_line: scope_end, scope_kind,
+            });
+        }
+    }
+
+    table
+}
+
+/// Build a scope-aware symbol table for a single Ruby source file.
+/// Ruby uses `def`/`end` blocks (not curly braces) for method scope,
+/// so this builder mirrors the Python indent-based approach but
+/// keys off explicit `end` tokens instead of dedent. Handles
+/// `class Foo < Bar`, `module Foo`, `def name`, `require 'lib'`.
+pub fn build_ruby_symbol_table(source: &str) -> SymbolTable {
+    use ::regex::Regex;
+    let mut table = SymbolTable::default();
+    let total_lines = source.lines().count().max(1);
+    table.scopes.push(Scope {
+        kind:       ScopeKind::Module,
+        start_line: 1,
+        end_line:   total_lines,
+        indent:     0,
+        bindings:   HashMap::new(),
+        parent_idx: None,
+    });
+
+    let lines: Vec<&str> = source.lines().collect();
+
+    // Pass 1 — walk def/class/module/end pairs. The opening keywords
+    // are tracked on a stack, and `end` pops the innermost.
+    let head_def    = Regex::new(r"^\s*def\s+(?:self\.)?([A-Za-z_][A-Za-z_0-9!?]*)").unwrap();
+    let head_class  = Regex::new(r"^\s*class\s+([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+    let head_module = Regex::new(r"^\s*module\s+([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+    // Block-opening keywords (do, if/unless/case as statements with
+    // their own `end`). We track them on the same stack so `end`
+    // pops the right thing — but they aren't real scopes for
+    // resolution purposes.
+    let head_block  = Regex::new(r"^\s*(?:if|unless|case|while|until|begin|do)\b").unwrap();
+    let inline_do   = Regex::new(r"\bdo\s*(?:\|[^|]*\|)?\s*$").unwrap();
+    let end_re      = Regex::new(r"^\s*end\b").unwrap();
+
+    struct Open { idx: Option<usize> } // None = block, not a real scope
+    let mut stack: Vec<Open> = Vec::new();
+
+    for (idx, raw) in lines.iter().enumerate() {
+        let line_no = idx + 1;
+
+        if let Some(c) = head_class.captures(raw) {
+            let _ = c;
+            let parent_idx = stack.iter().rev()
+                .find_map(|o| o.idx).or(Some(0));
+            table.scopes.push(Scope {
+                kind: ScopeKind::Class,
+                start_line: line_no,
+                end_line: total_lines,
+                indent: 0,
+                bindings: HashMap::new(),
+                parent_idx,
+            });
+            stack.push(Open { idx: Some(table.scopes.len() - 1) });
+            continue;
+        }
+        if head_module.is_match(raw) {
+            let parent_idx = stack.iter().rev()
+                .find_map(|o| o.idx).or(Some(0));
+            table.scopes.push(Scope {
+                kind: ScopeKind::Class, // module behaves like class for resolution
+                start_line: line_no,
+                end_line: total_lines,
+                indent: 0,
+                bindings: HashMap::new(),
+                parent_idx,
+            });
+            stack.push(Open { idx: Some(table.scopes.len() - 1) });
+            continue;
+        }
+        if head_def.is_match(raw) {
+            let parent_idx = stack.iter().rev()
+                .find_map(|o| o.idx).or(Some(0));
+            table.scopes.push(Scope {
+                kind: ScopeKind::Function,
+                start_line: line_no,
+                end_line: total_lines,
+                indent: 0,
+                bindings: HashMap::new(),
+                parent_idx,
+            });
+            stack.push(Open { idx: Some(table.scopes.len() - 1) });
+            continue;
+        }
+        if head_block.is_match(raw) || inline_do.is_match(raw) {
+            stack.push(Open { idx: None });
+            continue;
+        }
+        if end_re.is_match(raw) {
+            if let Some(top) = stack.pop() {
+                if let Some(scope_idx) = top.idx {
+                    table.scopes[scope_idx].end_line = line_no;
+                }
+            }
+        }
+    }
+
+    // Pass 2 — extract bindings: `require`, `require_relative`,
+    // `x = expr`, `x = ClassName.new(...)`.
+    let require_re      = Regex::new(r#"^\s*(?:require|require_relative)\s+['"]([^'"]+)['"]"#).unwrap();
+    let new_assign      = Regex::new(r"^\s*([a-z_][A-Za-z_0-9]*)\s*=\s*([A-Z][A-Za-z_0-9:]*)\s*\.\s*new").unwrap();
+    let plain_assign    = Regex::new(r"^\s*([a-z_][A-Za-z_0-9]*)\s*=\s*(.+)").unwrap();
+    let class_re        = Regex::new(r"^\s*class\s+([A-Za-z_][A-Za-z_0-9]*)").unwrap();
+
+    for (idx, raw) in lines.iter().enumerate() {
+        let line_no = idx + 1;
+        let scope_idx = scope_for_line(&table, line_no);
+        let scope_end = table.scopes[scope_idx].end_line;
+        let scope_kind = table.scopes[scope_idx].kind;
+
+        if let Some(c) = require_re.captures(raw) {
+            let path = c.get(1).unwrap().as_str().to_string();
+            let key  = path.rsplit('/').next().unwrap_or(&path).to_string();
+            table.scopes[0].bindings.insert(key.clone(), Symbol {
+                name: key, kind: Some(path),
+                line: line_no, end_line: total_lines,
+                scope_kind: ScopeKind::Module,
+            });
+            continue;
+        }
+
+        if let Some(c) = new_assign.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            let ty   = c.get(2).unwrap().as_str().to_string();
+            let resolved = resolve_imported(&table, &ty).unwrap_or(ty);
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind: Some(resolved), line: line_no, end_line: scope_end, scope_kind,
+            });
+            continue;
+        }
+
+        if let Some(c) = plain_assign.captures(raw) {
+            let name = c.get(1).unwrap().as_str().to_string();
+            let rhs  = c.get(2).map(|m| m.as_str().trim().to_string());
+            // Best-effort kind: if RHS starts with a constant
+            // (capital letter), use that as the type name.
+            let kind = rhs.as_ref().and_then(|r| {
+                let head = r.split(|c: char| !c.is_alphanumeric() && c != '_' && c != ':')
+                    .next().unwrap_or("");
+                if head.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                    Some(head.to_string())
+                } else {
+                    None
+                }
+            });
+            table.scopes[scope_idx].bindings.insert(name.clone(), Symbol {
+                name, kind, line: line_no, end_line: scope_end, scope_kind,
+            });
+        }
+
+        if let Some(c) = class_re.captures(raw) {
+            let cls = c.get(1).unwrap().as_str().to_string();
+            table.scopes[scope_idx].bindings.insert(cls.clone(), Symbol {
+                name: cls.clone(), kind: Some(cls),
+                line: line_no, end_line: scope_end,
+                scope_kind: ScopeKind::Class,
+            });
+        }
+    }
+
+    table
+}
+
 /// Build a scope-aware symbol table for a single Python source file.
 /// Indentation-based scope detection — Python's whitespace structure
 /// makes this tractable without a full AST.
@@ -1051,6 +1587,123 @@ fn main() {
             s.kind.as_deref().map(|k| k.contains("Connection")).unwrap_or(false),
             "got kind={:?}", s.kind
         );
+    }
+
+    // ── PHP ───────────────────────────────────────────────────────
+
+    #[test]
+    fn php_use_import_and_new_assign() {
+        let src = "<?php
+use Doctrine\\DBAL\\Connection;
+class App {
+    public function run() {
+        $conn = new Connection();
+        $conn->prepare(\"SELECT 1\");
+    }
+}
+";
+        let t = build_php_symbol_table(src);
+        let s = t.resolve(5, "conn").expect("conn binding");
+        assert!(
+            s.kind.as_deref().map(|k| k.contains("Connection")).unwrap_or(false),
+            "got kind={:?}", s.kind
+        );
+    }
+
+    // ── Ruby ──────────────────────────────────────────────────────
+
+    #[test]
+    fn ruby_method_scope_shadows_module_local() {
+        let src = "\
+require 'sqlite3'
+db = SQLite3.new
+
+def view
+  db = 42
+  return db
+end
+";
+        let t = build_ruby_symbol_table(src);
+        let outer = t.resolve(2, "db").expect("module-scope binding");
+        assert_eq!(outer.scope_kind, ScopeKind::Module);
+        let inner = t.resolve(5, "db").expect("function-scope binding");
+        assert_eq!(inner.scope_kind, ScopeKind::Function);
+    }
+
+    // ── Swift ─────────────────────────────────────────────────────
+
+    #[test]
+    fn swift_typed_decl_resolves_imported_module() {
+        let src = "\
+import Foundation
+class App {
+    func run() {
+        let url: URL = URL(string: \"x\")!
+        let other = NSString()
+    }
+}
+";
+        let t = build_swift_symbol_table(src);
+        assert!(t.resolve(4, "url").is_some());
+        let other = t.resolve(5, "other").expect("other binding");
+        assert_eq!(other.kind.as_deref(), Some("NSString"));
+    }
+
+    // ── Scala ─────────────────────────────────────────────────────
+
+    #[test]
+    fn scala_val_with_new_resolves_class_name() {
+        let src = "\
+import java.sql.Connection
+class App {
+  def run(): Unit = {
+    val conn: Connection = makeConn()
+    conn.prepareStatement(\"SELECT 1\")
+  }
+}
+";
+        let t = build_scala_symbol_table(src);
+        let s = t.resolve(4, "conn").expect("conn binding");
+        assert!(
+            s.kind.as_deref().map(|k| k.contains("Connection")).unwrap_or(false),
+            "got kind={:?}", s.kind
+        );
+    }
+
+    // ── C ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn c_function_scope_local_decl() {
+        let src = "\
+#include <sqlite3.h>
+int main(void) {
+    sqlite3 *db;
+    db = open_db();
+    return 0;
+}
+";
+        let t = build_c_symbol_table(src);
+        let s = t.resolve(3, "db").expect("db binding");
+        assert_eq!(s.scope_kind, ScopeKind::Function);
+        assert_eq!(s.kind.as_deref(), Some("sqlite3"));
+    }
+
+    // ── Bash ──────────────────────────────────────────────────────
+
+    #[test]
+    fn bash_function_scope_local_var() {
+        let src = "\
+PATH=/usr/bin
+function run() {
+    local TOKEN=secret
+    echo $TOKEN
+}
+";
+        let t = build_bash_symbol_table(src);
+        let outer = t.resolve(1, "PATH").expect("module PATH");
+        assert_eq!(outer.scope_kind, ScopeKind::Module);
+        let inner = t.resolve(3, "TOKEN").expect("function TOKEN");
+        assert_eq!(inner.scope_kind, ScopeKind::Function);
     }
 
     #[test]

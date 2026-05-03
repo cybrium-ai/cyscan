@@ -487,6 +487,82 @@ class Caller {
 }
 
 #[test]
+fn receiver_type_respects_php_method_shadowing() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-PHP
+title: "PDO prepare"
+severity: high
+languages: [php]
+regex: "\\$([A-Za-z_][A-Za-z_0-9]*)\\s*->\\s*prepare\\("
+metavariable_receiver_type:
+  match:
+    - PDO
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("App.php"), r#"<?php
+class App {
+    public function run() {
+        $conn = new PDO("sqlite::memory:");
+        $conn->prepare("SELECT outer");
+        if (true) {
+            $conn = "shadow-string";
+            $conn->prepare("SELECT inner");
+        }
+    }
+}
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-RECV-PHP"))
+        .collect();
+    let texts: Vec<String> = hits.iter()
+        .filter_map(|h| h["snippet"].as_str().map(String::from))
+        .collect();
+    assert!(texts.iter().any(|t| t.contains("SELECT outer")),
+        "outer PDO should fire; got {texts:?}");
+}
+
+#[test]
+fn receiver_type_respects_ruby_method_shadowing() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-RUBY
+title: "SQLite3 execute"
+severity: medium
+languages: [ruby]
+regex: "([a-z_][a-z_0-9]*)\\s*\\.\\s*execute\\("
+metavariable_receiver_type:
+  match:
+    - SQLite3
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("app.rb"), r#"
+require 'sqlite3'
+db = SQLite3.new
+db.execute("SELECT 1")
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("db.execute"));
+}
+
+#[test]
 fn receiver_type_respects_in_method_shadowing() {
     // Java: outer `Connection conn` from java.sql is shadowed inside
     // an `if {}` block by `String conn`. The rule allowlists

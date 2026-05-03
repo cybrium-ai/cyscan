@@ -29,12 +29,42 @@ pub(super) fn semgrep_to_regex(pattern: &str) -> String {
         return pattern.to_string();
     }
 
+    // If every `$` in the pattern is preceded by `\` (escaped — i.e.
+    // the user wrote `\$` to mean a literal dollar sign), there's no
+    // semgrep-style metavariable in play. Run through a focused
+    // pass that only handles `\$` and `...` and otherwise hands the
+    // user's regex through verbatim. This keeps literal-regex rules
+    // (PHP variables, JS template strings) working without the
+    // aggressive metacharacter escaping that semgrep mode applies.
+    if !pattern.contains("...") {
+        let chars: Vec<char> = pattern.chars().collect();
+        let mut all_escaped = true;
+        for i in 0..chars.len() {
+            if chars[i] == '$' && (i == 0 || chars[i - 1] != '\\') {
+                all_escaped = false;
+                break;
+            }
+        }
+        if all_escaped {
+            // Just turn `\$` into `\$` (no-op for the regex engine —
+            // both forms are a valid escape) and return.
+            return pattern.to_string();
+        }
+    }
+
     let mut result = String::with_capacity(pattern.len() * 2);
     let chars: Vec<char> = pattern.chars().collect();
     let mut i = 0;
 
     while i < chars.len() {
         match chars[i] {
+            // `\$` is the escape for a literal `$` — used by PHP rules
+            // that want to match the variable sigil itself. Without this
+            // escape the `$` would be eaten as a metavariable marker.
+            '\\' if i + 1 < chars.len() && chars[i + 1] == '$' => {
+                result.push_str(r"\$");
+                i += 2;
+            }
             '$' => {
                 // $VAR_NAME → \w+ (match any identifier)
                 i += 1;

@@ -122,6 +122,12 @@ pub fn extract_with_context(
         Lang::Csharp                 => Some(crate::symbols::build_csharp_symbol_table(source)),
         Lang::Go                     => Some(crate::symbols::build_go_symbol_table(source)),
         Lang::Rust                   => Some(crate::symbols::build_rust_symbol_table(source)),
+        Lang::Php                    => Some(crate::symbols::build_php_symbol_table(source)),
+        Lang::Ruby                   => Some(crate::symbols::build_ruby_symbol_table(source)),
+        Lang::Swift                  => Some(crate::symbols::build_swift_symbol_table(source)),
+        Lang::Scala                  => Some(crate::symbols::build_scala_symbol_table(source)),
+        Lang::C                      => Some(crate::symbols::build_c_symbol_table(source)),
+        Lang::Bash                   => Some(crate::symbols::build_bash_symbol_table(source)),
         _ => None,
     };
 
