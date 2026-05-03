@@ -29,31 +29,8 @@ permissions:
   id-token:   write   # Cosign keyless signing — GitHub OIDC identifies the workflow
 
 jobs:
-  # Single-runner LFS fetch. Advisory JSONL files (npm: ~185 MB, pypi:
-  # ~24 MB, go: ~10 MB, crates: ~3 MB) are stored in Git LFS. Doing
-  # `lfs: true` on every matrix runner pulls them N times concurrently
-  # and burns the GitHub LFS bandwidth quota fast (1 GiB/month free
-  # tier ÷ ~220 MB per fetch = ~4 releases). We pull once here and
-  # share via workflow artifact, dropping bandwidth use from N pulls
-  # to 1 per release.
-  prepare-rules:
-    name: Pull rules + advisories from LFS
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          lfs: true
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cyscan-rules
-          path: rules/
-          retention-days: 1
-          if-no-files-found: error
-
   build:
     name: Build ${{ matrix.target }}
-    needs: prepare-rules
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -66,15 +43,11 @@ jobs:
           - { target: x86_64-pc-windows-msvc,    os: windows-latest }
 
     steps:
-      # Source-only checkout — LFS-tracked rules come from the
-      # prepare-rules artifact below, NOT from per-runner LFS pulls.
+      # Plain checkout — no LFS. Advisory JSONL files used to live in
+      # LFS (npm.jsonl was 185 MB), but they compress 8–12× as gzip and
+      # now ship as `*.jsonl.gz` in regular git (advisory loader does
+      # the decompression at startup). LFS is gone from this repo.
       - uses: actions/checkout@v5
-
-      - name: Restore rules from prepare-rules artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: cyscan-rules
-          path: rules/
 
       - name: Resolve version
         id: ver
