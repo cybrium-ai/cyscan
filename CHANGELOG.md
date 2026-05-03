@@ -2,6 +2,62 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.24.0] — 2026-05-02
+
+### Added
+
+- **`cyscan supply` lockfile tampering detection.** Six new finding IDs covering both offline (always on) and online (opt-in) tampering checks. Closes the engineering pillar gap the parity critic flagged at 7/10 — no other free SAST scanner ships checksum verification today.
+
+  | ID | Severity | Mode | What it catches |
+  |---|---|---|---|
+  | CYSCAN-TAMPER-001 | medium | offline | Missing integrity hash for an ecosystem that normally publishes one (npm, Cargo, Go, Composer). Downgrade-attack signature. |
+  | CYSCAN-TAMPER-002 | high | offline | Malformed integrity — wrong length, illegal hex/base64 characters, empty value. Indicates manual lockfile editing. |
+  | CYSCAN-TAMPER-003 | high | offline | Conflicting integrity — same `(name, version)` resolves to two different checksums across the project. Lockfile-injection signature. |
+  | CYSCAN-TAMPER-004 | low | offline | Weak hash (sha1 / md5). Informational; flags packages that should migrate to sha256+. |
+  | CYSCAN-TAMPER-005 | critical | online | Registry mismatch — lockfile and upstream registry disagree on the artefact bytes. The actual tampering signal. |
+  | CYSCAN-TAMPER-006 | info | online | Registry unreachable. Verification skipped; scan continues without failing. |
+
+  Online verification is opt-in via `cyscan supply --verify-integrity`. Off by default for CI friendliness — the scan completes without network access otherwise. When enabled, cyscan fetches the published checksum from each ecosystem's canonical registry and compares against the lockfile entry:
+
+  - npm → `https://registry.npmjs.org/<name>/<version>` (`dist.integrity` / `dist.shasum`)
+  - crates.io → `https://crates.io/api/v1/crates/<name>/<version>` (`version.checksum`)
+  - PyPI → `https://pypi.org/pypi/<name>/<version>/json` (`urls[].digests.sha256`)
+  - Go → `https://proxy.golang.org/<module>/@v/<version>.ziphash`
+  - Packagist → `https://repo.packagist.org/p2/<vendor>/<name>.json` (`dist.shasum`)
+
+- **Per-ecosystem checksum extraction.** Every supported lockfile parser now populates `Dependency::declared_checksum`:
+
+  - **Cargo.lock** — `checksum` field (sha256 hex)
+  - **package-lock.json (v1, v2, v3)** — `integrity` field (sha512/sha256/sha1 base64)
+  - **yarn.lock (classic v1)** — `integrity` line (sha512 base64)
+  - **go.sum** — `h1:` field (sha256-tree base64)
+  - **poetry.lock** — `[package.files]` array (sha256 hex, sdist preferred)
+  - **Pipfile.lock** — `hashes` array (PEP 503 format)
+  - **composer.lock** — `dist.shasum` field (sha1 hex)
+  - **requirements.txt** — `--hash=sha256:<hex>` continuation lines (when present)
+
+- **New `Composer` ecosystem support.** `composer.lock` is now parsed into `Dependency` records alongside the existing five ecosystems, with checksum extraction and license attribution. `Pipfile.lock` is also newly recognised by `discover()`.
+
+### Internal
+
+- New `Checksum` and `ChecksumAlgo` types in `src/supply/lockfile.rs`. `ChecksumAlgo::expected_len()` exposes the per-algorithm encoded-length expectation used by the malformed-integrity detector.
+- `src/supply/tampering.rs` — offline scanner with 6 unit tests covering each finding path.
+- `src/supply/tampering_online.rs` — `RegistryClient` trait + `HttpRegistryClient` implementation, parallelised via rayon. 6 unit tests exercising the comparator (mismatch, no-op, b64 padding, hex case-insensitivity, unreachable graceful path, private-registry skip).
+- `cyscan supply --verify-integrity` CLI flag wired through `src/cli.rs`.
+
+### Tests
+
+12 new unit tests + 2 new integration tests:
+
+- `supply_offline_tampering_fires_on_synthetic_lockfiles` — exercises 001/002/003 via three synthetic Cargo.lock + package-lock.json fixtures
+- `supply_offline_tampering_silent_on_clean_lockfile` — proves zero false positives on well-formed input
+
+77/77 unit + 42/42 integration tests pass. 0 cargo audit advisories.
+
+### CI / release infrastructure
+
+- **Single-runner LFS fetch** in `.github/workflows/release.yml`. Advisory JSONL files (~220 MB total, npm.jsonl alone is 185 MB) are now pulled once in a `prepare-rules` job and shared via workflow artifact, instead of pulling N times per matrix runner. Drops Git LFS bandwidth use from `5 × ~220 MB = ~1.1 GiB` to `~220 MB` per release — the v0.23.0 release pipeline failure (3/5 builds failed with concurrent LFS fetch errors) won't recur.
+
 ## [0.23.0] — 2026-05-02
 
 ### Added

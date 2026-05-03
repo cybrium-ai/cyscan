@@ -96,6 +96,105 @@ fn supply_detects_advisories_typosquat_and_policy() {
 }
 
 #[test]
+fn supply_offline_tampering_fires_on_synthetic_lockfiles() {
+    // Build a synthetic project root with three lockfiles exercising
+    // each offline tampering finding ID:
+    //   • Cargo.lock with a malformed sha256 (CYSCAN-TAMPER-002)
+    //   • npm package-lock.json with a clean entry + a missing-integrity
+    //     entry (CYSCAN-TAMPER-001)
+    //   • Two Cargo.lock files both pinning the same crate but with
+    //     different sha256s (CYSCAN-TAMPER-003)
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+
+    // (1) Cargo.lock with malformed sha256 — only 8 hex chars instead of 64.
+    fs::create_dir_all(tmp.path().join("a")).unwrap();
+    fs::write(tmp.path().join("a/Cargo.lock"), r#"
+[[package]]
+name = "anyhow"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "deadbeef"
+"#).unwrap();
+
+    // (2) Cargo.lock conflicting on the same (name, version) with a
+    //     different (well-formed) sha256.
+    fs::create_dir_all(tmp.path().join("b")).unwrap();
+    fs::write(tmp.path().join("b/Cargo.lock"), &format!(r#"
+[[package]]
+name = "anyhow"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "{}"
+"#, "0".repeat(64))).unwrap();
+    // Same as (a)/anyhow but in another lockfile = conflicting hashes.
+    fs::create_dir_all(tmp.path().join("c")).unwrap();
+    fs::write(tmp.path().join("c/Cargo.lock"), &format!(r#"
+[[package]]
+name = "anyhow"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "{}"
+"#, "1".repeat(64))).unwrap();
+
+    // (3) npm package-lock.json with one missing-integrity entry.
+    fs::write(tmp.path().join("package-lock.json"), r#"{
+        "name": "test", "version": "1.0.0", "lockfileVersion": 3,
+        "packages": {
+            "": {},
+            "node_modules/no-integrity-pkg": {
+                "version": "1.0.0"
+            }
+        }
+    }"#).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["supply", tmp.path().to_str().unwrap(), "--no-advisories", "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let ids: Vec<&str> = json.as_array().unwrap().iter()
+        .filter_map(|f| f["rule_id"].as_str())
+        .collect();
+    assert!(ids.contains(&"CYSCAN-TAMPER-002"),
+        "expected malformed-integrity finding; got rule ids: {ids:?}");
+    assert!(ids.contains(&"CYSCAN-TAMPER-003"),
+        "expected conflicting-integrity finding; got rule ids: {ids:?}");
+    assert!(ids.contains(&"CYSCAN-TAMPER-001"),
+        "expected missing-integrity finding; got rule ids: {ids:?}");
+}
+
+#[test]
+fn supply_offline_tampering_silent_on_clean_lockfile() {
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    fs::write(tmp.path().join("Cargo.lock"), &format!(r#"
+[[package]]
+name = "anyhow"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "{}"
+"#, "0".repeat(64))).unwrap();
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["supply", tmp.path().to_str().unwrap(), "--no-advisories", "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let tamper_findings: Vec<_> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str().map_or(false, |s| s.starts_with("CYSCAN-TAMPER")))
+        .collect();
+    assert_eq!(tamper_findings.len(), 0,
+        "clean lockfile should produce no tampering findings; got {tamper_findings:?}");
+}
+
+#[test]
 fn supply_no_advisories_flag_skips_osv() {
     let manifest = env!("CARGO_MANIFEST_DIR");
     let target = format!("{manifest}/tests/fixtures/lockfiles");

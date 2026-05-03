@@ -88,6 +88,14 @@ enum Cmd {
         #[arg(long)]
         offline: bool,
 
+        /// Verify each dependency's declared checksum against the upstream
+        /// registry's published checksum (npm / crates.io / PyPI / Go
+        /// proxy / Packagist). Catches tampered lockfiles that pass
+        /// offline consistency checks. Off by default for CI friendliness;
+        /// requires outbound HTTPS to the relevant registries.
+        #[arg(long)]
+        verify_integrity: bool,
+
         #[arg(long, short = 'f', value_enum, default_value_t = Format::Text)]
         format: Format,
 
@@ -418,7 +426,7 @@ pub fn run() -> Result<ExitCode> {
             Ok(ExitCode::from(if fail_hit { 1 } else { 0 }))
         }
 
-        Cmd::Supply { target, rules, advisories, no_advisories, offline: _, format, fail_on } => {
+        Cmd::Supply { target, rules, advisories, no_advisories, offline: _, verify_integrity, format, fail_on } => {
             let pack = load_pack(rules.as_deref())?;
             let snapshot = if no_advisories {
                 supply::advisory::Snapshot::default()
@@ -426,7 +434,21 @@ pub fn run() -> Result<ExitCode> {
                 let dir = advisories.unwrap_or_else(bundled_advisories_path);
                 supply::advisory::Snapshot::load_dir(&dir)?
             };
-            let findings = supply::run(&target, &pack, &snapshot)?;
+            let mut findings = supply::run(&target, &pack, &snapshot)?;
+            // Online tampering verification — opt-in. Reuses the
+            // dependency list discovered by `supply::run` rather than
+            // re-walking the tree.
+            if verify_integrity {
+                let deps = supply::lockfile::discover(&target)?;
+                let opts = supply::tampering_online::OnlineOpts::default();
+                let client = supply::tampering_online::HttpRegistryClient;
+                findings.extend(supply::tampering_online::scan_with_client(&deps, &client, &opts));
+                findings.sort_by(|a, b| {
+                    b.severity.cmp(&a.severity)
+                        .then_with(|| a.file.cmp(&b.file))
+                        .then_with(|| a.rule_id.cmp(&b.rule_id))
+                });
+            }
             match format {
                 Format::Text  => output::text::emit(&findings)?,
                 Format::Json  => output::json::emit(&findings)?,
