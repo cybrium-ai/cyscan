@@ -443,6 +443,103 @@ x.execute("anything")
         .stdout(predicate::str::contains("x.execute"));
 }
 
+#[test]
+fn receiver_type_resolves_cross_file_class_hierarchy() {
+    // class SqlCommand : DbCommand declared in B.cs.
+    // foo.Execute() is called in A.cs against a SqlCommand local.
+    // Rule allowlists "DbCommand". Without cross-file hierarchy this
+    // would miss; with v0.22.0 it fires because the project walker
+    // sees SqlCommand : DbCommand.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-XFILE
+title: "DbCommand execute"
+severity: medium
+languages: [csharp]
+regex: "(\\w+)\\.Execute\\("
+metavariable_receiver_type:
+  match:
+    - DbCommand
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("B.cs"), r#"
+namespace App;
+public class DbCommand { public void Execute() {} }
+public class SqlCommand : DbCommand { }
+"#).unwrap();
+    fs::write(tmp.path().join("A.cs"), r#"
+namespace App;
+class Caller {
+    void Run() {
+        SqlCommand cmd = new SqlCommand();
+        cmd.Execute();
+    }
+}
+"#).unwrap();
+    Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap()])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("cmd.Execute"));
+}
+
+#[test]
+fn receiver_type_respects_in_method_shadowing() {
+    // Java: outer `Connection conn` from java.sql is shadowed inside
+    // an `if {}` block by `String conn`. The rule allowlists
+    // java.sql.Connection. The OUTER call should fire; the INNER
+    // (where conn is a String) must NOT.
+    use std::fs;
+    let tmp = tempfile::tempdir().unwrap();
+    let rules = tmp.path().join("rules");
+    fs::create_dir(&rules).unwrap();
+    fs::write(rules.join("recv.yml"), r#"
+id: TEST-RECV-SHADOW
+title: "Connection prepareStatement"
+severity: high
+languages: [java]
+regex: "(\\w+)\\.prepareStatement\\("
+metavariable_receiver_type:
+  match:
+    - java.sql.Connection
+message: "matched"
+"#).unwrap();
+    fs::write(tmp.path().join("App.java"), r#"
+import java.sql.Connection;
+class App {
+    void run(Connection makeConn) {
+        Connection conn = makeConn;
+        conn.prepareStatement("SELECT outer");
+        if (true) {
+            String conn = "shadowed";
+            conn.prepareStatement("SELECT inner");
+        }
+    }
+}
+"#).unwrap();
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", tmp.path().to_str().unwrap(), "--rules", rules.to_str().unwrap(), "-f", "json"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let json: serde_json::Value = serde_json::from_slice(&out).unwrap();
+    let hits: Vec<&serde_json::Value> = json.as_array().unwrap().iter()
+        .filter(|f| f["rule_id"].as_str() == Some("TEST-RECV-SHADOW"))
+        .collect();
+    let texts: Vec<String> = hits.iter()
+        .filter_map(|h| h["snippet"].as_str().map(String::from))
+        .collect();
+    assert!(texts.iter().any(|t| t.contains("SELECT outer")),
+        "outer Connection should fire; got {texts:?}");
+    assert!(!texts.iter().any(|t| t.contains("SELECT inner")),
+        "inner String shadow must NOT fire; got {texts:?}");
+}
+
 // ─── metavariable-analysis (v0.19.0 — Semgrep Pro parity) ──────────────────
 
 #[test]

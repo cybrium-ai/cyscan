@@ -2,6 +2,55 @@
 
 All notable changes to cyscan are documented here.
 
+## [0.22.0] — 2026-05-02
+
+### Added
+- **Scope-aware symbol tables for Java, C#, Go, Rust** — closes the v0.21.0 limitation where these four languages used flat `variable_types` instead of a real lexical symbol table. The receiver-type filter now correctly resolves identifiers under shadowing in nested blocks.
+
+  ```java
+  Connection conn = makeConn();
+  conn.prepareStatement(...);   // ← matches recv: [java.sql.Connection]
+  if (true) {
+      String conn = "shadowed";
+      conn.prepareStatement(...); // ← does NOT match (inner conn is String)
+  }
+  ```
+
+  Six languages now have full scope-aware tables: Python, JavaScript, TypeScript, Java, C#, Go, Rust. Each handles language-native scoping (Python indent, curly-brace block scope for the others) and resolves imports, type-annotated locals, `:=` short-decls (Go), `let mut` (Rust), `using` aliases (C#).
+
+- **Project-wide cross-file class hierarchy** — `ProjectSemantics::class_hierarchy` aggregates every file's per-file `type_hierarchy` and exposes `supertypes_of(t)` and `is_subtype_of(child, parent)` walkers. The receiver-type matcher consults this graph after exhausting the per-file hierarchy.
+
+  ```yaml
+  # B.cs declares: class SqlCommand : DbCommand
+  # A.cs has:     SqlCommand cmd; cmd.Execute();
+  metavariable_receiver_type:
+    match: [DbCommand]   # fires — cross-file walk follows SqlCommand → DbCommand
+  ```
+
+  The project pre-pass triggers automatically whenever any rule has `metavariable_receiver_type` populated (no scanner flag required).
+
+### Changed
+- `metavariable_receiver_type_match` now takes `&Option<&ProjectSemantics>` and `match_line: usize`. Rule authors don't need to do anything — the matcher chain wires both transparently.
+- The `FileSemantics` record gains a `symbol_table: Option<SymbolTable>` field. Languages without a symbol table builder (PHP, Ruby, Swift, Scala, C, Bash) fall back to flat `variable_types` as before.
+
+### Notes
+This closes the last two parity gaps in the receiver-type story. Combined with v0.21.0 the disambiguation engine now matches Checkmarx One on:
+
+- Same-method-name false-positive elimination (sqlite3.execute vs `class Foo: def execute`)
+- In-file shadowing under nested blocks
+- Cross-file class hierarchy walking
+- Type alias resolution through imports / `using` / `use` / `import`
+- Substring matching in either direction (FQN ↔ short name)
+- Six languages: Python, JS, TS, Java, C#, Go, Rust
+
+7 new tests added (6 unit + 2 integration):
+- `java_resolves_imported_type_assignment`, `java_block_scope_shadows_method_local`
+- `csharp_resolves_using_namespace_then_typed_local`
+- `go_short_decl_resolves_import_alias`
+- `rust_let_binding_resolves_use_alias`, `rust_block_scope_shadows_outer_let`
+- `receiver_type_resolves_cross_file_class_hierarchy`
+- `receiver_type_respects_in_method_shadowing`
+
 ## [0.21.0] — 2026-05-02
 
 ### Added

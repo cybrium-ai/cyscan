@@ -81,6 +81,13 @@ pub struct ProjectSemantics {
     /// so any function transitively reached records WHICH source got it
     /// here. Findings can surface this as `evidence.reaching_sources`.
     pub reaching_sources: HashMap<String, HashSet<String>>,
+
+    /// Project-wide class / type hierarchy. Aggregates every file's
+    /// `FileSemantics::type_hierarchy` so a `class A : B` declared in
+    /// `B.cs` and instantiated in `A.cs` is walkable transitively.
+    /// Index: `child_type -> set(direct_parent)`. Walks are
+    /// cycle-protected via `supertypes_of`.
+    pub class_hierarchy: HashMap<String, HashSet<String>>,
 }
 
 /// Reverse-direction call edge — used by backwards reachability queries.
@@ -231,9 +238,65 @@ impl ProjectSemantics {
             }
         }
 
+        // Pass 3 — class hierarchy aggregation. Each file's local
+        // type_hierarchy is merged into a project-wide index. Cross-file
+        // walks (`SqlCommand : DbCommand` declared in `B.cs`, used in
+        // `A.cs`) become tractable here.
+        for (_path, sem) in &files {
+            for (child, parents) in &sem.type_hierarchy {
+                let entry = me.class_hierarchy.entry(child.clone()).or_default();
+                for p in parents {
+                    entry.insert(p.clone());
+                }
+            }
+        }
+
         // Stash the by-file view last so the borrow on `files` ended.
         me.by_file = files.into_iter().collect();
         me
+    }
+
+    /// Transitive supertypes of `type_name` walked through the
+    /// project-wide class hierarchy. Includes the type itself in the
+    /// returned set (so callers can do straight membership checks).
+    /// Cycle-protected.
+    pub fn supertypes_of(&self, type_name: &str) -> HashSet<String> {
+        let mut out: HashSet<String> = HashSet::new();
+        let mut frontier: Vec<String> = vec![type_name.to_string()];
+        while let Some(cur) = frontier.pop() {
+            if !out.insert(cur.clone()) { continue; }
+            if let Some(parents) = self.class_hierarchy.get(&cur) {
+                for p in parents {
+                    if !out.contains(p) { frontier.push(p.clone()); }
+                }
+            }
+            // Also try the trailing-segment match — Java/C# often
+            // store FQNs (`com.acme.SqlCommand`) but rules will list
+            // the short name. If `cur` matches the tail of a stored
+            // key, descend through that key's parents too.
+            for (k, parents) in &self.class_hierarchy {
+                if k != &cur && (k.ends_with(&format!(".{cur}")) || k.ends_with(&format!("::{cur}"))) {
+                    for p in parents {
+                        if !out.contains(p) { frontier.push(p.clone()); }
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// True when `child` resolves (transitively, through the project
+    /// class hierarchy) to a type that equals or extends `parent`.
+    /// Substring containment in either direction is accepted so
+    /// `SqlCommand` ≡ `Microsoft.Data.SqlClient.SqlCommand`.
+    pub fn is_subtype_of(&self, child: &str, parent: &str) -> bool {
+        if child == parent { return true; }
+        let supers = self.supertypes_of(child);
+        supers.iter().any(|t| {
+            t == parent
+                || t.contains(parent)
+                || parent.contains(t.as_str())
+        })
     }
 
     /// Return true if any parameter of the function `fn_name` is known

@@ -36,6 +36,7 @@ pub fn match_rule(
     source:    &str,
     tree:      &Tree,
     semantics: &FileSemantics,
+    project:   Option<&crate::dataflow::ProjectSemantics>,
 ) -> Vec<Finding> {
     let Some(q_str) = rule.query.as_deref() else { return Vec::new() };
 
@@ -140,12 +141,14 @@ pub fn match_rule(
             continue;
         }
         // Resolved-receiver-type — Checkmarx-style semantic
-        // disambiguation. `db.execute(...)` only fires when `db`
-        // resolves (via FileSemantics) to one of the listed types.
+        // disambiguation. v0.22.0 additionally consults the
+        // project-wide class hierarchy (cross-file extends/impl).
         if !metavariable_receiver_type_match(
             &rule.metavariable_receiver_type,
             &captures,
             semantics,
+            project,
+            start.row + 1,
         ) {
             continue;
         }

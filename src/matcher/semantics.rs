@@ -69,6 +69,14 @@ pub struct FileSemantics {
     /// — we don't yet *resolve* what the metaclass does, but we can
     /// flag it. Maps `class_name → [reason, ...]`.
     pub metaprogrammed_classes: HashMap<String, Vec<String>>,
+
+    /// Scope-aware symbol table — when populated, callers can resolve
+    /// an identifier at a specific source line to the correct
+    /// binding (handles in-file shadowing). Built for languages
+    /// supported by `crate::symbols` (Python, JS/TS, Java, C#, Go,
+    /// Rust); other languages leave this as `None` and consumers
+    /// fall back to the flat `variable_types` map.
+    pub symbol_table: Option<crate::symbols::SymbolTable>,
 }
 
 pub fn extract(lang: Lang, source: &str) -> FileSemantics {
@@ -102,6 +110,21 @@ pub fn extract_with_context(
     // the dynamic-dispatch / decorator-rewrite / metaclass gaps for
     // every supported language at once.
     populate_dynamic_dispatch_and_decorators(&mut sem, lang, source);
+
+    // Scope-aware symbol table for the languages we support. Other
+    // languages keep `symbol_table: None` and the receiver-type
+    // matcher falls back to the flat `variable_types` map.
+    sem.symbol_table = match lang {
+        Lang::Python                 => Some(crate::symbols::build_python_symbol_table(source)),
+        Lang::Javascript |
+        Lang::Typescript             => Some(crate::symbols::build_javascript_symbol_table(source)),
+        Lang::Java                   => Some(crate::symbols::build_java_symbol_table(source)),
+        Lang::Csharp                 => Some(crate::symbols::build_csharp_symbol_table(source)),
+        Lang::Go                     => Some(crate::symbols::build_go_symbol_table(source)),
+        Lang::Rust                   => Some(crate::symbols::build_rust_symbol_table(source)),
+        _ => None,
+    };
+
     sem
 }
 

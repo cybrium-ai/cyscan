@@ -151,6 +151,8 @@ pub(super) fn metavariable_receiver_type_match<'a>(
     constraints: &HashMap<String, Vec<String>>,
     captures:    &HashMap<String, CaptureMeta<'a>>,
     semantics:   &super::semantics::FileSemantics,
+    project:     Option<&crate::dataflow::ProjectSemantics>,
+    match_line:  usize,
 ) -> bool {
     if constraints.is_empty() { return true; }
     use ::regex::Regex;
@@ -164,6 +166,17 @@ pub(super) fn metavariable_receiver_type_match<'a>(
         // Build the candidate set: the resolved type plus its
         // transitive supertypes via type_hierarchy.
         let mut candidates: Vec<String> = Vec::new();
+        // v0.22.0: prefer scope-aware symbol-table resolution when
+        // available — this is what makes in-file shadowing work
+        // correctly (the same identifier can resolve to different
+        // types depending on which line we're at).
+        if let Some(table) = semantics.symbol_table.as_ref() {
+            if let Some(sym) = table.resolve(match_line, ident) {
+                if let Some(k) = sym.kind.as_ref() {
+                    candidates.push(k.clone());
+                }
+            }
+        }
         if let Some(t) = semantics.variable_types.get(ident) {
             candidates.push(t.clone());
         }
@@ -178,7 +191,7 @@ pub(super) fn metavariable_receiver_type_match<'a>(
         // matching a static-method call `SqlCommand.Execute(...)`).
         candidates.push(ident.to_string());
 
-        // Walk type_hierarchy upward.
+        // Walk per-file type_hierarchy upward.
         let mut expanded: Vec<String> = Vec::new();
         let mut seen: std::collections::HashSet<String> =
             std::collections::HashSet::new();
@@ -188,6 +201,20 @@ pub(super) fn metavariable_receiver_type_match<'a>(
             expanded.push(cur.clone());
             if let Some(parents) = semantics.type_hierarchy.get(&cur) {
                 queue.extend(parents.iter().cloned());
+            }
+        }
+        // Then walk the cross-file project hierarchy on every
+        // expanded type. v0.22.0: closes the limitation where
+        // `class A : B` declared in B.cs and instantiated in A.cs
+        // wasn't followed transitively.
+        if let Some(proj) = project {
+            let snapshot: Vec<String> = expanded.clone();
+            for t in snapshot {
+                for sup in proj.supertypes_of(&t) {
+                    if seen.insert(sup.clone()) {
+                        expanded.push(sup);
+                    }
+                }
             }
         }
 

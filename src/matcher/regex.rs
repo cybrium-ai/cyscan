@@ -78,10 +78,11 @@ fn is_regex_alternation(chars: &[char], pos: usize) -> bool {
 }
 
 pub fn match_rule(
-    rule: &Rule,
-    path: &Path,
-    source: &str,
+    rule:      &Rule,
+    path:      &Path,
+    source:    &str,
     semantics: &FileSemantics,
+    project:   Option<&crate::dataflow::ProjectSemantics>,
 ) -> Vec<Finding> {
     // YAML block literal `|` keeps a trailing newline, which the regex
     // crate treats as a literal \n requirement. Trim any surrounding
@@ -97,7 +98,7 @@ pub fn match_rule(
         {
             return Vec::new();
         }
-        return dsl_only_match(rule, path, source, semantics);
+        return dsl_only_match(rule, path, source, semantics, project);
     };
     if pat.is_empty() { return Vec::new() }
 
@@ -203,11 +204,15 @@ pub fn match_rule(
             }
             // Resolved-receiver-type filter — Checkmarx-style
             // semantic disambiguation. `db.execute(...)` only fires
-            // when `db` resolves to one of the listed types.
+            // when `db` resolves to one of the listed types. v0.22.0
+            // additionally consults the project-wide class hierarchy
+            // (cross-file `class A : B` / `extends` / `impl Trait`).
             if !metavariable_receiver_type_match(
                 &rule.metavariable_receiver_type,
                 &captures,
                 semantics,
+                project,
+                line_ix + 1,
             ) {
                 continue;
             }
@@ -305,10 +310,11 @@ fn single_match_captures(text: &str) -> HashMap<String, CaptureMeta<'_>> {
 /// pattern_either_groups). We OR every supplied pattern into a single
 /// alternation regex and run the standard line-by-line scan.
 fn dsl_only_match(
-    rule: &Rule,
-    path: &Path,
-    source: &str,
+    rule:      &Rule,
+    path:      &Path,
+    source:    &str,
     semantics: &FileSemantics,
+    project:   Option<&crate::dataflow::ProjectSemantics>,
 ) -> Vec<Finding> {
     let mut all: Vec<&str> = Vec::new();
     all.extend(rule.patterns.iter().map(String::as_str));
@@ -332,5 +338,5 @@ fn dsl_only_match(
     synthetic.patterns.clear();
     synthetic.pattern_either.clear();
     synthetic.pattern_either_groups.clear();
-    match_rule(&synthetic, path, source, semantics)
+    match_rule(&synthetic, path, source, semantics, project)
 }

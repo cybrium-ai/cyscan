@@ -33,8 +33,14 @@ pub fn run(target: &Path, pack: &RulePack) -> Result<Vec<Finding>> {
     // propagator BEFORE per-file rule matching. Rules with a
     // `dataflow:` block consult the resulting `ProjectSemantics` to
     // decide reachability across function boundaries.
-    let project = if pack.rules().iter().any(|r| r.dataflow.is_some()) {
-        log::info!("dataflow: building project semantics for {} files", files.len());
+    // Project pre-pass triggers when ANY rule needs it: dataflow
+    // reachability OR a `metavariable_receiver_type` filter that may
+    // need to walk cross-file class hierarchy (`class A : B` declared
+    // in B.cs and used in A.cs).
+    let project = if pack.rules().iter().any(|r| {
+        r.dataflow.is_some() || !r.metavariable_receiver_type.is_empty()
+    }) {
+        log::info!("project semantics: aggregating {} files", files.len());
         Some(crate::dataflow::aggregate_project(target))
     } else {
         None

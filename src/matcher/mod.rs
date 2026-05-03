@@ -87,9 +87,9 @@ pub fn run_rules_with_project<'a>(
                 }
             }
             let (tree, _) = parsed.as_ref().unwrap();
-            treesitter::match_rule(rule, lang, path, source, tree, &file_semantics)
+            treesitter::match_rule(rule, lang, path, source, tree, &file_semantics, project)
         } else if rule.regex.is_some() || rule.pattern.is_some() {
-            regex::match_rule(rule, path, source, &file_semantics)
+            regex::match_rule(rule, path, source, &file_semantics, project)
         } else {
             Vec::new()
         };
