@@ -1,0 +1,24 @@
+id:         CBR-JS-AI-SDK-USAGE
+title:      "AI / LLM SDK import detected"
+severity:   info
+languages:  [javascript, typescript]
+tags:       [ai-inventory, sdk-usage]
+message: |
+  This module imports an AI / LLM SDK. Recorded as channel #5 of the
+  Cybrium AI asset inventory.
+
+inventory:
+  emit:    AIAsset
+  channel: scm_sast
+  kind:    sdk_consumer
+  provider_from_match: true
+
+query: |
+  (import_statement
+    source: (string) @src
+    (#match? @src "^[\"'](@anthropic-ai/sdk|openai|@google-cloud/aiplatform|@google/generative-ai|@aws-sdk/client-bedrock-runtime|@aws-sdk/client-bedrock|cohere-ai|@mistralai/mistralai|langchain|@langchain/.+|llamaindex|@huggingface/inference)[\"']$")) @stmt
+
+  (call_expression
+    function: (identifier) @fn (#eq? @fn "require")
+    arguments: (arguments (string) @src
+      (#match? @src "^[\"'](@anthropic-ai/sdk|openai|@google-cloud/aiplatform|@google/generative-ai|@aws-sdk/client-bedrock-runtime|@aws-sdk/client-bedrock|cohere-ai|@mistralai/mistralai|langchain|@langchain/.+|llamaindex|@huggingface/inference)[\"']$"))) @stmt

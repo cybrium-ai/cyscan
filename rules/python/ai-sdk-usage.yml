@@ -1,0 +1,28 @@
+id:         CBR-PY-AI-SDK-USAGE
+title:      "AI / LLM SDK import detected"
+severity:   info
+languages:  [python]
+tags:       [ai-inventory, sdk-usage]
+message: |
+  This module imports an AI / LLM SDK. Cybrium tracks every import as
+  part of the AI asset inventory (channel #5 — SCM/SAST). The asset
+  is recorded so Aegis policy enforcement can target the consumer and
+  governance teams have an end-to-end view of where AI is used in the
+  codebase.
+
+# `inventory:` block — honoured by the cyscan→Cybrium bridge. When a
+# rule fires with this block, the bridge inserts an AIAsset row keyed
+# by (channel=scm_sast, fingerprint=sha256(repo|sdk|file:line)).
+inventory:
+  emit:    AIAsset
+  channel: scm_sast
+  kind:    sdk_consumer
+  provider_from_match: true   # use the captured @sdk identifier
+
+query: |
+  (import_statement
+    name: (dotted_name) @sdk
+    (#match? @sdk "^(openai|anthropic|langchain|langchain_anthropic|langchain_openai|langchain_community|llama_index|cohere|mistralai|together|google\\.generativeai|vertexai|boto3)$")) @stmt
+  (import_from_statement
+    module_name: (dotted_name) @sdk
+    (#match? @sdk "^(openai|anthropic|langchain|langchain_anthropic|langchain_openai|langchain_community|llama_index|cohere|mistralai|together|google\\.generativeai|vertexai|boto3)$")) @stmt

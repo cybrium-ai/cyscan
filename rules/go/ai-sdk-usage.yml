@@ -1,0 +1,19 @@
+id:         CBR-GO-AI-SDK-USAGE
+title:      "AI / LLM SDK import detected"
+severity:   info
+languages:  [go]
+tags:       [ai-inventory, sdk-usage]
+message: |
+  This module imports an AI / LLM SDK. Recorded as channel #5 of the
+  Cybrium AI asset inventory.
+
+inventory:
+  emit:    AIAsset
+  channel: scm_sast
+  kind:    sdk_consumer
+  provider_from_match: true
+
+query: |
+  (import_spec
+    path: (interpreted_string_literal) @src
+    (#match? @src "^\"(github\\.com/sashabaranov/go-openai|github\\.com/anthropics/anthropic-sdk-go|github\\.com/aws/aws-sdk-go-v2/service/bedrockruntime|cloud\\.google\\.com/go/aiplatform|cloud\\.google\\.com/go/vertexai|github\\.com/cohere-ai/.+|github\\.com/tmc/langchaingo)\"$")) @stmt
