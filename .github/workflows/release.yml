@@ -114,28 +114,43 @@ jobs:
           # Plain Mach-O binaries can't be stapled — notarisation acceptance is
           # cached by Gatekeeper from the ticket Apple posts back. Skip stapler.
 
-      # ── Windows: Authenticode-sign the release binary using the EV/OV
-      #            cert in WINDOWS_CERT (.pfx, base64). Skipped if secret
-      #            isn't configured (cert-less PRs / forks still build).
-      - name: Codesign (Windows)
-        if: matrix.target == 'x86_64-pc-windows-msvc'
+      # ── Windows: Azure Trusted Signing (federated OIDC, no client secret).
+      # Cert profile 'cybrium' on cybrium-signing account (centralus). FIC
+      # subject is repo:cybrium-ai/cyscan:ref_type:tag — only tag pushes
+      # can mint a signing token. azure/login MUST run before the
+      # trusted-signing-action so DefaultAzureCredential finds the OIDC token.
+      - name: Azure login (federated OIDC)
+        if: matrix.target == 'x86_64-pc-windows-msvc' && startsWith(github.ref, 'refs/tags/v')
+        uses: azure/login@v2
+        with:
+          client-id:              ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:              ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Sign Windows binary via Azure Trusted Signing
+        if: matrix.target == 'x86_64-pc-windows-msvc' && startsWith(github.ref, 'refs/tags/v')
+        uses: Azure/trusted-signing-action@v0.5
+        with:
+          azure-tenant-id:              ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id:              ${{ secrets.AZURE_CLIENT_ID }}
+          endpoint:                     https://cus.codesigning.azure.net/
+          trusted-signing-account-name: cybrium-signing
+          certificate-profile-name:     cybrium
+          files-folder:                 target/${{ matrix.target }}/release
+          files-folder-filter:          exe
+          file-digest:                  SHA256
+          timestamp-rfc3161:            http://timestamp.acs.microsoft.com
+          timestamp-digest:             SHA256
+
+      - name: Verify Windows signature
+        if: matrix.target == 'x86_64-pc-windows-msvc' && startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
-        env:
-          WIN_CERT:     ${{ secrets.WINDOWS_CERT }}
-          WIN_CERT_PWD: ${{ secrets.WINDOWS_CERT_PWD }}
         run: |
-          if (-not $env:WIN_CERT) {
-            Write-Host "WINDOWS_CERT not set — skipping Authenticode signing."
-            exit 0
-          }
           $bin = "target\${{ matrix.target }}\release\cyscan.exe"
-          $cert = "$env:RUNNER_TEMP\cert.pfx"
-          [System.IO.File]::WriteAllBytes($cert, [System.Convert]::FromBase64String($env:WIN_CERT))
-          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" sign `
-            /f $cert /p $env:WIN_CERT_PWD `
-            /tr http://timestamp.digicert.com /td sha256 /fd sha256 `
-            $bin
-          & "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" verify /pa $bin
+          $sig = Get-AuthenticodeSignature $bin
+          Write-Host "Signature status: $($sig.Status)"
+          Write-Host "Signer: $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne 'Valid') { throw "Signature verification failed: $($sig.Status)" }
 
       - name: Package archive
         shell: bash
