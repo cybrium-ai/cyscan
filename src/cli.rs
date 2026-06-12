@@ -222,6 +222,10 @@ enum Cmd {
     /// Show version and check for updates.
     Version,
 
+    /// Report the host's hardware root of trust — TPM (Linux/Windows) or
+    /// Apple Secure Enclave (macOS) — as JSON. Detection only.
+    Tpm,
+
     /// Manage the triage file — annotate findings as confirmed,
     /// false_positive, accepted_risk, or fixed so future scans can hide
     /// them and exclude them from `--fail-on`.
@@ -721,6 +725,12 @@ pub fn run() -> Result<ExitCode> {
 
         Cmd::Version => {
             self_update::version("cybrium-ai/cyscan");
+            Ok(ExitCode::from(0))
+        }
+
+        Cmd::Tpm => {
+            let rot = crate::hardware_rot::detect();
+            println!("{}", serde_json::to_string_pretty(&rot)?);
             Ok(ExitCode::from(0))
         }
 
