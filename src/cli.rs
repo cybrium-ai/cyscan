@@ -226,6 +226,18 @@ enum Cmd {
     /// Apple Secure Enclave (macOS) — as JSON. Detection only.
     Tpm,
 
+    /// Launch the local findings dashboard (Cybrium UI Kit) in a browser.
+    /// Loopback-only; scan a target and browse SAST / SCA / secrets / IaC
+    /// results, supply-chain + malicious-package alerts, and host TPM.
+    Gui {
+        /// Port for the loopback server.
+        #[arg(long, default_value_t = 7878)]
+        port: u16,
+        /// Don't auto-open the browser.
+        #[arg(long)]
+        no_open: bool,
+    },
+
     /// Manage the triage file — annotate findings as confirmed,
     /// false_positive, accepted_risk, or fixed so future scans can hide
     /// them and exclude them from `--fail-on`.
@@ -734,6 +746,11 @@ pub fn run() -> Result<ExitCode> {
             Ok(ExitCode::from(0))
         }
 
+        Cmd::Gui { port, no_open } => {
+            crate::gui::run(port, no_open)?;
+            Ok(ExitCode::from(0))
+        }
+
         Cmd::Triage { cmd } => match cmd {
             TriageCmd::Init { path } => {
                 if path.exists() {
@@ -866,7 +883,7 @@ pub fn run() -> Result<ExitCode> {
     }
 }
 
-fn load_pack(path: Option<&std::path::Path>) -> Result<RulePack> {
+pub(crate) fn load_pack(path: Option<&std::path::Path>) -> Result<RulePack> {
     let path = path
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| bundled_rules_path());
