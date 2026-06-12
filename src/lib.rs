@@ -11,6 +11,7 @@ pub mod endpoint;
 pub mod finding;
 pub mod fixer;
 pub mod framework;
+pub mod gui;
 pub mod hardware_rot;
 pub mod k8s;
 pub mod lang;

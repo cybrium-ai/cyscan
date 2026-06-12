@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>cyscan — code & supply-chain scanner</title>
+<link rel="icon" type="image/svg+xml" href="https://cybriumstorage.blob.core.windows.net/whitepapers/deck/logo_only.svg" />
+<style>
+  /* cyscan GUI — Cybrium UI Kit (dark + light). Palette shared across the
+     cy* fleet (cy-tls / cyproxy). To change: update sentinel-ai
+     docs/design/cybrium-ui-kit.md, then propagate to every cy* repo. */
+  :root,
+  html[data-theme="dark"] {
+    --bg:#0a0612; --bg-card:#11091f; --bg-card-2:#1a0f2e; --bg-elev:#221540;
+    --border:#2a1c4a; --border-soft:#1d1238;
+    --text:#ece6ff; --text-muted:#9d8fc4; --text-dim:#6c5d96;
+    --primary:#bd90f3; --primary-soft:#5411a6; --primary-deep:#2d0958;
+    --ok:#5ee9b5; --warn:#f4c97a; --err:#f57b8a; --info:#7eb4f4;
+    --shadow:0 6px 24px rgba(0,0,0,.5); --word-filter:none;
+    --sev-critical:#f57b8a; --sev-high:#f4a36b; --sev-medium:#f4c97a; --sev-low:#7eb4f4; --sev-info:#9d8fc4;
+  }
+  html[data-theme="light"] {
+    --bg:#faf8ff; --bg-card:#ffffff; --bg-card-2:#f4eefb; --bg-elev:#ede4fa;
+    --border:#d6c7ec; --border-soft:#ece4f7;
+    --text:#1c1130; --text-muted:#5b4781; --text-dim:#a193c0;
+    --primary:#5411a6; --primary-soft:#7a3edb; --primary-deep:#2d0958;
+    --ok:#1f8f63; --warn:#b4730d; --err:#b3324a; --info:#2a64b7;
+    --shadow:0 4px 16px rgba(60,30,120,.08); --word-filter:invert(1) brightness(0);
+    --sev-critical:#b3324a; --sev-high:#b4730d; --sev-medium:#957404; --sev-low:#2a64b7; --sev-info:#5b4781;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,sans-serif;
+    font-size:14px; background:var(--bg); color:var(--text); min-height:100vh;
+    display:flex; flex-direction:column; line-height:1.5;
+  }
+  header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; border-bottom:1px solid var(--border); background:var(--bg-card);
+    position:sticky; top:0; z-index:10;
+  }
+  .brand { display:flex; align-items:center; gap:10px; }
+  .shield { height:28px; width:28px; }
+  .word   { height:18px; filter:var(--word-filter); }
+  .divider { color:var(--text-dim); margin:0 4px; }
+  .tool { font-family:ui-monospace,"SF Mono",Menlo,monospace; color:var(--text-muted); font-size:13px; }
+  button, .btn {
+    font:inherit; cursor:pointer; border:1px solid var(--border); background:var(--bg-elev);
+    color:var(--text); border-radius:8px; padding:8px 14px; transition:border-color .15s, background .15s;
+  }
+  button:hover, .btn:hover { border-color:var(--primary); }
+  button.primary { background:var(--primary-soft); border-color:var(--primary-soft); color:#fff; font-weight:600; }
+  button.primary:hover { background:var(--primary); border-color:var(--primary); }
+  button.ghost { background:transparent; }
+  #theme-toggle { padding:6px 9px; }
+  #theme-toggle .icon-sun { display:none; }
+  html[data-theme="light"] #theme-toggle .icon-moon { display:none; }
+  html[data-theme="light"] #theme-toggle .icon-sun  { display:inline; }
+  main { flex:1; width:100%; max-width:1180px; margin:0 auto; padding:22px 20px 60px; }
+  .panel {
+    background:var(--bg-card); border:1px solid var(--border); border-radius:12px;
+    padding:18px 20px; margin-bottom:18px; box-shadow:var(--shadow);
+  }
+  .panel h2 { margin:0 0 14px; font-size:15px; font-weight:700; }
+  .scanbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .scanbar input[type=text] {
+    flex:1; min-width:260px; font:inherit; padding:10px 12px; border-radius:8px;
+    border:1px solid var(--border); background:var(--bg-card-2); color:var(--text);
+    font-family:ui-monospace,monospace; font-size:13px;
+  }
+  .scanbar label { display:flex; align-items:center; gap:6px; color:var(--text-muted); font-size:13px; }
+  .hint { color:var(--text-dim); font-size:12px; margin-top:8px; }
+  .tiles { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:16px; }
+  .tile { text-align:center; padding:12px 8px; background:var(--bg-card-2); border:1px solid var(--border); border-radius:8px; }
+  .tile .n { font-size:22px; font-weight:700; color:var(--text); display:block; font-variant-numeric:tabular-nums; }
+  .tile .l { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); margin-top:2px; }
+  .tile.critical .n { color:var(--sev-critical); }
+  .tile.high .n { color:var(--sev-high); }
+  .tile.medium .n { color:var(--sev-medium); }
+  .tile.low .n { color:var(--sev-low); }
+  .tile.info .n { color:var(--sev-info); }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .chip {
+    font-size:12px; padding:5px 11px; border-radius:9999px; border:1px solid var(--border);
+    background:var(--bg-elev); color:var(--text-muted); cursor:pointer;
+  }
+  .chip.active { background:var(--primary-soft); border-color:var(--primary-soft); color:#fff; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; padding:8px 10px; color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border); font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  td { padding:8px 10px; border-bottom:1px solid var(--border-soft); vertical-align:top; }
+  tr:hover td { background:var(--bg-card-2); }
+  .sev { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; text-transform:uppercase; }
+  .sev.critical { background:color-mix(in srgb,var(--sev-critical) 18%,transparent); color:var(--sev-critical); }
+  .sev.high { background:color-mix(in srgb,var(--sev-high) 18%,transparent); color:var(--sev-high); }
+  .sev.medium { background:color-mix(in srgb,var(--sev-medium) 18%,transparent); color:var(--sev-medium); }
+  .sev.low { background:color-mix(in srgb,var(--sev-low) 18%,transparent); color:var(--sev-low); }
+  .sev.info { background:color-mix(in srgb,var(--sev-info) 18%,transparent); color:var(--sev-info); }
+  .mono { font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:12px; word-break:break-all; }
+  .loc { color:var(--text-dim); }
+  .malware {
+    display:none; background:color-mix(in srgb,var(--err) 12%,transparent);
+    border:1px solid var(--err); color:var(--err); border-radius:10px; padding:12px 16px; margin-bottom:16px; font-weight:600;
+  }
+  .rot { display:flex; align-items:center; gap:10px; }
+  .rot .badge { padding:4px 12px; border-radius:9999px; font-size:12px; font-weight:600; }
+  .rot .badge.present { background:color-mix(in srgb,var(--ok) 18%,transparent); color:var(--ok); }
+  .rot .badge.absent  { background:var(--bg-elev); color:var(--text-muted); }
+  .empty { color:var(--text-dim); text-align:center; padding:36px 0; }
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <img class="shield" src="https://cybriumstorage.blob.core.windows.net/whitepapers/deck/logo_only.svg" alt="Cybrium"/>
+    <img class="word"   src="https://cybriumstorage.blob.core.windows.net/whitepapers/deck/cybrium_word.svg" alt="Cybrium"/>
+    <span class="divider">/</span>
+    <span class="tool">cyscan v{{VERSION}}</span>
+  </div>
+  <button type="button" id="theme-toggle" title="Toggle dark / light theme" aria-label="Toggle theme">
+    <span class="icon-moon">🌙</span><span class="icon-sun">☀️</span>
+  </button>
+</header>
+
+<main>
+  <!-- Scan initiation -->
+  <div class="panel">
+    <h2>Scan a project</h2>
+    <div class="scanbar">
+      <input type="text" id="target" placeholder="/path/to/your/repo" autocomplete="off" spellcheck="false" />
+      <label><input type="checkbox" id="supply" checked /> Supply-chain (SCA)</label>
+      <button type="button" class="primary" id="run">Run scan</button>
+      <button type="button" class="ghost" id="clear">Clear</button>
+    </div>
+    <div class="hint">Static analysis (SAST · secrets · IaC) over the path, plus optional dependency / supply-chain analysis (OSV · typosquat · tampering · malicious-package). Loopback only — nothing leaves this host.</div>
+  </div>
+
+  <!-- Hardware root of trust -->
+  <div class="panel">
+    <h2>Host root of trust</h2>
+    <div class="rot" id="rot"><span class="spinner"></span> <span class="loc">detecting TPM / Secure Enclave…</span></div>
+  </div>
+
+  <!-- Results -->
+  <div class="panel" id="results-panel" style="display:none;">
+    <h2 id="results-title">Findings</h2>
+    <div class="malware" id="malware"></div>
+    <div class="tiles" id="tiles"></div>
+    <div class="chips" id="chips"></div>
+    <div id="table-wrap"></div>
+  </div>
+
+  <div class="empty" id="empty">Enter a path and run a scan to see findings.</div>
+</main>
+
+<script>
+(() => {
+  const KEY = "cyscan-theme";
+  const html = document.documentElement;
+  const saved = localStorage.getItem(KEY);
+  if (saved) html.dataset.theme = saved;
+  document.getElementById("theme-toggle").addEventListener("click", () => {
+    const next = html.dataset.theme === "dark" ? "light" : "dark";
+    html.dataset.theme = next;
+    localStorage.setItem(KEY, next);
+  });
+})();
+
+const el = (id) => document.getElementById(id);
+const SEV_ORDER = { critical:0, high:1, medium:2, low:3, info:4 };
+let findings = [];
+let activeFilter = "all";
+
+function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function sevOf(f){ return (f.severity || "info").toLowerCase(); }
+function isMalicious(f){ return f.rule_id === "CBR-SUPPLY-MALICIOUS" || (f.evidence && f.evidence.malicious === true); }
+function kindOf(f){
+  const r = (f.rule_id || "");
+  if (r.startsWith("CBR-SUPPLY")) return "sca";
+  if (/secret|token|key|credential/i.test(r) || /secret/i.test(f.title||"")) return "secrets";
+  if (/iac|terraform|cloudformation|k8s|docker|kubernetes/i.test(r)) return "iac";
+  return "sast";
+}
+
+function render(){
+  const counts = { critical:0, high:0, medium:0, low:0, info:0, total: findings.length };
+  for (const f of findings) counts[sevOf(f)]++;
+
+  el("tiles").innerHTML = ["critical","high","medium","low","info"]
+    .map(s => `<div class="tile ${s}"><span class="n">${counts[s]}</span><span class="l">${s}</span></div>`)
+    .join("") + `<div class="tile"><span class="n">${counts.total}</span><span class="l">total</span></div>`;
+
+  // malicious banner
+  const mal = findings.filter(isMalicious);
+  const mEl = el("malware");
+  if (mal.length){ mEl.style.display="block"; mEl.textContent = `⚠ ${mal.length} known-malicious package${mal.length>1?"s":""} detected — remove immediately.`; }
+  else mEl.style.display="none";
+
+  // type filter chips
+  const kinds = { all: findings.length, sast:0, sca:0, secrets:0, iac:0 };
+  for (const f of findings) kinds[kindOf(f)]++;
+  el("chips").innerHTML = Object.entries({all:"All",sast:"SAST",sca:"SCA",secrets:"Secrets",iac:"IaC"})
+    .map(([k,lbl]) => `<span class="chip ${activeFilter===k?'active':''}" data-k="${k}">${lbl} (${kinds[k]||0})</span>`).join("");
+  el("chips").querySelectorAll(".chip").forEach(c => c.onclick = () => { activeFilter = c.dataset.k; render(); });
+
+  // table
+  const rows = findings
+    .filter(f => activeFilter==="all" || kindOf(f)===activeFilter)
+    .sort((a,b)=> (SEV_ORDER[sevOf(a)]-SEV_ORDER[sevOf(b)]))
+    .map(f => {
+      const loc = f.line ? `:${f.line}${f.column?`:${f.column}`:""}` : "";
+      const fix = f.fix_recipe ? esc(f.fix_recipe) : (f.message ? esc(f.message) : "");
+      return `<tr>
+        <td><span class="sev ${sevOf(f)}">${sevOf(f)}</span></td>
+        <td class="mono">${esc(f.rule_id||"")}</td>
+        <td class="mono">${esc(f.file||"")}<span class="loc">${loc}</span></td>
+        <td>${esc(f.title||"")}</td>
+        <td>${fix}</td>
+      </tr>`;
+    }).join("");
+  el("table-wrap").innerHTML = rows
+    ? `<table><thead><tr><th>Severity</th><th>Rule</th><th>Location</th><th>Title</th><th>Detail / Fix</th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<div class="empty">No findings for this filter.</div>`;
+}
+
+el("run").addEventListener("click", async () => {
+  const target = el("target").value.trim();
+  if (!target){ el("target").focus(); return; }
+  const btn = el("run"); const old = btn.textContent;
+  btn.disabled = true; btn.innerHTML = `<span class="spinner"></span> Scanning…`;
+  el("empty").style.display = "none";
+  try {
+    const res = await fetch("/api/scan", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ target, supply: el("supply").checked }),
+    });
+    const data = await res.json();
+    if (!res.ok){ throw new Error(data.error || "scan failed"); }
+    findings = data.findings || [];
+    activeFilter = "all";
+    el("results-title").textContent = `Findings — ${esc(data.target)}`;
+    el("results-panel").style.display = "block";
+    render();
+  } catch(e){
+    el("results-panel").style.display = "none";
+    el("empty").style.display = "block";
+    el("empty").textContent = "Scan failed: " + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = old;
+  }
+});
+
+el("clear").addEventListener("click", () => {
+  findings = []; el("results-panel").style.display="none";
+  el("empty").style.display="block"; el("empty").textContent="Enter a path and run a scan to see findings.";
+});
+el("target").addEventListener("keydown", e => { if (e.key === "Enter") el("run").click(); });
+
+// hardware root of trust
+fetch("/api/tpm").then(r=>r.json()).then(rot => {
+  const present = rot.present;
+  const label = rot.kind === "secure_enclave" ? "Apple Secure Enclave"
+    : rot.kind === "tpm20" ? "TPM 2.0" : rot.kind === "tpm12" ? "TPM 1.2"
+    : rot.kind === "none" ? "None detected" : "Unknown";
+  el("rot").innerHTML = `<span class="badge ${present?'present':'absent'}">${present?'✓ present':'— absent'}</span>
+    <span>${esc(label)}${rot.vendor?` · ${esc(rot.vendor)}`:""}</span>`;
+}).catch(()=>{ el("rot").innerHTML = `<span class="loc">root-of-trust detection unavailable</span>`; });
+</script>
+</body>
+</html>
