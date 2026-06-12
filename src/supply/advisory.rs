@@ -203,16 +203,33 @@ pub fn scan(deps: &[Dependency], snap: &Snapshot) -> Vec<Finding> {
 }
 
 fn make_finding(adv: &Advisory, dep: &Dependency) -> Finding {
-    let severity = cvss_to_severity(adv);
-    let title = if adv.summary.is_empty() {
+    // OSV's malicious-packages dataset uses "MAL-" prefixed advisory IDs.
+    // A known-malicious package is categorically worse than a vulnerable
+    // one: it has no safe version, often no CVSS, and the only remediation
+    // is removal. Flag it Critical under a dedicated rule so the platform,
+    // SARIF and CLI can surface it distinctly from ordinary CVEs.
+    let is_malicious = adv.id.starts_with("MAL-");
+
+    let severity = if is_malicious { Severity::Critical } else { cvss_to_severity(adv) };
+    let title = if is_malicious {
+        format!("Known-malicious package {}@{} ({})", dep.name, dep.version, adv.id)
+    } else if adv.summary.is_empty() {
         format!("{} affects {}@{}", adv.id, dep.name, dep.version)
     } else {
         adv.summary.clone()
     };
-    let message = format!(
-        "{} {} {}@{} — see https://osv.dev/vulnerability/{}",
-        adv.id, dep.ecosystem.as_str(), dep.name, dep.version, adv.id,
-    );
+    let message = if is_malicious {
+        format!(
+            "{} {} {}@{} is a KNOWN-MALICIOUS package — remove it immediately. \
+             See https://osv.dev/vulnerability/{}",
+            adv.id, dep.ecosystem.as_str(), dep.name, dep.version, adv.id,
+        )
+    } else {
+        format!(
+            "{} {} {}@{} — see https://osv.dev/vulnerability/{}",
+            adv.id, dep.ecosystem.as_str(), dep.name, dep.version, adv.id,
+        )
+    };
     let mut evidence: HashMap<String, serde_json::Value> = HashMap::new();
     // Capture package + dependency_path on every advisory finding so
     // `reachability::enrich_findings` can pull them back out and the
@@ -220,6 +237,20 @@ fn make_finding(adv: &Advisory, dep: &Dependency) -> Finding {
     evidence.insert("package".into(), serde_json::json!(dep.name));
     evidence.insert("ecosystem".into(), serde_json::json!(dep.ecosystem.as_str()));
     evidence.insert("version".into(), serde_json::json!(dep.version));
+    if is_malicious {
+        evidence.insert("malicious".into(), serde_json::json!(true));
+        evidence.insert("advisory_id".into(), serde_json::json!(adv.id));
+    }
+    // Monorepo attribution: the directory holding the lockfile is the
+    // package/workspace this dependency belongs to. Surfacing it lets the
+    // platform group findings per package in a monorepo (the lockfile walk
+    // already discovers every package's lockfile recursively).
+    if let Some(pkg_root) = dep.lockfile.parent() {
+        evidence.insert(
+            "package_root".into(),
+            serde_json::json!(pkg_root.display().to_string()),
+        );
+    }
     if !dep.path.is_empty() {
         evidence.insert("dependency_path".into(), serde_json::json!(dep.path));
         evidence.insert(
@@ -228,7 +259,11 @@ fn make_finding(adv: &Advisory, dep: &Dependency) -> Finding {
         );
     }
     Finding {
-        rule_id:    format!("CBR-SUPPLY-{}", adv.id),
+        rule_id:    if is_malicious {
+            "CBR-SUPPLY-MALICIOUS".to_string()
+        } else {
+            format!("CBR-SUPPLY-{}", adv.id)
+        },
         title,
         severity,
         message,
