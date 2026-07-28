@@ -1,16 +1,19 @@
-//! Application package scanner — analyzes .app, .ipa, .pkg bundles for
+//! Application package scanner — analyzes .app, .ipa, .pkg, .apk bundles for
 //! security issues: entitlements, hardcoded secrets, ATS misconfig,
-//! framework CVEs, provisioning profiles, privacy manifest compliance.
+//! framework CVEs, provisioning profiles, privacy manifest compliance, and
+//! Android manifest hardening / signing.
 //!
 //! Usage:
 //!   cyscan app MyApp.app              # scan macOS app bundle
 //!   cyscan app MyApp.ipa              # scan iOS TestFlight/App Store build
 //!   cyscan app Installer.pkg          # scan macOS installer package
+//!   cyscan app app-release.apk        # scan Android APK
 //!   cyscan app --format json MyApp.app
 
 pub mod macos_app;
 pub mod ipa;
 pub mod pkg;
+pub mod apk;
 
 use std::path::Path;
 use serde::Serialize;
@@ -56,8 +59,10 @@ pub fn scan(path: &Path) -> anyhow::Result<AppReport> {
         ipa::scan(path)
     } else if ext == "pkg" {
         pkg::scan(path)
+    } else if ext == "apk" {
+        apk::scan(path)
     } else {
-        anyhow::bail!("Unsupported file type: .{}. Supported: .app, .ipa, .pkg", ext)
+        anyhow::bail!("Unsupported file type: .{}. Supported: .app, .ipa, .pkg, .apk", ext)
     }
 }
 
