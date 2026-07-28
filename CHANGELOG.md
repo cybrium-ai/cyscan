@@ -2,6 +2,31 @@
 
 All notable changes to cyscan are documented here.
 
+## [1.2.0] — 2026-07-28
+
+### Added — Android APK scanning (`cyscan app *.apk`)
+
+`cyscan app` now scans Android `.apk` packages, closing the gap where the
+CLI help advertised `.apk` but the scanner rejected it with
+"Unsupported file type."
+
+The APK scanner decodes the binary `AndroidManifest.xml` (pure-Rust AXML
+decode — no Android SDK or Java runtime required) and audits:
+
+- **Debuggable flag** (`android:debuggable`) — critical in release builds
+- **Application backup** (`android:allowBackup`, defaults-on aware)
+- **Cleartext traffic** (`android:usesCleartextTraffic` / network security config)
+- **Minimum SDK version** — flags pre-Android-8 support
+- **Exported components** without a guarding permission (activity / service /
+  receiver / provider)
+- **Dangerous permissions** inventory
+- **Code signing scheme** — v1 (JAR) vs v2/v3 (APK Signing Block); flags
+  unsigned and v1-only (Janus, CVE-2017-13156)
+- **Hardcoded secrets** in bundled text resources/assets
+
+Emits the same `AppReport` shape (`app_type: "apk"`) as the iOS/macOS
+scanners, so `--format json` and the platform runner are unchanged.
+
 ## [1.1.0] — 2026-05-03
 
 ### Added — Kubernetes precision + path-glob rule scoping

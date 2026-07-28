@@ -1,6 +1,6 @@
 [package]
 name        = "cyscan"
-version     = "1.1.4"
+version     = "1.2.0"
 edition     = "2021"
 description = "Cybrium Scan — fast multi-language SAST engine"
 license     = "Apache-2.0"
@@ -69,6 +69,9 @@ flate2 = "1.1.9"
 urlencoding = "2"
 tar = "0.4.45"
 tempfile = "3"
+# Android APK scanning — decode binary AndroidManifest.xml (AXML). Pure-Rust,
+# small footprint, no external SDK/Java runtime needed.
+axmldecoder = "0.5"
 
 # `cyscan gui` — loopback findings dashboard (Cybrium UI Kit). The async
 # server stack is only exercised by the gui subcommand; the rest of cyscan
