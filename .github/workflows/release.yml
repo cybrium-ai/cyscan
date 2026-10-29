@@ -38,8 +38,17 @@ jobs:
         include:
           - { target: x86_64-apple-darwin,       os: macos-latest }
           - { target: aarch64-apple-darwin,      os: macos-latest }
-          - { target: x86_64-unknown-linux-gnu,  os: cybrium-ai-linux }
-          - { target: aarch64-unknown-linux-gnu, os: ubuntu-latest }
+          # Linux release binaries are built on ubuntu-22.04 (glibc 2.35) ON
+          # PURPOSE. ubuntu-latest / the cybrium-ai-linux self-hosted runner
+          # are both glibc-2.39 bases, which raised the binary's symbol-version
+          # floor to GLIBC_2.39 — that binary then fails to even start on any
+          # older base (ubuntu-22.04, Debian bullseye, RHEL/UBI 9, Amazon Linux
+          # 2023 → all glibc 2.34/2.35), including the platform's own worker /
+          # tools-as-jobs images, with "version `GLIBC_2.39' not found".
+          # Building on 22.04 lowers the floor to glibc 2.35 and runs forward-
+          # compatibly on every newer base. Do NOT bump these to ubuntu-latest.
+          - { target: x86_64-unknown-linux-gnu,  os: ubuntu-22.04 }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-22.04 }
           - { target: x86_64-pc-windows-msvc,    os: windows-latest }
 
     steps:
