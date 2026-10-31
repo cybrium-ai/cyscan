@@ -226,6 +226,53 @@ fn is_false_positive(s: &str, key: &str) -> bool {
     false
 }
 
+/// True when a key / variable name suggests the value is a credential.
+/// Generic high-entropy strings are only treated as candidate secrets
+/// when they are assigned to a secret-suggestive identifier -- the same
+/// gate GitLeaks / TruffleHog use to keep the entropy heuristic from
+/// firing on every base64 blob, hash, HTML template, or embedded asset.
+/// Provider-shaped secrets (AWS, Okta, Slack, ...) are caught by the
+/// dedicated `regex:` secret rules regardless of key, so this does not
+/// lose those detections.
+pub(super) fn key_suggests_secret(key: &str) -> bool {
+    let k = key.to_lowercase();
+    const SECRET_HINTS: [&str; 15] = [
+        "key", "secret", "token", "password", "passwd", "pwd",
+        "credential", "auth", "private", "apikey", "access",
+        "session", "signature", "cipher", "salt",
+    ];
+    SECRET_HINTS.iter().any(|h| k.contains(h))
+}
+
+/// Extract the variable / key name immediately preceding a string
+/// literal. Strips a trailing language string-literal prefix so Python
+/// f-strings / raw / byte literals (`token = f"..."`) resolve to the
+/// real identifier (`token`) rather than the one-letter prefix (`f`).
+fn key_before_quote(line: &str, quote_index: usize) -> String {
+    let before = line[..quote_index].trim_end();
+    let before = before.trim_end_matches(|c: char| c == '=' || c == ':' || c == ' ');
+    let last = before
+        .rsplit(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+        .next()
+        .unwrap_or("");
+    // Python/Rust string prefixes attach directly to the opening quote
+    // (f"", r"", b"", rb"", u"", ...). They are not key names.
+    let is_string_prefix = !last.is_empty()
+        && last.len() <= 2
+        && last.chars().all(|c| matches!(c.to_ascii_lowercase(), 'f' | 'r' | 'b' | 'u'));
+    if is_string_prefix {
+        // Re-extract from the text before the prefix.
+        let trimmed = before[..before.len() - last.len()]
+            .trim_end_matches(|c: char| c == '=' || c == ':' || c == ' ');
+        return trimmed
+            .rsplit(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
+            .next()
+            .unwrap_or("")
+            .to_string();
+    }
+    last.to_string()
+}
+
 /// Extract candidate (key, value) pairs from a line of source code.
 /// Looks for assignment patterns: key = "value", key: "value", "key": "value"
 fn extract_candidates(line: &str) -> Vec<(String, String)> {
@@ -241,13 +288,7 @@ fn extract_candidates(line: &str) -> Vec<(String, String)> {
         if let Some(end) = rest.find('"') {
             let value = &rest[..end];
             if value.len() >= 12 {
-                // Try to extract key from before the quote
-                let before = line[..i].trim_end();
-                let before = before.trim_end_matches(|c: char| c == '=' || c == ':' || c == ' ');
-                let key = before.rsplit(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
-                    .next()
-                    .unwrap_or("")
-                    .to_string();
+                let key = key_before_quote(line, i);
                 candidates.push((key, value.to_string()));
             }
         }
@@ -259,12 +300,7 @@ fn extract_candidates(line: &str) -> Vec<(String, String)> {
         if let Some(end) = rest.find('\'') {
             let value = &rest[..end];
             if value.len() >= 12 {
-                let before = line[..i].trim_end();
-                let before = before.trim_end_matches(|c: char| c == '=' || c == ':' || c == ' ');
-                let key = before.rsplit(|c: char| !c.is_alphanumeric() && c != '_' && c != '-')
-                    .next()
-                    .unwrap_or("")
-                    .to_string();
+                let key = key_before_quote(line, i);
                 candidates.push((key, value.to_string()));
             }
         }
@@ -307,6 +343,16 @@ pub fn scan_file(path: &Path, source: &str) -> Vec<Finding> {
 
         let candidates = extract_candidates(line);
         for (key, value) in candidates {
+            // Gate generic entropy on a secret-suggestive key. Without a
+            // key that looks like a credential, a high-entropy string is
+            // overwhelmingly a hash, base64-encoded asset, HTML/template
+            // blob, or test fixture -- not a leaked secret. Provider-
+            // shaped secrets are still caught by the dedicated secret
+            // regex rules regardless of key.
+            if !key_suggests_secret(&key) {
+                continue;
+            }
+
             // Deduplicate
             if !seen.insert(value.clone()) {
                 continue;
@@ -387,6 +433,39 @@ pub fn scan_file(path: &Path, source: &str) -> Vec<Finding> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn key_gate_requires_secret_suggestive_name() {
+        assert!(key_suggests_secret("AWS_SECRET_ACCESS_KEY"));
+        assert!(key_suggests_secret("api_token"));
+        assert!(key_suggests_secret("db_password"));
+        // Non-secret keys are rejected -- these drove the FP flood.
+        assert!(!key_suggests_secret("unknown"));
+        assert!(!key_suggests_secret("f"));      // f-string prefix
+        assert!(!key_suggests_secret("style"));  // HTML attribute
+        assert!(!key_suggests_secret("message"));
+    }
+
+    #[test]
+    fn keyless_high_entropy_string_is_not_flagged() {
+        // A bare base64 blob with no secret-suggestive key must not fire
+        // (this was the dominant entropy false positive).
+        let src = "value = \"FsIWQEhI2TrdXxQLAvw9EXwCQEOFPzzEPkYAMd2PSle\"";
+        assert!(scan_file(Path::new("demo.py"), src).is_empty());
+    }
+
+    #[test]
+    fn fstring_prefix_is_not_treated_as_key() {
+        // `token = f"..."` must resolve to key `token`, not `f`.
+        assert_eq!(key_before_quote("    token = f\"", 13), "token");
+        assert_eq!(key_before_quote("    secret = \"", 13), "secret");
+    }
+
+    #[test]
+    fn secret_keyed_high_entropy_still_fires() {
+        let src = "aws_secret = \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\"";
+        assert!(!scan_file(Path::new("demo.py"), src).is_empty());
+    }
 
     #[test]
     fn high_entropy_detected() {

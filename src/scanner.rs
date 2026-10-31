@@ -10,6 +10,74 @@ use rayon::prelude::*;
 
 use crate::{finding::Finding, lang::Lang, matcher, rule::RulePack};
 
+/// Directory names that are vendored, generated, or tooling caches --
+/// never the user's own source. Scanning them produces noise (and false
+/// positives) with no security value. `.gitignore` usually covers these,
+/// but not every repo ignores them, so we exclude them by default.
+const EXCLUDED_DIR_COMPONENTS: &[&str] = &[
+    // Dependency / vendor trees
+    "node_modules", "bower_components", "jspm_packages", "vendor",
+    "site-packages", "dist-packages",
+    // VCS metadata
+    ".git", ".svn", ".hg",
+    // Language / tool caches
+    "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+    ".tox", ".nox", ".venv", "venv", "virtualenv", ".dart_tool",
+    ".gradle", ".terraform", ".serverless", ".cache",
+    // Build / generated output
+    "target", "dist", "build", "out", ".next", ".nuxt", ".svelte-kit",
+    "__snapshots__", "Pods", "DerivedData",
+    // Editor dirs
+    ".idea", ".vscode",
+];
+
+/// True when a path should be skipped by default -- it lives under a
+/// vendored/generated directory, or is itself a minified bundle, source
+/// map, or dependency lockfile. These carry no first-party security
+/// signal and are a dominant false-positive source. (The `supply`
+/// command reads lockfiles through its own path and is unaffected.)
+fn is_default_excluded(path: &Path) -> bool {
+    for comp in path.components() {
+        if let std::path::Component::Normal(os) = comp {
+            if let Some(name) = os.to_str() {
+                if EXCLUDED_DIR_COMPONENTS.contains(&name) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+        return false;
+    };
+    let lower = name.to_ascii_lowercase();
+
+    // Minified / bundled / generated JS & CSS and source maps.
+    for suffix in [
+        ".min.js", ".min.mjs", ".min.cjs", ".min.css", ".bundle.js",
+        ".bundle.css", ".map", "-min.js", "-min.css",
+    ] {
+        if lower.ends_with(suffix) {
+            return true;
+        }
+    }
+
+    // Dependency lockfiles -- analysed by `cyscan supply`, not by SAST.
+    matches!(
+        lower.as_str(),
+        "package-lock.json"
+            | "yarn.lock"
+            | "pnpm-lock.yaml"
+            | "npm-shrinkwrap.json"
+            | "composer.lock"
+            | "gemfile.lock"
+            | "poetry.lock"
+            | "pipfile.lock"
+            | "cargo.lock"
+            | "go.sum"
+    )
+}
+
 pub fn run(target: &Path, pack: &RulePack) -> Result<Vec<Finding>> {
     if !target.exists() {
         anyhow::bail!("target does not exist: {}", target.display());
@@ -23,6 +91,7 @@ pub fn run(target: &Path, pack: &RulePack) -> Result<Vec<Finding>> {
         .filter_map(|r| r.ok())
         .filter(|e| e.file_type().map_or(false, |ft| ft.is_file()))
         .map(|e| e.into_path())
+        .filter(|p| !is_default_excluded(p))
         .filter(|p| Lang::from_path(p).is_some())
         .collect();
 
@@ -250,4 +319,39 @@ pub fn scan_file(path: &Path, pack: &RulePack) -> Result<Vec<Finding>> {
     let source = fs::read_to_string(path)
         .with_context(|| format!("reading {}", path.display()))?;
     Ok(matcher::run_rules(pack.rules(), lang, path, &source))
+}
+
+#[cfg(test)]
+mod exclusion_tests {
+    use super::is_default_excluded;
+    use std::path::Path;
+
+    #[test]
+    fn excludes_vendored_and_generated_dirs() {
+        assert!(is_default_excluded(Path::new("app/node_modules/pkg/index.js")));
+        assert!(is_default_excluded(Path::new("project/vendor/lib/a.go")));
+        assert!(is_default_excluded(Path::new("repo/.venv/lib/site-packages/x.py")));
+        assert!(is_default_excluded(Path::new("x/__pycache__/m.py")));
+        assert!(is_default_excluded(Path::new("web/dist/app.js")));
+        assert!(is_default_excluded(Path::new("rustproj/target/debug/build.rs")));
+    }
+
+    #[test]
+    fn excludes_minified_maps_and_lockfiles() {
+        assert!(is_default_excluded(Path::new("static/jquery.min.js")));
+        assert!(is_default_excluded(Path::new("static/app.bundle.js")));
+        assert!(is_default_excluded(Path::new("static/app.js.map")));
+        assert!(is_default_excluded(Path::new("frontend/package-lock.json")));
+        assert!(is_default_excluded(Path::new("frontend/yarn.lock")));
+        assert!(is_default_excluded(Path::new("Cargo.lock")));
+    }
+
+    #[test]
+    fn keeps_first_party_source() {
+        assert!(!is_default_excluded(Path::new("backend/apps/scans/views.py")));
+        assert!(!is_default_excluded(Path::new("src/main.rs")));
+        assert!(!is_default_excluded(Path::new("web/src/app.js")));
+        // "env" is a common legit dir name and is NOT excluded.
+        assert!(!is_default_excluded(Path::new("config/env/settings.py")));
+    }
 }

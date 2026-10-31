@@ -107,6 +107,110 @@ fn is_regex_alternation(chars: &[char], pos: usize) -> bool {
     false // Default: treat | as literal in semgrep patterns
 }
 
+/// Common language keywords / ubiquitous bare words that carry no
+/// security signal on their own. A lowered Semgrep pattern whose only
+/// literal anchor is one of these (e.g. `return ...`, `raise "..."`,
+/// bare `raw`) cannot be matched reliably as a line regex.
+fn is_common_bareword(w: &str) -> bool {
+    matches!(
+        w.to_ascii_lowercase().as_str(),
+        "return" | "if" | "else" | "elif" | "for" | "while" | "pass"
+        | "break" | "continue" | "try" | "except" | "finally" | "with"
+        | "import" | "from" | "class" | "def" | "print" | "raise"
+        | "yield" | "assert" | "global" | "del" | "lambda" | "and"
+        | "or" | "not" | "in" | "is" | "true" | "false" | "none"
+        | "null" | "new" | "var" | "let" | "const" | "function" | "end"
+        | "do" | "then" | "raw" | "public" | "private" | "static"
+        | "void" | "int" | "string" | "self" | "this" | "super"
+    )
+}
+
+/// Literal alphanumeric anchor tokens in a lowered regex, ignoring the
+/// metavariable / wildcard placeholders that the Semgrep lowering
+/// inserts (`\w+`, `.*`, ...) and any regex escapes. These are the
+/// concrete identifiers / keywords the pattern actually pins down.
+fn literal_anchors(lowered: &str) -> Vec<String> {
+    // Drop placeholders first so their characters don't count as anchors.
+    let mut s = lowered.to_string();
+    for ph in [
+        "\\w+", "\\w*", "\\s+", "\\s*", "\\d+", "\\d*", "\\S+", "\\S*",
+        ".*", ".+",
+    ] {
+        s = s.replace(ph, " ");
+    }
+    // Strip remaining backslash escapes (`\(`, `\)`, `\{`, `\$`, ...):
+    // both the backslash and the escaped char are regex structure, not
+    // a literal anchor.
+    let chars: Vec<char> = s.chars().collect();
+    let mut cleaned = String::with_capacity(chars.len());
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] == '\\' && i + 1 < chars.len() {
+            cleaned.push(' ');
+            i += 2;
+        } else {
+            cleaned.push(chars[i]);
+            i += 1;
+        }
+    }
+    cleaned
+        .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+        .filter(|t| !t.is_empty())
+        .map(|t| t.to_string())
+        .collect()
+}
+
+/// True when the lowered pattern is a bare member / attribute access
+/// (`$X.attr` -> `\w+.content`, `$X.$Y` -> `\w+.\w+`) with nothing else
+/// of substance -- as a line regex it matches every `.attr` access in
+/// the file.
+fn is_bare_member_access(lowered: &str) -> bool {
+    let mut s = lowered.to_string();
+    for ph in [".*", ".+", "\\s+", "\\s*"] {
+        s = s.replace(ph, "");
+    }
+    let s = s.trim();
+    use std::sync::OnceLock;
+    static RE: OnceLock<Regex> = OnceLock::new();
+    let re = RE.get_or_init(|| {
+        // `\w+` then a dot then either another `\w+` or a plain identifier.
+        Regex::new(r"^\\w\+\.(?:\\w\+|[A-Za-z_][A-Za-z0-9_]*)$").unwrap()
+    });
+    re.is_match(s)
+}
+
+/// Whether a lowered Semgrep `pattern:` is too generic to run as a
+/// line-oriented regex without producing a flood of false positives.
+/// See the call site in `match_rule` for the rationale.
+pub(super) fn semgrep_pattern_too_generic(lowered: &str) -> bool {
+    let has_mv =
+        lowered.contains("\\w+") || lowered.contains(".*") || lowered.contains(".+");
+    let toks = literal_anchors(lowered);
+    let total_alnum: usize = toks.iter().map(|t| t.len()).sum();
+
+    // (1) Pure-structural: metavariables / wildcards with no literal
+    //     alphanumeric anchor at all -- `$X(...)`, `$VAR = "$KEY"`,
+    //     `$LOG.$CALL($FMT,...)`, `$X == $X`, bare `$X`. A fully literal
+    //     pattern (`["*"]`, `/chat/completions`) has no metavariable and
+    //     is kept.
+    if has_mv && total_alnum == 0 {
+        return true;
+    }
+
+    // (2) The only literal anchor is a single common keyword / bareword
+    //     -- `return ...`, `raise "..."`, `class $C(...)`, bare `raw`.
+    if toks.len() == 1 && is_common_bareword(&toks[0]) {
+        return true;
+    }
+
+    // (3) Bare member / attribute access -- `$X.content`, `$X.$Y`.
+    if has_mv && is_bare_member_access(lowered) {
+        return true;
+    }
+
+    false
+}
+
 pub fn match_rule(
     rule:      &Rule,
     path:      &Path,
@@ -160,10 +264,32 @@ pub fn match_rule(
         pat.to_string()
     };
 
-    // Skip patterns that are too short/broad after conversion (would match everything)
-    let meaningful = converted.replace(r"\w+", "").replace(".*", "").replace(r"\s+", "");
-    if meaningful.trim().len() < 3 {
-        return Vec::new();
+    // Specificity gate. A Semgrep `pattern:` is an AST-structural
+    // pattern; our line-regex lowering throws the structure (and the
+    // metavariable constraints) away. A pattern that reduces to a
+    // ubiquitous code shape -- `$X(...)` -> `\w+\(.*\)` (any call),
+    // `$VAR = "$KEY"` -> `\w+ = "\w+"` (any string assignment),
+    // `return ...` -> `return .*` (every return), `$RESP.content` ->
+    // `\w+.content` (every member access) -- then matches arbitrary
+    // code and floods the results with false positives. Skip those.
+    //
+    // Hand-written `regex:` rules are precise (gitleaks-style provider
+    // patterns, etc.) and are NEVER subject to this gate; they only get
+    // the original cheap empty/short guard.
+    if is_semgrep_pattern {
+        if semgrep_pattern_too_generic(&converted) {
+            log::debug!(
+                "rule {}: skipped -- lowered pattern too generic as a line regex ({:?})",
+                rule.id, converted
+            );
+            return Vec::new();
+        }
+    } else {
+        // Skip patterns that are too short/broad after conversion.
+        let meaningful = converted.replace(r"\w+", "").replace(".*", "").replace(r"\s+", "");
+        if meaningful.trim().len() < 3 {
+            return Vec::new();
+        }
     }
 
     let re = match Regex::new(&converted) {
@@ -390,4 +516,52 @@ fn dsl_only_match(
     synthetic.pattern_either.clear();
     synthetic.pattern_either_groups.clear();
     match_rule(&synthetic, path, source, semantics, project)
+}
+
+#[cfg(test)]
+mod specificity_tests {
+    use super::{semgrep_pattern_too_generic, semgrep_to_regex};
+
+    fn generic(pat: &str) -> bool {
+        semgrep_pattern_too_generic(&semgrep_to_regex(pat))
+    }
+
+    #[test]
+    fn drops_structural_only_patterns() {
+        // Pure structure: metavariables + punctuation, no literal anchor.
+        assert!(generic("$SESSION(...)"));        // any call
+        assert!(generic("$VAR = \"$KEY\""));       // any string assignment
+        assert!(generic("$LOGGER_OBJ.$LOGGER_CALL($FMT,...)")); // any method call
+        assert!(generic("$X == $X"));              // any comparison
+        assert!(generic("$X"));                    // any identifier
+        assert!(generic("$KEY: $VALUE"));          // any yaml pair
+    }
+
+    #[test]
+    fn drops_bare_keyword_patterns() {
+        assert!(generic("return ..."));
+        assert!(generic("raise \"...\""));
+        assert!(generic("raw"));                   // bare common word
+        assert!(generic("import \"$IMPORT\""));
+    }
+
+    #[test]
+    fn drops_bare_member_access() {
+        assert!(generic("$RESP.content"));
+        assert!(generic("$X.$FUNC"));
+        assert!(generic("$STR.html_safe"));
+    }
+
+    #[test]
+    fn keeps_anchored_security_patterns() {
+        // Real anchors -> kept.
+        assert!(!generic("eval(...)"));
+        assert!(!generic("pickle.loads(...)"));
+        assert!(!generic("subprocess.call(..., shell=True)"));
+        assert!(!generic("os.system(...)"));
+        // Fully-literal patterns (no metavariable) are kept even without
+        // alphanumeric content.
+        assert!(!generic("[\"*\"]"));
+        assert!(!generic("/chat/completions"));
+    }
 }
