@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSUFFICIENT_EC_KEY_SIZE
 title:     "Insufficient Ec Key Size"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-326']
 source:    semgrep/insufficient-ec-key-size

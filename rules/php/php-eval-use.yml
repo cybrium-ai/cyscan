@@ -1,6 +1,6 @@
 id:        CBR-PHP-EVAL_USE
 title:     "Eval Use"
-severity:  critical
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-78']
 source:    semgrep/eval-use

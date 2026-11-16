@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_MEMORY_STORE_FOR_REDIS_AUT
 title:     "Gcp Memory Store For Redis Auth Enabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-memory-store-for-redis-auth-enabled

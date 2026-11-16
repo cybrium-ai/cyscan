@@ -1,6 +1,6 @@
 id:        CBR-SCAL-WEBSERVICE_SSRF
 title:     "Webservice Ssrf"
-severity:  high
+severity:  medium
 languages: ['scala']
 cwe:       ['CWE-918']
 source:    semgrep/webservice-ssrf

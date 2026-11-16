@@ -1,6 +1,6 @@
 id:        CBR-GO-IMPORT_TEXT_TEMPLATE
 title:     "Import Text Template"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-79']
 source:    semgrep/import-text-template

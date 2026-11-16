@@ -1,6 +1,6 @@
 id:        CBR-RUBY-BAD_SEND
 title:     "Bad Send"
-severity:  critical
+severity:  high
 languages: ['ruby']
 cwe:       ['CWE-94']
 source:    semgrep/bad-send

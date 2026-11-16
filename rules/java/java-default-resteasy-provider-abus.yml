@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DEFAULT_RESTEASY_PROVIDER_ABUS
 title:     "Default Resteasy Provider Abuse"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-502']
 source:    semgrep/default-resteasy-provider-abuse

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-USE_COUNT_METHOD
 title:     "Use Count Method"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/use-count-method
 message: |

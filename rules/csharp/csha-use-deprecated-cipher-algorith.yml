@@ -1,6 +1,6 @@
 id:        CBR-CSHA-USE_DEPRECATED_CIPHER_ALGORITH
 title:     "Use Deprecated Cipher Algorithm"
-severity:  critical
+severity:  medium
 languages: ['csharp']
 cwe:       ['CWE-327']
 source:    semgrep/use_deprecated_cipher_algorithm

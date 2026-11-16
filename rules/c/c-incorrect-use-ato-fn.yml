@@ -1,6 +1,6 @@
 id:        CBR-C-INCORRECT_USE_ATO_FN
 title:     "Incorrect Use Ato Fn"
-severity:  high
+severity:  info
 languages: ['c']
 source:    semgrep/incorrect-use-ato-fn
 message: |

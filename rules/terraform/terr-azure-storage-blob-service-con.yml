@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_STORAGE_BLOB_SERVICE_CON
 title:     "Azure Storage Blob Service Container Private Access"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-storage-blob-service-container-private-access

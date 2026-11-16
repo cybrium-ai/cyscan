@@ -1,6 +1,6 @@
 id:        CBR-JAVA-TLS_RENEGOTIATION
 title:     "Tls Renegotiation"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-319']
 source:    semgrep/tls-renegotiation

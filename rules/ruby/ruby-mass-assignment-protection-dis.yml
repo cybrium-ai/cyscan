@@ -1,6 +1,6 @@
 id:        CBR-RUBY-MASS_ASSIGNMENT_PROTECTION_DIS
 title:     "Mass Assignment Protection Disabled"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-915']
 source:    semgrep/mass-assignment-protection-disabled

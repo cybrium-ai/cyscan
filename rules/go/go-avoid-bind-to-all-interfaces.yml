@@ -1,6 +1,6 @@
 id:        CBR-GO-AVOID_BIND_TO_ALL_INTERFACES
 title:     "Avoid Bind To All Interfaces"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-200']
 source:    semgrep/avoid-bind-to-all-interfaces

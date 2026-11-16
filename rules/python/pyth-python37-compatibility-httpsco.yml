@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYTHON37_COMPATIBILITY_HTTPSCO
 title:     "Python37 Compatibility Httpsconn"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/python37-compatibility-httpsconn
 message: |

@@ -1,6 +1,6 @@
 id:        CBR-GO-PPROF_DEBUG_EXPOSURE
 title:     "Pprof Debug Exposure"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-489']
 source:    semgrep/pprof-debug-exposure

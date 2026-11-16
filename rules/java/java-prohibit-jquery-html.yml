@@ -1,6 +1,6 @@
 id:        CBR-JAVA-PROHIBIT_JQUERY_HTML
 title:     "Prohibit Jquery Html"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-79']
 source:    semgrep/prohibit-jquery-html

@@ -1,6 +1,6 @@
 id:        CBR-PHP-MB_EREG_REPLACE_EVAL
 title:     "Mb Ereg Replace Eval"
-severity:  critical
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-94']
 source:    semgrep/mb-ereg-replace-eval

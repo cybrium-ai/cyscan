@@ -1,6 +1,6 @@
 id:        CBR-JAVA-XSSREQUESTWRAPPER_IS_INSECURE
 title:     "Xssrequestwrapper Is Insecure"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-79']
 source:    semgrep/xssrequestwrapper-is-insecure

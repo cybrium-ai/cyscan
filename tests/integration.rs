@@ -18,6 +18,32 @@ fn fixture_scan_reports_expected_rule_ids() {
         .stdout(predicate::str::contains("CBR-JS-XSS-INNER-HTML"));
 }
 
+/// v1.2.2 recall set: detections that were missed when the keyword sat on
+/// its own line of a multi-line call, plus three rules added in 1.2.2.
+#[test]
+fn fixture_scan_reports_runtime_recall_set() {
+    let manifest = env!("CARGO_MANIFEST_DIR");
+    let fixture  = format!("{manifest}/tests/fixtures/bad_runtime.py");
+    let rules    = format!("{manifest}/rules");
+
+    let out = Command::cargo_bin("cyscan").unwrap()
+        .args(["scan", &fixture, "--rules", &rules, "--format", "json"])
+        .output().unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    for id in &[
+        "CBR-PY-SUBPROCESS-SHELL-TRUE",
+        "CBR-PY-REQUESTS-VERIFY-FALSE",
+        "CBR-PY-JWT-VERIFY-DISABLED",
+        "CBR-PY-SQLI-FORMATTED-QUERY",
+        "CBR-PY-XML-UNSAFE-PARSE",
+    ] {
+        assert!(stdout.contains(id), "expected {id} in output:\n{stdout}");
+    }
+    // The parameterised query must not be reported.
+    assert_eq!(stdout.matches("CBR-PY-SQLI-FORMATTED-QUERY").count(), 1,
+        "formatted-query rule should fire exactly once:\n{stdout}");
+}
+
 #[test]
 fn fix_dry_run_writes_nothing() {
     use std::fs;

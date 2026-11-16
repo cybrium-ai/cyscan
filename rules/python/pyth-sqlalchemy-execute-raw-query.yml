@@ -1,6 +1,6 @@
 id:        CBR-PYTH-SQLALCHEMY_EXECUTE_RAW_QUERY
 title:     "Sqlalchemy Execute Raw Query"
-severity:  critical
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-89']
 source:    semgrep/sqlalchemy-execute-raw-query

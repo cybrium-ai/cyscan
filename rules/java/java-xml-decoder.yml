@@ -1,6 +1,6 @@
 id:        CBR-JAVA-XML_DECODER
 title:     "Xml Decoder"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-611']
 source:    semgrep/xml-decoder

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_URLOPENER_RETRIEVE_FT
 title:     "Insecure Urlopener Retrieve Ftp"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-319']
 source:    semgrep/insecure-urlopener-retrieve-ftp

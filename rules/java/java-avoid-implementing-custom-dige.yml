@@ -1,6 +1,6 @@
 id:        CBR-JAVA-AVOID_IMPLEMENTING_CUSTOM_DIGE
 title:     "Avoid Implementing Custom Digests"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-327']
 source:    semgrep/avoid-implementing-custom-digests

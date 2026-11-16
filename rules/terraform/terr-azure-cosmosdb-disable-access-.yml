@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_COSMOSDB_DISABLE_ACCESS_
 title:     "Azure Cosmosdb Disable Access Key Write"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-cosmosdb-disable-access-key-write

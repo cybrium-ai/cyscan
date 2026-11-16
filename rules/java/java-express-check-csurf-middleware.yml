@@ -1,6 +1,6 @@
 id:        CBR-JAVA-EXPRESS_CHECK_CSURF_MIDDLEWARE
 title:     "Express Check Csurf Middleware Usage"
-severity:  medium
+severity:  low
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-352']
 source:    semgrep/express-check-csurf-middleware-usage

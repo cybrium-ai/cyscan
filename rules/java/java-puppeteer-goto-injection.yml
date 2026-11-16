@@ -1,6 +1,6 @@
 id:        CBR-JAVA-PUPPETEER_GOTO_INJECTION
 title:     "Puppeteer Goto Injection"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-918']
 source:    semgrep/puppeteer-goto-injection

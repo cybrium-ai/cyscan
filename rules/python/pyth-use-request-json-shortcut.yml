@@ -1,9 +1,0 @@
-id:        CBR-PYTH-USE_REQUEST_JSON_SHORTCUT
-title:     "Python — Requests — Best Practice — Use Request Json Shortcut"
-severity:  high
-languages: ['python']
-source:    semgrep/python.requests.best-practice.use-request-json-shortcut
-message: |
-  The requests library has a convenient shortcut for sending JSON requests, which lets you stop worrying about serializing the body yourself. To use it, replace `body=json.dumps(...)` with `json=...`.
-pattern: |
-  requests.$METHOD(..., body=json.dumps($BODY), ...)

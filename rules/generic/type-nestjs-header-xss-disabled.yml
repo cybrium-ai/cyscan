@@ -1,6 +1,6 @@
 id:        CBR-TYPE-NESTJS_HEADER_XSS_DISABLED
 title:     "Nestjs Header Xss Disabled"
-severity:  high
+severity:  medium
 languages: ['typescript']
 cwe:       ['CWE-79']
 source:    semgrep/nestjs-header-xss-disabled

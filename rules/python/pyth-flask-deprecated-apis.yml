@@ -1,6 +1,6 @@
 id:        CBR-PYTH-FLASK_DEPRECATED_APIS
 title:     "Flask Deprecated Apis"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/flask-deprecated-apis
 message: |

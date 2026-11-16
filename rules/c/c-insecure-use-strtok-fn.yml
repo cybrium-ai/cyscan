@@ -1,6 +1,6 @@
 id:        CBR-C-INSECURE_USE_STRTOK_FN
 title:     "Insecure Use Strtok Fn"
-severity:  high
+severity:  medium
 languages: ['c']
 cwe:       ['CWE-676']
 source:    semgrep/insecure-use-strtok-fn

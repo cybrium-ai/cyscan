@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_FSX_LUSTRE_FILESYSTEM_ENCR
 title:     "Aws Fsx Lustre Filesystem Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-200']
 source:    semgrep/aws-fsx-lustre-filesystem-encrypted-with-cmk

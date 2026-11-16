@@ -1,6 +1,6 @@
 id:        CBR-PYTH-CHECK_IS_NONE_EXPLICITLY
 title:     "Check Is None Explicitly"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/check-is-none-explicitly
 message: |

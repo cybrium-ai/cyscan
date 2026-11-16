@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DETECT_ANTHROPIC
 title:     "Detect Anthropic"
-severity:  medium
+severity:  info
 languages: ['python']
 source:    semgrep/detect-anthropic
 message: |

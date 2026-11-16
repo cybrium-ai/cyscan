@@ -1,6 +1,6 @@
 id:        CBR-PYTH-AVOID_UNSAFE_RUAMEL
 title:     "Avoid Unsafe Ruamel"
-severity:  critical
+severity:  high
 languages: ['python']
 cwe:       ['CWE-502']
 source:    semgrep/avoid-unsafe-ruamel

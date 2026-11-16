@@ -1,6 +1,6 @@
 id:        CBR-SCAL-DISPATCH_SSRF
 title:     "Dispatch Ssrf"
-severity:  high
+severity:  medium
 languages: ['scala']
 cwe:       ['CWE-918']
 source:    semgrep/dispatch-ssrf

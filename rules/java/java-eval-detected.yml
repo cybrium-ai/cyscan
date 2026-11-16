@@ -1,6 +1,6 @@
 id:        CBR-JAVA-EVAL_DETECTED
 title:     "Eval Detected"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-95']
 source:    semgrep/eval-detected

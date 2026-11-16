@@ -1,6 +1,6 @@
 id:        CBR-PYTH-AVOID_MARK_SAFE
 title:     "Avoid Mark Safe"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-79']
 source:    semgrep/avoid-mark-safe

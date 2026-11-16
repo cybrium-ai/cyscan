@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_SQS_QUEUE_UNENCRYPTED
 title:     "Aws Sqs Queue Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/aws-sqs-queue-unencrypted

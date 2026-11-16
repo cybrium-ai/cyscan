@@ -1,6 +1,6 @@
 id:        CBR-JAVA-UNSAFE_REFLECTION
 title:     "Unsafe Reflection"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-470']
 source:    semgrep/unsafe-reflection

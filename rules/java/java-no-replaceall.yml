@@ -1,6 +1,6 @@
 id:        CBR-JAVA-NO_REPLACEALL
 title:     "No Replaceall"
-severity:  high
+severity:  info
 languages: ['javascript', 'typescript']
 source:    semgrep/no-replaceall
 message: |

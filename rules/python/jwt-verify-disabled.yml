@@ -1,0 +1,13 @@
+id:        CBR-PY-JWT-VERIFY-DISABLED
+title:     "JWT decoded with signature verification disabled"
+severity:  high
+languages: [python]
+cwe:       [CWE-347]
+message: |
+  The token is decoded without verifying its signature, so any party can
+  forge its claims. Verify the signature against the issuer's published
+  keys. Skipping verification is only acceptable when the token came
+  directly from the issuer's token endpoint over TLS and the claims are
+  not used for an authorization decision.
+regex: |
+  verify_signature["']?\s*[:=]\s*False|jwt\.decode\([^)\n]*\bverify\s*=\s*False

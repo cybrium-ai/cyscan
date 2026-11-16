@@ -1,6 +1,6 @@
 id:        CBR-JAVA-USE_OF_SHA224
 title:     "Use Of Sha224"
-severity:  high
+severity:  low
 languages: ['java']
 cwe:       ['CWE-328']
 source:    semgrep/use-of-sha224

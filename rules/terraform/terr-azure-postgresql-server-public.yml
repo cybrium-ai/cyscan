@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_POSTGRESQL_SERVER_PUBLIC
 title:     "Azure Postgresql Server Public Access Disabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-postgresql-server-public-access-disabled

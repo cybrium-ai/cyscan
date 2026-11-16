@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_ATHENA_CLIENT_CAN_DISABLE_
 title:     "Aws Athena Client Can Disable Workgroup Encryption"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/aws-athena-client-can-disable-workgroup-encryption

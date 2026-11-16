@@ -1,6 +1,6 @@
 id:        CBR-RUBY-OPENURI_REQUEST
 title:     "Openuri Request"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-319']
 source:    semgrep/openuri-request

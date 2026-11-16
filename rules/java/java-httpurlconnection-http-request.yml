@@ -1,6 +1,6 @@
 id:        CBR-JAVA-HTTPURLCONNECTION_HTTP_REQUEST
 title:     "Httpurlconnection Http Request"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-319']
 source:    semgrep/httpurlconnection-http-request

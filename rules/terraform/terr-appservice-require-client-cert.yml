@@ -1,6 +1,6 @@
 id:        CBR-TERR-APPSERVICE_REQUIRE_CLIENT_CERT
 title:     "Appservice Require Client Cert"
-severity:  medium
+severity:  low
 languages: ['terraform']
 cwe:       ['CWE-295']
 source:    semgrep/appservice-require-client-cert

@@ -1,6 +1,6 @@
 id:        CBR-DOCK-AVOID_YUM_UPDATE
 title:     "Avoid Yum Update"
-severity:  medium
+severity:  info
 languages: ['docker']
 source:    semgrep/avoid-yum-update
 message: |

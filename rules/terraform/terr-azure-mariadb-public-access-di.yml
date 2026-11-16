@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_MARIADB_PUBLIC_ACCESS_DI
 title:     "Azure Mariadb Public Access Disabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-mariadb-public-access-disabled

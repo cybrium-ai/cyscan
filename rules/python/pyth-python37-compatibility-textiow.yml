@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYTHON37_COMPATIBILITY_TEXTIOW
 title:     "Python37 Compatibility Textiowrapper"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/python37-compatibility-textiowrapper
 message: |

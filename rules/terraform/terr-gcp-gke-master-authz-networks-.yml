@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_GKE_MASTER_AUTHZ_NETWORKS_
 title:     "Gcp Gke Master Authz Networks Enabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-gke-master-authz-networks-enabled

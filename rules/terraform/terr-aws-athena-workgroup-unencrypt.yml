@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_ATHENA_WORKGROUP_UNENCRYPT
 title:     "Aws Athena Workgroup Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/aws-athena-workgroup-unencrypted

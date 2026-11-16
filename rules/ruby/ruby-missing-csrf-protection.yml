@@ -1,6 +1,6 @@
 id:        CBR-RUBY-MISSING_CSRF_PROTECTION
 title:     "Missing Csrf Protection"
-severity:  critical
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-352']
 source:    semgrep/missing-csrf-protection

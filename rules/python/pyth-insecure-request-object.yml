@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_REQUEST_OBJECT
 title:     "Insecure Request Object"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-319']
 source:    semgrep/insecure-request-object

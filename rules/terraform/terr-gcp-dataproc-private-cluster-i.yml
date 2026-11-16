@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_DATAPROC_PRIVATE_CLUSTER_I
 title:     "Gcp Dataproc Private Cluster Iam Binding"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-dataproc-private-cluster-iam-binding

@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_ARTIFACT_REGISTRY_ENCRYPTE
 title:     "Gcp Artifact Registry Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/gcp-artifact-registry-encrypted-with-cmk

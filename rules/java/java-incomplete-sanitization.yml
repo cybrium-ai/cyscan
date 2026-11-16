@@ -1,6 +1,6 @@
 id:        CBR-JAVA-INCOMPLETE_SANITIZATION
 title:     "Incomplete Sanitization"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-116']
 source:    semgrep/incomplete-sanitization

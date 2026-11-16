@@ -1,6 +1,6 @@
 id:        CBR-YAML-NO_NEW_PRIVILEGES
 title:     "No New Privileges"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-732']
 source:    semgrep/no-new-privileges

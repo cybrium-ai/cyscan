@@ -1,6 +1,6 @@
 id:        CBR-JAVA-GCM_NO_TAG_LENGTH
 title:     "Gcm No Tag Length"
-severity:  critical
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-310']
 source:    semgrep/gcm-no-tag-length

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-HUGGINGFACE_HARDCODED_API_KEY_
 title:     "Huggingface Hardcoded Api Key Javascript"
-severity:  critical
+severity:  high
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-798']
 source:    semgrep/huggingface-hardcoded-api-key-javascript

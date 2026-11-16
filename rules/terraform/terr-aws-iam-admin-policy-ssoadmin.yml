@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_IAM_ADMIN_POLICY_SSOADMIN
 title:     "Aws Iam Admin Policy Ssoadmin"
-severity:  critical
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-732']
 source:    semgrep/aws-iam-admin-policy-ssoadmin

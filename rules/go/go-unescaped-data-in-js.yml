@@ -1,6 +1,6 @@
 id:        CBR-GO-UNESCAPED_DATA_IN_JS
 title:     "Unescaped Data In Js"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-79']
 source:    semgrep/unescaped-data-in-js

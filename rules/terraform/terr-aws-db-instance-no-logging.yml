@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_DB_INSTANCE_NO_LOGGING
 title:     "Aws Db Instance No Logging"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/aws-db-instance-no-logging

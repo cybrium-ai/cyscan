@@ -1,9 +1,0 @@
-id:        CBR-TERR-GCP_GKE_NODEPOOL_AUTO_REPAIR_E
-title:     "Gcp Gke Nodepool Auto Repair Enabled"
-severity:  high
-languages: ['terraform']
-source:    semgrep/gcp-gke-nodepool-auto-repair-enabled
-message: |
-  Ensure 'Automatic node repair' is enabled for Kubernetes Clusters
-pattern: |
-  resource

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-APOLLO_AXIOS_SSRF
 title:     "Apollo Axios Ssrf"
-severity:  high
+severity:  medium
 languages: ['javascript']
 cwe:       ['CWE-918']
 source:    semgrep/apollo-axios-ssrf

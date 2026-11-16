@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_CONFIG_AGGREGATOR_NOT_ALL_
 title:     "Aws Config Aggregator Not All Regions"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-778']
 source:    semgrep/aws-config-aggregator-not-all-regions

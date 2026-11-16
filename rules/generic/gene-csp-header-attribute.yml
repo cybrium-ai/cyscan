@@ -1,6 +1,6 @@
 id:        CBR-GENE-CSP_HEADER_ATTRIBUTE
 title:     "Csp Header Attribute"
-severity:  medium
+severity:  low
 languages: ['generic']
 cwe:       ['CWE-79']
 source:    semgrep/csp-header-attribute

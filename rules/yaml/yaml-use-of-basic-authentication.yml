@@ -1,6 +1,6 @@
 id:        CBR-YAML-USE_OF_BASIC_AUTHENTICATION
 title:     "Use Of Basic Authentication"
-severity:  critical
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-287']
 source:    semgrep/use-of-basic-authentication

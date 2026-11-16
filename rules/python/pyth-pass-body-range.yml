@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PASS_BODY_RANGE
 title:     "Pass Body Range"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/pass-body-range
 message: |

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-ECB_CIPHER
 title:     "Ecb Cipher"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-327']
 source:    semgrep/ecb-cipher

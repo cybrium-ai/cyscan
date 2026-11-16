@@ -1,6 +1,6 @@
 id:        CBR-JAVA-USE_OF_SHA1
 title:     "Use Of Sha1"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-328']
 source:    semgrep/use-of-sha1

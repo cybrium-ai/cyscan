@@ -1,6 +1,6 @@
 id:        CBR-GO-REFLECT_MAKEFUNC
 title:     "Reflect Makefunc"
-severity:  critical
+severity:  high
 languages: ['go']
 cwe:       ['CWE-913']
 source:    semgrep/reflect-makefunc

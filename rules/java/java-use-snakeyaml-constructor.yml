@@ -1,6 +1,6 @@
 id:        CBR-JAVA-USE_SNAKEYAML_CONSTRUCTOR
 title:     "Use Snakeyaml Constructor"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-502']
 source:    semgrep/use-snakeyaml-constructor

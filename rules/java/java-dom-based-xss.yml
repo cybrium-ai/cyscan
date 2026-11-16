@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DOM_BASED_XSS
 title:     "Dom Based Xss"
-severity:  critical
+severity:  high
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-79']
 source:    semgrep/dom-based-xss

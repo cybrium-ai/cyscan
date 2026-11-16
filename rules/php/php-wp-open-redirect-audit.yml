@@ -1,6 +1,6 @@
 id:        CBR-PHP-WP_OPEN_REDIRECT_AUDIT
 title:     "Wp Open Redirect Audit"
-severity:  high
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-601']
 source:    semgrep/wp-open-redirect-audit

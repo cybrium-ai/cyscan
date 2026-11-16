@@ -1,6 +1,6 @@
 id:        CBR-RUST-INSECURE_HASHES
 title:     "Insecure Hashes"
-severity:  high
+severity:  medium
 languages: ['rust']
 cwe:       ['CWE-328']
 source:    semgrep/insecure-hashes

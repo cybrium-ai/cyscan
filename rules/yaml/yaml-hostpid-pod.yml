@@ -1,6 +1,6 @@
 id:        CBR-YAML-HOSTPID_POD
 title:     "Hostpid Pod"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-269']
 source:    semgrep/hostpid-pod

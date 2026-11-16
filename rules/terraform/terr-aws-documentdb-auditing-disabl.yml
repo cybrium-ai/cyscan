@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_DOCUMENTDB_AUDITING_DISABL
 title:     "Aws Documentdb Auditing Disabled"
-severity:  medium
+severity:  low
 languages: ['terraform']
 cwe:       ['CWE-778']
 source:    semgrep/aws-documentdb-auditing-disabled

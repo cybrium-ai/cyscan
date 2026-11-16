@@ -1,6 +1,6 @@
 id:        CBR-PYTH-SSL_WRAP_SOCKET_IS_DEPRECATED
 title:     "Ssl Wrap Socket Is Deprecated"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-326']
 source:    semgrep/ssl-wrap-socket-is-deprecated

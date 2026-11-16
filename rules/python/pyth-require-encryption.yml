@@ -1,6 +1,6 @@
 id:        CBR-PYTH-REQUIRE_ENCRYPTION
 title:     "Require Encryption"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-319']
 source:    semgrep/require-encryption

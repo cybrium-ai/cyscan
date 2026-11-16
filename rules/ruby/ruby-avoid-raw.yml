@@ -1,6 +1,6 @@
 id:        CBR-RUBY-AVOID_RAW
 title:     "Avoid Raw"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-79']
 source:    semgrep/avoid-raw

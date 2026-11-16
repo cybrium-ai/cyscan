@@ -1,6 +1,6 @@
 id:        CBR-YAML-THIRD_PARTY_ACTION_NOT_PINNED_
 title:     "Third Party Action Not Pinned To Commit Sha"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-1357', 'CWE-353']
 source:    semgrep/third-party-action-not-pinned-to-commit-sha

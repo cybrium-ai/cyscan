@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_WORKSPACES_USER_VOLUME_UNE
 title:     "Aws Workspaces User Volume Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-workspaces-user-volume-unencrypted

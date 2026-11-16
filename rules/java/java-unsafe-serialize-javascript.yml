@@ -1,6 +1,6 @@
 id:        CBR-JAVA-UNSAFE_SERIALIZE_JAVASCRIPT
 title:     "Unsafe Serialize Javascript"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-80']
 source:    semgrep/unsafe-serialize-javascript

@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_SQLSERVER_NO_PUBLIC_ACCE
 title:     "Azure Sqlserver No Public Access"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-sqlserver-no-public-access

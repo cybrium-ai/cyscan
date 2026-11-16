@@ -1,6 +1,6 @@
 id:        CBR-PHP-UNSERIALIZE_USE
 title:     "Unserialize Use"
-severity:  high
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-502']
 source:    semgrep/unserialize-use

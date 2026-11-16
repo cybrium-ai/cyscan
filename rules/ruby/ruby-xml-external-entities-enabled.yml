@@ -1,6 +1,6 @@
 id:        CBR-RUBY-XML_EXTERNAL_ENTITIES_ENABLED
 title:     "Xml External Entities Enabled"
-severity:  critical
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-611']
 source:    semgrep/xml-external-entities-enabled

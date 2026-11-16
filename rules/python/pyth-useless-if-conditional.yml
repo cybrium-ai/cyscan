@@ -1,6 +1,6 @@
 id:        CBR-PYTH-USELESS_IF_CONDITIONAL
 title:     "Useless If Conditional"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/useless-if-conditional
 message: |

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-WEAK_SSL_VERSION
 title:     "Weak Ssl Version"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-326']
 source:    semgrep/weak-ssl-version

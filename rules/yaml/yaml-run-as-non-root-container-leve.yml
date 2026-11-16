@@ -1,6 +1,6 @@
 id:        CBR-YAML-RUN_AS_NON_ROOT_CONTAINER_LEVE
 title:     "Run As Non Root Container Level Missing Security Context"
-severity:  medium
+severity:  low
 languages: ['yaml']
 cwe:       ['CWE-250']
 source:    semgrep/run-as-non-root-container-level-missing-security-context

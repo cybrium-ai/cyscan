@@ -1,6 +1,6 @@
 id:        CBR-TYPE-NESTJS_HEADER_CORS_ANY
 title:     "Nestjs Header Cors Any"
-severity:  high
+severity:  medium
 languages: ['typescript']
 cwe:       ['CWE-183']
 source:    semgrep/nestjs-header-cors-any

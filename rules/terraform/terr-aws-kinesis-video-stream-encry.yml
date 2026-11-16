@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_KINESIS_VIDEO_STREAM_ENCRY
 title:     "Aws Kinesis Video Stream Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-kinesis-video-stream-encrypted-with-cmk

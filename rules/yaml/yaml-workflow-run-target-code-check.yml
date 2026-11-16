@@ -1,6 +1,6 @@
 id:        CBR-YAML-WORKFLOW_RUN_TARGET_CODE_CHECK
 title:     "Workflow Run Target Code Checkout"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-913']
 source:    semgrep/workflow-run-target-code-checkout

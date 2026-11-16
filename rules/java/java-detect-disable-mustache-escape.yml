@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DETECT_DISABLE_MUSTACHE_ESCAPE
 title:     "Detect Disable Mustache Escape"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-116']
 source:    semgrep/detect-disable-mustache-escape

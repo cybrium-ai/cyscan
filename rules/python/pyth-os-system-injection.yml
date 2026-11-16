@@ -1,6 +1,6 @@
 id:        CBR-PYTH-OS_SYSTEM_INJECTION
 title:     "Os System Injection"
-severity:  critical
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-78']
 source:    semgrep/os-system-injection

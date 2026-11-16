@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_SERVICE_FABRIC_CLUSTER_P
 title:     "Azure Service Fabric Cluster Protection Level"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/azure-service-fabric-cluster-protection-level

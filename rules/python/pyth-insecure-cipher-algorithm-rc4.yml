@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_CIPHER_ALGORITHM_RC4
 title:     "Insecure Cipher Algorithm Rc4"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-327']
 source:    semgrep/insecure-cipher-algorithm-rc4

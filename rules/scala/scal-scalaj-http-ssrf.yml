@@ -1,6 +1,6 @@
 id:        CBR-SCAL-SCALAJ_HTTP_SSRF
 title:     "Scalaj Http Ssrf"
-severity:  high
+severity:  medium
 languages: ['scala']
 cwe:       ['CWE-918']
 source:    semgrep/scalaj-http-ssrf

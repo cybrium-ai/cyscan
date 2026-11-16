@@ -1,6 +1,6 @@
 id:        CBR-PYTH-AVOID_HARDCODED_CONFIG_DEBUG
 title:     "Avoid Hardcoded Config Debug"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-489']
 source:    semgrep/avoid_hardcoded_config_DEBUG

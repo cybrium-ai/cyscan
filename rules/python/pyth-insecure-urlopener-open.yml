@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_URLOPENER_OPEN
 title:     "Insecure Urlopener Open"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-319']
 source:    semgrep/insecure-urlopener-open

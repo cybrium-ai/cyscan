@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_AD_USED_AUTH_SERVICE_FAB
-title:     "Azure Ad Used Auth Service Fabric"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-ad-used-auth-service-fabric
-message: |
-  Ensures that Active Directory is used for authentication for Service Fabric	
-pattern: |
-  resource

@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_AKS_PRIVATE_CLUSTERS_ENA
 title:     "Azure Aks Private Clusters Enabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-aks-private-clusters-enabled

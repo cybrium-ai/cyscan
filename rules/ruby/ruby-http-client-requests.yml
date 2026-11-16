@@ -1,6 +1,6 @@
 id:        CBR-RUBY-HTTP_CLIENT_REQUESTS
 title:     "Http Client Requests"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-319']
 source:    semgrep/http-client-requests

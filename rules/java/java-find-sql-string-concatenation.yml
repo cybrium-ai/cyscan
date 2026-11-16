@@ -1,6 +1,6 @@
 id:        CBR-JAVA-FIND_SQL_STRING_CONCATENATION
 title:     "Find Sql String Concatenation"
-severity:  critical
+severity:  high
 languages: ['java']
 cwe:       ['CWE-89']
 source:    semgrep/find-sql-string-concatenation

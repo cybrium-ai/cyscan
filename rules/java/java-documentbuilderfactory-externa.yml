@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DOCUMENTBUILDERFACTORY_EXTERNA
 title:     "Documentbuilderfactory External General Entities True"
-severity:  critical
+severity:  high
 languages: ['java']
 cwe:       ['CWE-611']
 source:    semgrep/documentbuilderfactory-external-general-entities-true

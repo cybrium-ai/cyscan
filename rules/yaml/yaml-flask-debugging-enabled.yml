@@ -1,6 +1,6 @@
 id:        CBR-YAML-FLASK_DEBUGGING_ENABLED
 title:     "Flask Debugging Enabled"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-489']
 source:    semgrep/flask-debugging-enabled

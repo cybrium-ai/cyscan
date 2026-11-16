@@ -1,9 +1,0 @@
-id:        CBR-GENE-LOCALHOST_BASE_URL
-title:     "Localhost Base Url"
-severity:  high
-languages: ['generic']
-source:    semgrep/localhost-base-url
-message: |
-  The 'baseURL' is set to localhost. This may cause links to not work if deployed.
-pattern: |
-  baseURL = "..."

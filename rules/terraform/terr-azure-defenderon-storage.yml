@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_DEFENDERON_STORAGE
-title:     "Azure Defenderon Storage"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-defenderon-storage
-message: |
-  Ensure that Azure Defender is set to On for Storage
-pattern: |
-  resource

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SPRING_FTP_REQUEST
 title:     "Spring Ftp Request"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-319']
 source:    semgrep/spring-ftp-request

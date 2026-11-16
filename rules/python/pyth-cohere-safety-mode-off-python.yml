@@ -1,6 +1,6 @@
 id:        CBR-PYTH-COHERE_SAFETY_MODE_OFF_PYTHON
 title:     "Cohere Safety Mode Off Python"
-severity:  critical
+severity:  high
 languages: ['python']
 cwe:       ['CWE-1188']
 source:    semgrep/cohere-safety-mode-off-python

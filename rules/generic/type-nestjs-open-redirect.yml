@@ -1,6 +1,6 @@
 id:        CBR-TYPE-NESTJS_OPEN_REDIRECT
 title:     "Nestjs Open Redirect"
-severity:  high
+severity:  medium
 languages: ['typescript']
 cwe:       ['CWE-601']
 source:    semgrep/nestjs-open-redirect

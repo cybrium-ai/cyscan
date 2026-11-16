@@ -1,6 +1,6 @@
 id:        CBR-CSHA-UNSIGNED_SECURITY_TOKEN
 title:     "Unsigned Security Token"
-severity:  critical
+severity:  medium
 languages: ['csharp']
 cwe:       ['CWE-347']
 source:    semgrep/unsigned-security-token

@@ -1,6 +1,6 @@
 id:        CBR-RUBY-BAD_DESERIALIZATION_YAML
 title:     "Bad Deserialization Yaml"
-severity:  critical
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-502']
 source:    semgrep/bad-deserialization-yaml

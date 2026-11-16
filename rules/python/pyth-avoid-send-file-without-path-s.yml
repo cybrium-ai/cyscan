@@ -1,6 +1,6 @@
 id:        CBR-PYTH-AVOID_SEND_FILE_WITHOUT_PATH_S
 title:     "Avoid Send File Without Path Sanitization"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-73']
 source:    semgrep/avoid_send_file_without_path_sanitization

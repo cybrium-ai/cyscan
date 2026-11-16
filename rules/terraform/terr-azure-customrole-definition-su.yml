@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_CUSTOMROLE_DEFINITION_SU
 title:     "Azure Customrole Definition Subscription Owner"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-customrole-definition-subscription-owner

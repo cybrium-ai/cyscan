@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_SNS_TOPIC_UNENCRYPTED
 title:     "Aws Sns Topic Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/aws-sns-topic-unencrypted

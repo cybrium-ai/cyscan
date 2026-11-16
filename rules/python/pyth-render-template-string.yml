@@ -1,6 +1,6 @@
 id:        CBR-PYTH-RENDER_TEMPLATE_STRING
 title:     "Render Template String"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-96']
 source:    semgrep/render-template-string

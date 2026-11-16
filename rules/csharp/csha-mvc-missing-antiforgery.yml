@@ -1,6 +1,6 @@
 id:        CBR-CSHA-MVC_MISSING_ANTIFORGERY
 title:     "Mvc Missing Antiforgery"
-severity:  high
+severity:  medium
 languages: ['csharp']
 cwe:       ['CWE-352']
 source:    semgrep/mvc-missing-antiforgery

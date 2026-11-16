@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_S3_OBJECT_COPY_ENCRYPTED_W
 title:     "Aws S3 Object Copy Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-s3-object-copy-encrypted-with-cmk

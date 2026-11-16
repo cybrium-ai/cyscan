@@ -1,6 +1,6 @@
 id:        CBR-JAVA-INSECURE_RESTEASY_DESERIALIZAT
 title:     "Insecure Resteasy Deserialization"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-502']
 source:    semgrep/insecure-resteasy-deserialization

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-UNKNOWN_VALUE_IN_REDIRECT
 title:     "Unknown Value In Redirect"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-601']
 source:    semgrep/unknown-value-in-redirect

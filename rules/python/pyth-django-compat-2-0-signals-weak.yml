@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DJANGO_COMPAT_2_0_SIGNALS_WEAK
 title:     "Django Compat 2 0 Signals Weak"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/django-compat-2_0-signals-weak
 message: |

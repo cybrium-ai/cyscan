@@ -1,9 +1,9 @@
 id:        CBR-JAVA-JAVASCRIPT_PROMPT
 title:     "Javascript Prompt"
-severity:  high
+severity:  info
 languages: ['javascript', 'typescript']
 source:    semgrep/javascript-prompt
 message: |
   found prompt() call; should this be in production code?
-pattern: |
-  prompt()
+regex: |
+  (?:^|[^\w.$])(?:window\.)?prompt\s*\(

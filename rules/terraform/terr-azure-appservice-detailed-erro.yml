@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_APPSERVICE_DETAILED_ERRO
 title:     "Azure Appservice Detailed Errormessages Enabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-778']
 source:    semgrep/azure-appservice-detailed-errormessages-enabled

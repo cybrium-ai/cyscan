@@ -1,6 +1,6 @@
 id:        CBR-DOCK-AVOID_DNF_UPDATE
 title:     "Avoid Dnf Update"
-severity:  medium
+severity:  info
 languages: ['docker']
 source:    semgrep/avoid-dnf-update
 message: |

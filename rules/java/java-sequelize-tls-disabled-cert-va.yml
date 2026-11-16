@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SEQUELIZE_TLS_DISABLED_CERT_VA
 title:     "Sequelize Tls Disabled Cert Validation"
-severity:  critical
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-94']
 source:    semgrep/sequelize-tls-disabled-cert-validation

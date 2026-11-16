@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_INSECURE_CLOUDFRONT_DISTRI
 title:     "Aws Insecure Cloudfront Distribution Tls Version"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-326']
 source:    semgrep/aws-insecure-cloudfront-distribution-tls-version

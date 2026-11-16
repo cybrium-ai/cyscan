@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SEQUELIZE_RAW_QUERY
 title:     "Sequelize Raw Query"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-89']
 source:    semgrep/sequelize-raw-query

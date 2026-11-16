@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_POSTGRESQL_ENCRYPTION_EN
 title:     "Azure Postgresql Encryption Enabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/azure-postgresql-encryption-enabled

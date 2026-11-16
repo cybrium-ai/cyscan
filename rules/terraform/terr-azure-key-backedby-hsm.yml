@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_KEY_BACKEDBY_HSM
 title:     "Azure Key Backedby Hsm"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/azure-key-backedby-hsm

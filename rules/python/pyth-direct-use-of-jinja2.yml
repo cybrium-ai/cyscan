@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DIRECT_USE_OF_JINJA2
 title:     "Direct Use Of Jinja2"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-79']
 source:    semgrep/direct-use-of-jinja2

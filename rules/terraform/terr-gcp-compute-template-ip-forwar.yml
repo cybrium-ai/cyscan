@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_COMPUTE_TEMPLATE_IP_FORWAR
 title:     "Gcp Compute Template Ip Forward"
-severity:  medium
+severity:  low
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-compute-template-ip-forward

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-EXTENDS_CUSTOM_EXPRESSION
 title:     "Extends Custom Expression"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-89']
 source:    semgrep/extends-custom-expression

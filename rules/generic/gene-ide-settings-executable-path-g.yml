@@ -8,3 +8,19 @@ message: |
   Executable path override detected in VS Code settings pointing to a project-relative path. A malicious repository can override interpreter or tool paths in workspace settings to execute arbitrary code when the project is opened. Use absolute system paths instead of relative paths for executable settings, and review .vscode/settings.json in untrusted repos.
 regex: |
   "[^"]*(?:executablePath|ExecutablePath|defaultInterpreterPath|pythonPath|terminal\.integrated\.shell\.\w+)"\s*:\s*"\.\.?/
+paths:
+  include:
+    - '**/.claude/**'
+    - '**/.cursor/**'
+    - '**/.codex/**'
+    - '**/.gemini/**'
+    - '**/.vscode/**'
+    - '**/.cursorrules'
+    - '**/.windsurfrules'
+    - '**/CLAUDE.md'
+    - '**/AGENTS.md'
+    - '**/GEMINI.md'
+    - '**/copilot-instructions.md'
+    - '**/mcp.json'
+    - '**/.mcp.json'
+    - '**/hooks/**'

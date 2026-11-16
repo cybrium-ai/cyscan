@@ -1,6 +1,6 @@
 id:        CBR-PYTH-MAKO_TEMPLATES_DETECTED
 title:     "Mako Templates Detected"
-severity:  medium
+severity:  low
 languages: ['python']
 cwe:       ['CWE-79']
 source:    semgrep/mako-templates-detected

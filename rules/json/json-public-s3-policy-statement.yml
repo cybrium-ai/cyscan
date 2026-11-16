@@ -1,6 +1,6 @@
 id:        CBR-JSON-PUBLIC_S3_POLICY_STATEMENT
 title:     "Public S3 Policy Statement"
-severity:  high
+severity:  medium
 languages: ['json']
 cwe:       ['CWE-264']
 source:    semgrep/public-s3-policy-statement

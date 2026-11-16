@@ -1,6 +1,6 @@
 id:        CBR-GENE-BASH_REVERSE_SHELL
 title:     "Bash Reverse Shell"
-severity:  critical
+severity:  high
 languages: ['generic']
 cwe:       ['CWE-94']
 source:    semgrep/bash_reverse_shell

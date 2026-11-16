@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_FUNCTIONAPP_DISALLOW_COR
 title:     "Azure Functionapp Disallow Cors"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-942']
 source:    semgrep/azure-functionapp-disallow-cors

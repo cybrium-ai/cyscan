@@ -1,6 +1,6 @@
 id:        CBR-RUBY-SHA224_HASH
 title:     "Sha224 Hash"
-severity:  high
+severity:  low
 languages: ['ruby']
 cwe:       ['CWE-328']
 source:    semgrep/sha224-hash

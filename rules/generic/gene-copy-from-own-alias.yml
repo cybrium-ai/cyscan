@@ -1,6 +1,6 @@
 id:        CBR-GENE-COPY_FROM_OWN_ALIAS
 title:     "Copy From Own Alias"
-severity:  critical
+severity:  info
 languages: ['generic']
 source:    semgrep/copy-from-own-alias
 message: |

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DJANGO_COMPAT_2_0_ASSIGNMENT_T
 title:     "Django Compat 2 0 Assignment Tag"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/django-compat-2_0-assignment-tag
 message: |

@@ -1,6 +1,6 @@
 id:        CBR-RUBY-COOKIE_SERIALIZATION
 title:     "Cookie Serialization"
-severity:  critical
+severity:  high
 languages: ['ruby']
 cwe:       ['CWE-94']
 source:    semgrep/cookie-serialization

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-GEMINI_HARDCODED_API_KEY_JAVAS
 title:     "Gemini Hardcoded Api Key Javascript"
-severity:  critical
+severity:  high
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-798']
 source:    semgrep/gemini-hardcoded-api-key-javascript

@@ -1,6 +1,6 @@
 id:        CBR-GO-HTTP_CUSTOMIZED_REQUEST
 title:     "Http Customized Request"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-319']
 source:    semgrep/http-customized-request

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-FILTER_WITH_IS_SAFE
 title:     "Filter With Is Safe"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-79']
 source:    semgrep/filter-with-is-safe

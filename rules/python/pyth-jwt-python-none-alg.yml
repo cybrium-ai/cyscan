@@ -1,6 +1,6 @@
 id:        CBR-PYTH-JWT_PYTHON_NONE_ALG
 title:     "Jwt Python None Alg"
-severity:  critical
+severity:  high
 languages: ['python']
 cwe:       ['CWE-327']
 source:    semgrep/jwt-python-none-alg

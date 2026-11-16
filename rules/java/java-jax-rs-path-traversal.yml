@@ -1,6 +1,6 @@
 id:        CBR-JAVA-JAX_RS_PATH_TRAVERSAL
 title:     "Jax Rs Path Traversal"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-22']
 source:    semgrep/jax-rs-path-traversal

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-JAVASCRIPT_DEBUGGER
 title:     "Javascript Debugger"
-severity:  high
+severity:  info
 languages: ['javascript', 'typescript']
 source:    semgrep/javascript-debugger
 message: |

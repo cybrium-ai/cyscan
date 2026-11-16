@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_INSECURE_REDSHIFT_SSL_CONF
 title:     "Aws Insecure Redshift Ssl Configuration"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-326']
 source:    semgrep/aws-insecure-redshift-ssl-configuration

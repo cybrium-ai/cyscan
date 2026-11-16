@@ -1,6 +1,6 @@
 id:        CBR-PYTH-IMPROPER_LIST_CONCAT
 title:     "Improper List Concat"
-severity:  medium
+severity:  info
 languages: ['python']
 source:    semgrep/improper-list-concat
 message: |

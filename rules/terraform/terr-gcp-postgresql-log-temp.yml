@@ -1,9 +1,0 @@
-id:        CBR-TERR-GCP_POSTGRESQL_LOG_TEMP
-title:     "Gcp Postgresql Log Temp"
-severity:  high
-languages: ['terraform']
-source:    semgrep/gcp-postgresql-log-temp
-message: |
-  Ensure PostgreSQL database 'log_temp_files' flag is set to '0'
-pattern: |
-  resource

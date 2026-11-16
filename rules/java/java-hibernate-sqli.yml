@@ -1,6 +1,6 @@
 id:        CBR-JAVA-HIBERNATE_SQLI
 title:     "Hibernate Sqli"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-89']
 source:    semgrep/hibernate-sqli

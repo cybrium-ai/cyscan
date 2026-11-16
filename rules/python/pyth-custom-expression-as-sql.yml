@@ -1,6 +1,6 @@
 id:        CBR-PYTH-CUSTOM_EXPRESSION_AS_SQL
 title:     "Custom Expression As Sql"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-89']
 source:    semgrep/custom-expression-as-sql

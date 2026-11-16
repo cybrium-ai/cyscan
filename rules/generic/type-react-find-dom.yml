@@ -1,6 +1,6 @@
 id:        CBR-TYPE-REACT_FIND_DOM
 title:     "React Find Dom"
-severity:  high
+severity:  info
 languages: ['typescript', 'javascript']
 source:    semgrep/react-find-dom
 message: |

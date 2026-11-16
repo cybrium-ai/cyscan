@@ -1,6 +1,6 @@
 id:        CBR-GO-DETECT_OPENAI
 title:     "Detect Openai"
-severity:  medium
+severity:  info
 languages: ['go']
 source:    semgrep/detect-openai
 message: |

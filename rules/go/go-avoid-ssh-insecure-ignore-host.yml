@@ -1,6 +1,6 @@
 id:        CBR-GO-AVOID_SSH_INSECURE_IGNORE_HOST
 title:     "Avoid Ssh Insecure Ignore Host Key"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-322']
 source:    semgrep/avoid-ssh-insecure-ignore-host-key

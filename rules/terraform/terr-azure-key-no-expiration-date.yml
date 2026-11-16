@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_KEY_NO_EXPIRATION_DATE
 title:     "Azure Key No Expiration Date"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/azure-key-no-expiration-date

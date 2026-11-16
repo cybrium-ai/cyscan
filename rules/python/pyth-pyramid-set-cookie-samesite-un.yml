@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYRAMID_SET_COOKIE_SAMESITE_UN
 title:     "Pyramid Set Cookie Samesite Unsafe Default"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-1275']
 source:    semgrep/pyramid-set-cookie-samesite-unsafe-default

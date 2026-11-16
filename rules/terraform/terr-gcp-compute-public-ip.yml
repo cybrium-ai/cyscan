@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_COMPUTE_PUBLIC_IP
 title:     "Gcp Compute Public Ip"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-compute-public-ip

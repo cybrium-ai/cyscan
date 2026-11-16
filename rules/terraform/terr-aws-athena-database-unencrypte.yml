@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_ATHENA_DATABASE_UNENCRYPTE
 title:     "Aws Athena Database Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/aws-athena-database-unencrypted

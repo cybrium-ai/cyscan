@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_APPSERVICE_CLIENT_CERTIF
 title:     "Azure Appservice Client Certificate"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-326']
 source:    semgrep/azure-appservice-client-certificate

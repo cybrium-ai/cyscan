@@ -1,6 +1,6 @@
 id:        CBR-RUBY-LIBXML_BACKEND
 title:     "Libxml Backend"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-611']
 source:    semgrep/libxml-backend

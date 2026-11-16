@@ -1,6 +1,6 @@
 id:        CBR-GENE-SPRING_JSP_EVAL
 title:     "Spring Jsp Eval"
-severity:  high
+severity:  medium
 languages: ['generic']
 cwe:       ['CWE-95']
 source:    semgrep/spring-jsp-eval

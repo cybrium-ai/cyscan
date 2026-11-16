@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYTHON37_COMPATIBILITY_PDB
 title:     "Python37 Compatibility Pdb"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/python37-compatibility-pdb
 message: |

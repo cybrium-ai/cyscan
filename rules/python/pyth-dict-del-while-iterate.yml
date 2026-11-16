@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DICT_DEL_WHILE_ITERATE
 title:     "Dict Del While Iterate"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/dict-del-while-iterate
 message: |

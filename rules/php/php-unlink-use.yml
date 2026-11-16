@@ -1,6 +1,6 @@
 id:        CBR-PHP-UNLINK_USE
 title:     "Unlink Use"
-severity:  high
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-22']
 source:    semgrep/unlink-use

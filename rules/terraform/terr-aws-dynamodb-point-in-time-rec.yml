@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_DYNAMODB_POINT_IN_TIME_REC
 title:     "Aws Dynamodb Point In Time Recovery Disabled"
-severity:  medium
+severity:  low
 languages: ['terraform']
 cwe:       ['CWE-221']
 source:    semgrep/aws-dynamodb-point-in-time-recovery-disabled

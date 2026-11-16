@@ -1,6 +1,6 @@
 id:        CBR-GO-CHANNEL_GUARDED_WITH_MUTEX
 title:     "Channel Guarded With Mutex"
-severity:  high
+severity:  info
 languages: ['go']
 source:    semgrep/channel-guarded-with-mutex
 message: |

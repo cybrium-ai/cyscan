@@ -1,6 +1,6 @@
 id:        CBR-PYTH-IDENTICAL_IS_COMPARISON
 title:     "Identical Is Comparison"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/identical-is-comparison
 message: |

@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_EC2_LAUNCH_CONFIGURATION_E
 title:     "Aws Ec2 Launch Configuration Ebs Block Device Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/aws-ec2-launch-configuration-ebs-block-device-unencrypted

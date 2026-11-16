@@ -1,6 +1,6 @@
 id:        CBR-JAVA-BAD_HEXA_CONVERSION
 title:     "Bad Hexa Conversion"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-704']
 source:    semgrep/bad-hexa-conversion

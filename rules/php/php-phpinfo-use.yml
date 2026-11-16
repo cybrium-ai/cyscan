@@ -1,6 +1,6 @@
 id:        CBR-PHP-PHPINFO_USE
 title:     "Phpinfo Use"
-severity:  critical
+severity:  high
 languages: ['php']
 cwe:       ['CWE-200']
 source:    semgrep/phpinfo-use

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-USE_DEFUSED_XMLRPC
 title:     "Use Defused Xmlrpc"
-severity:  critical
+severity:  high
 languages: ['python']
 cwe:       ['CWE-776']
 source:    semgrep/use-defused-xmlrpc

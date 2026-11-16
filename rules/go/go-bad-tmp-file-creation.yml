@@ -1,6 +1,6 @@
 id:        CBR-GO-BAD_TMP_FILE_CREATION
 title:     "Bad Tmp File Creation"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-377']
 source:    semgrep/bad-tmp-file-creation

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DOCUMENTBUILDERFACTORY_DISALLO
 title:     "Documentbuilderfactory Disallow Doctype Decl False"
-severity:  critical
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-611']
 source:    semgrep/documentbuilderfactory-disallow-doctype-decl-false

@@ -1,6 +1,6 @@
 id:        CBR-GENE-DETECT_GENERIC_AI_GEM
 title:     "Detect Generic Ai Gem"
-severity:  medium
+severity:  info
 languages: ['generic']
 source:    semgrep/detect-generic-ai-gem
 message: |

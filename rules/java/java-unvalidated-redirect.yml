@@ -1,6 +1,6 @@
 id:        CBR-JAVA-UNVALIDATED_REDIRECT
 title:     "Unvalidated Redirect"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-601']
 source:    semgrep/unvalidated-redirect

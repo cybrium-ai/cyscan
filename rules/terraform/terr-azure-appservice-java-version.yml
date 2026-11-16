@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_APPSERVICE_JAVA_VERSION
-title:     "Azure Appservice Java Version"
-severity:  medium
-languages: ['terraform']
-source:    semgrep/azure-appservice-java-version
-message: |
-  Ensure that Java version is the latest, if used to run the web app
-pattern: |
-  resource

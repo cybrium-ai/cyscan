@@ -1,9 +1,0 @@
-id:        CBR-TERR-GCP_IPV6_PRIVATE_GOOGLE_ENABLE
-title:     "Gcp Ipv6 Private Google Enabled"
-severity:  high
-languages: ['terraform']
-source:    semgrep/gcp-ipv6-private-google-enabled
-message: |
-  Ensure that Private google access is enabled for IPV6
-pattern: |
-  resource

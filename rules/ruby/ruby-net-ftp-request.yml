@@ -1,6 +1,6 @@
 id:        CBR-RUBY-NET_FTP_REQUEST
 title:     "Net Ftp Request"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-319']
 source:    semgrep/net-ftp-request

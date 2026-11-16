@@ -1,6 +1,6 @@
 id:        CBR-PHP-LARAVEL_DANGEROUS_MODEL_CONSTR
 title:     "Laravel Dangerous Model Construction"
-severity:  critical
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-915']
 source:    semgrep/laravel-dangerous-model-construction

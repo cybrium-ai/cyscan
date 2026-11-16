@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_INSTANCE_EXTENSIONS
 title:     "Azure Instance Extensions"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-instance-extensions

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-USE_OF_RC4
 title:     "Use Of Rc4"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-327']
 source:    semgrep/use-of-rc4

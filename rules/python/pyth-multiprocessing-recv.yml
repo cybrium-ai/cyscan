@@ -1,6 +1,6 @@
 id:        CBR-PYTH-MULTIPROCESSING_RECV
 title:     "Multiprocessing Recv"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-502']
 source:    semgrep/multiprocessing-recv

@@ -1,6 +1,6 @@
 id:        CBR-DOCK-MISSING_USER
 title:     "Missing User"
-severity:  critical
+severity:  medium
 languages: ['docker']
 cwe:       ['CWE-250']
 source:    semgrep/missing-user

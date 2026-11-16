@@ -1,6 +1,6 @@
 id:        CBR-C-INSECURE_USE_MEMSET
 title:     "Insecure Use Memset"
-severity:  high
+severity:  medium
 languages: ['c']
 cwe:       ['CWE-14']
 source:    semgrep/insecure-use-memset

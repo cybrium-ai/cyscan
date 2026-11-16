@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DETECT_ANGULAR_SCE_DISABLED
 title:     "Detect Angular Sce Disabled"
-severity:  critical
+severity:  high
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-79']
 source:    semgrep/detect-angular-sce-disabled

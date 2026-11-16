@@ -1,6 +1,6 @@
 id:        CBR-PYTH-CODE_AFTER_UNCONDITIONAL_RETUR
 title:     "Code After Unconditional Return"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/code-after-unconditional-return
 message: |

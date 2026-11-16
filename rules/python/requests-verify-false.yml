@@ -9,4 +9,4 @@ message: |
   to trivial MITM attacks. Fix the underlying certificate-chain or
   trust-store issue instead of silencing the check.
 regex: |
-  \brequests\.(get|post|put|patch|delete|head|request)\s*\([^)]*verify\s*=\s*False
+  \bverify\s*=\s*False\b

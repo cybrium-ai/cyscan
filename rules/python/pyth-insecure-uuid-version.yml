@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_UUID_VERSION
 title:     "Insecure Uuid Version"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-330']
 source:    semgrep/insecure-uuid-version

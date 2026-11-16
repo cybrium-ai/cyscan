@@ -1,6 +1,6 @@
 id:        CBR-JAVA-JWT_EXPOSED_DATA
 title:     "Jwt Exposed Data"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-522']
 source:    semgrep/jwt-exposed-data

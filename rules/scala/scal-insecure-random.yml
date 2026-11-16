@@ -1,6 +1,6 @@
 id:        CBR-SCAL-INSECURE_RANDOM
 title:     "Insecure Random"
-severity:  high
+severity:  medium
 languages: ['scala']
 cwe:       ['CWE-330']
 source:    semgrep/insecure-random

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_OPENERDIRECTOR_OPEN_F
 title:     "Insecure Openerdirector Open Ftp"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-319']
 source:    semgrep/insecure-openerdirector-open-ftp

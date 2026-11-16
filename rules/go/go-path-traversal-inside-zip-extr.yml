@@ -1,6 +1,6 @@
 id:        CBR-GO-PATH_TRAVERSAL_INSIDE_ZIP_EXTR
 title:     "Path Traversal Inside Zip Extraction"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-22']
 source:    semgrep/path-traversal-inside-zip-extraction

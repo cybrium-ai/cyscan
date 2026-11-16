@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_COGNITIVESERVICES_DISABL
 title:     "Azure Cognitiveservices Disables Public Network"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-cognitiveservices-disables-public-network

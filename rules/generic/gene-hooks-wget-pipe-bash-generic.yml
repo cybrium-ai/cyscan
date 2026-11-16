@@ -1,6 +1,6 @@
 id:        CBR-GENE-HOOKS_WGET_PIPE_BASH_GENERIC
 title:     "Hooks Wget Pipe Bash Generic"
-severity:  critical
+severity:  medium
 languages: ['generic']
 cwe:       ['CWE-829']
 source:    semgrep/hooks-wget-pipe-bash-generic

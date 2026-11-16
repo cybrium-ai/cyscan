@@ -1,6 +1,6 @@
 id:        CBR-JAVA-CBC_PADDING_ORACLE
 title:     "Cbc Padding Oracle"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-327']
 source:    semgrep/cbc-padding-oracle

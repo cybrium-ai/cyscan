@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_REMOTE_DEBUGGING_NOT_ENA
 title:     "Azure Remote Debugging Not Enabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-remote-debugging-not-enabled

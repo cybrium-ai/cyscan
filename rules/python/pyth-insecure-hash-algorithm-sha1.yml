@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_HASH_ALGORITHM_SHA1
 title:     "Insecure Hash Algorithm Sha1"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-327']
 source:    semgrep/insecure-hash-algorithm-sha1

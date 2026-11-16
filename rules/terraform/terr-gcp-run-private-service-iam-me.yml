@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_RUN_PRIVATE_SERVICE_IAM_ME
 title:     "Gcp Run Private Service Iam Member"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-run-private-service-iam-member

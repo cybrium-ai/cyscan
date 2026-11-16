@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_FSX_WINDOWS_ENCRYPTED_WITH
 title:     "Aws Fsx Windows Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-fsx-windows-encrypted-with-cmk

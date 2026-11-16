@@ -1,6 +1,6 @@
 id:        CBR-JAVA-MISTRAL_HARDCODED_API_KEY_JAVA
 title:     "Mistral Hardcoded Api Key Javascript"
-severity:  critical
+severity:  high
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-798']
 source:    semgrep/mistral-hardcoded-api-key-javascript

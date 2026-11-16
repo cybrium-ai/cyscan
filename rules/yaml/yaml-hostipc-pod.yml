@@ -1,6 +1,6 @@
 id:        CBR-YAML-HOSTIPC_POD
 title:     "Hostipc Pod"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-693']
 source:    semgrep/hostipc-pod

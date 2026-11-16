@@ -1,6 +1,6 @@
 id:        CBR-GO-TLS_WITH_INSECURE_CIPHER
 title:     "Tls With Insecure Cipher"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-327']
 source:    semgrep/tls-with-insecure-cipher

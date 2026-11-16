@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DETECT_HUGGINGFACE
 title:     "Detect Huggingface"
-severity:  medium
+severity:  info
 languages: ['python']
 source:    semgrep/detect-huggingface
 message: |

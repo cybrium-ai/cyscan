@@ -1,6 +1,6 @@
 id:        CBR-PYTH-USE_CLICK_SECHO
 title:     "Use Click Secho"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/use-click-secho
 message: |

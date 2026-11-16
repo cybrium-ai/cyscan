@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DEFAULTHTTPCLIENT_IS_DEPRECATE
 title:     "Defaulthttpclient Is Deprecated"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-326']
 source:    semgrep/defaulthttpclient-is-deprecated

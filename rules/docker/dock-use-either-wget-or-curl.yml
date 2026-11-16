@@ -1,6 +1,6 @@
 id:        CBR-DOCK-USE_EITHER_WGET_OR_CURL
 title:     "Use Either Wget Or Curl"
-severity:  medium
+severity:  info
 languages: ['docker']
 source:    semgrep/use-either-wget-or-curl
 message: |

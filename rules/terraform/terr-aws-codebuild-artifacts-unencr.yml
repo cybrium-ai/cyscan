@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_CODEBUILD_ARTIFACTS_UNENCR
 title:     "Aws Codebuild Artifacts Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/aws-codebuild-artifacts-unencrypted

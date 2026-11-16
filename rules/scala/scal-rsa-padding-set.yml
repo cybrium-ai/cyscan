@@ -1,6 +1,6 @@
 id:        CBR-SCAL-RSA_PADDING_SET
 title:     "Rsa Padding Set"
-severity:  high
+severity:  medium
 languages: ['scala']
 cwe:       ['CWE-780']
 source:    semgrep/rsa-padding-set

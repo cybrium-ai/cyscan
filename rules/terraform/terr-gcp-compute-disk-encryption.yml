@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_COMPUTE_DISK_ENCRYPTION
 title:     "Gcp Compute Disk Encryption"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/gcp-compute-disk-encryption

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-WEAK_SSL_CONTEXT
 title:     "Weak Ssl Context"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-326']
 source:    semgrep/weak-ssl-context

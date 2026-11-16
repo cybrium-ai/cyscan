@@ -1,6 +1,6 @@
 id:        CBR-C-INSECURE_USE_GETS_FN
 title:     "Insecure Use Gets Fn"
-severity:  critical
+severity:  high
 languages: ['c']
 cwe:       ['CWE-676']
 source:    semgrep/insecure-use-gets-fn

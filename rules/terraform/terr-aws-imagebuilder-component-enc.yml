@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_IMAGEBUILDER_COMPONENT_ENC
 title:     "Aws Imagebuilder Component Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-imagebuilder-component-encrypted-with-cmk

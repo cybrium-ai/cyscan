@@ -1,6 +1,6 @@
 id:        CBR-PYTH-REQUEST_DATA_WRITE
 title:     "Request Data Write"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-93']
 source:    semgrep/request-data-write

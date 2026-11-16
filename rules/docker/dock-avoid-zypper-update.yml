@@ -1,6 +1,6 @@
 id:        CBR-DOCK-AVOID_ZYPPER_UPDATE
 title:     "Avoid Zypper Update"
-severity:  medium
+severity:  info
 languages: ['docker']
 source:    semgrep/avoid-zypper-update
 message: |

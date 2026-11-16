@@ -1,6 +1,6 @@
 id:        CBR-DOCK-MISSING_USER_ENTRYPOINT
 title:     "Missing User Entrypoint"
-severity:  critical
+severity:  medium
 languages: ['docker']
 cwe:       ['CWE-269']
 source:    semgrep/missing-user-entrypoint

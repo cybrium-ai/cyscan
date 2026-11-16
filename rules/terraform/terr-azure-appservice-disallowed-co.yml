@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_APPSERVICE_DISALLOWED_CO
 title:     "Azure Appservice Disallowed Cors"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-942']
 source:    semgrep/azure-appservice-disallowed-cors

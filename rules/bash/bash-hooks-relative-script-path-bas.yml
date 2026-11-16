@@ -8,3 +8,19 @@ message: |
   Relative path used for script invocation in hook. Use absolute paths or environment variables like $CLAUDE_PROJECT_DIR, $CURSOR_PROJECT_DIR, or $HOME to ensure the correct script is executed regardless of working directory.
 regex: |
   (source|bash|sh|\.)\s+\./\S+
+paths:
+  include:
+    - '**/.claude/**'
+    - '**/.cursor/**'
+    - '**/.codex/**'
+    - '**/.gemini/**'
+    - '**/.vscode/**'
+    - '**/.cursorrules'
+    - '**/.windsurfrules'
+    - '**/CLAUDE.md'
+    - '**/AGENTS.md'
+    - '**/GEMINI.md'
+    - '**/copilot-instructions.md'
+    - '**/mcp.json'
+    - '**/.mcp.json'
+    - '**/hooks/**'

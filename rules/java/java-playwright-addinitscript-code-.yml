@@ -1,6 +1,6 @@
 id:        CBR-JAVA-PLAYWRIGHT_ADDINITSCRIPT_CODE_
 title:     "Playwright Addinitscript Code Injection"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-918']
 source:    semgrep/playwright-addinitscript-code-injection

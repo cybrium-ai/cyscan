@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_EMR_ENCRYPTED_WITH_CMK
 title:     "Aws Emr Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-emr-encrypted-with-cmk

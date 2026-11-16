@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_GLACIER_VAULT_ANY_PRINCIPA
 title:     "Aws Glacier Vault Any Principal"
-severity:  critical
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-732']
 source:    semgrep/aws-glacier-vault-any-principal

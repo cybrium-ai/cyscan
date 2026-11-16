@@ -1,6 +1,6 @@
 id:        CBR-CSHA-DETECT_OPENAI
 title:     "Detect Openai"
-severity:  medium
+severity:  info
 languages: ['csharp']
 source:    semgrep/detect-openai
 message: |

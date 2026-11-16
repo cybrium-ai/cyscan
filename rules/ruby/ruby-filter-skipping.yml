@@ -1,6 +1,6 @@
 id:        CBR-RUBY-FILTER_SKIPPING
 title:     "Filter Skipping"
-severity:  critical
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-1021']
 source:    semgrep/filter-skipping

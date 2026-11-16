@@ -1,0 +1,13 @@
+id:        CBR-PY-SQLI-FORMATTED-QUERY
+title:     "SQL built with an f-string, % or .format() passed to execute"
+severity:  medium
+languages: [python]
+cwe:       [CWE-89]
+fix_recipe: CWE-89-PARAMETERIZE
+message: |
+  A SQL statement is assembled with string formatting and passed to
+  execute(). If any interpolated value is attacker-controlled this is SQL
+  injection. Pass values as bound parameters; for identifiers that cannot
+  be bound (schema or table names), validate against an allowlist.
+regex: |
+  \.execute(?:many)?\(\s*(?:text\(\s*)?(?:[rR]?[fF][rR]?["']|["'][^"'\n]*["']\s*(?:%\s|\.format\())

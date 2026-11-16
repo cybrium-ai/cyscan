@@ -1,6 +1,6 @@
 id:        CBR-PYTH-SHA224_HASH
 title:     "Sha224 Hash"
-severity:  high
+severity:  low
 languages: ['python']
 cwe:       ['CWE-327']
 source:    semgrep/sha224-hash

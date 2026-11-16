@@ -1,6 +1,6 @@
 id:        CBR-SWIF-INSECURE_RANDOM
 title:     "Insecure Random"
-severity:  high
+severity:  medium
 languages: ['swift']
 cwe:       ['CWE-338']
 source:    semgrep/insecure-random

@@ -1,6 +1,6 @@
 id:        CBR-PHP-WP_CSRF_AUDIT
 title:     "Wp Csrf Audit"
-severity:  high
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-352']
 source:    semgrep/wp-csrf-audit

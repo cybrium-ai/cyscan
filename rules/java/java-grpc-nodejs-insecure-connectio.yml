@@ -1,6 +1,6 @@
 id:        CBR-JAVA-GRPC_NODEJS_INSECURE_CONNECTIO
 title:     "Grpc Nodejs Insecure Connection"
-severity:  critical
+severity:  high
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-502']
 source:    semgrep/grpc-nodejs-insecure-connection

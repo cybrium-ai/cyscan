@@ -1,6 +1,6 @@
 id:        CBR-JAVA-ESCAPE_FUNCTION_OVERWRITE
 title:     "Escape Function Overwrite"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-79']
 source:    semgrep/escape-function-overwrite

@@ -1,6 +1,6 @@
 id:        CBR-TYPE-USELESS_TERNARY
 title:     "Useless Ternary"
-severity:  critical
+severity:  info
 languages: ['typescript', 'javascript']
 source:    semgrep/useless-ternary
 message: |

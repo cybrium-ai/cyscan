@@ -1,6 +1,6 @@
 id:        CBR-JAVA-PROTOTYPE_POLLUTION_ASSIGNMENT
 title:     "Prototype Pollution Assignment"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-915']
 source:    semgrep/prototype-pollution-assignment

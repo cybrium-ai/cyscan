@@ -1,6 +1,6 @@
 id:        CBR-CSHA-USE_WEAK_RSA_ENCRYPTION_PADDIN
 title:     "Use Weak Rsa Encryption Padding"
-severity:  high
+severity:  medium
 languages: ['csharp']
 cwe:       ['CWE-780']
 source:    semgrep/use_weak_rsa_encryption_padding

@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_DATAFLOW_PRIVATE_JOB
 title:     "Gcp Dataflow Private Job"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-dataflow-private-job

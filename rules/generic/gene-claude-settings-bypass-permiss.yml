@@ -1,6 +1,6 @@
 id:        CBR-GENE-CLAUDE_SETTINGS_BYPASS_PERMISS
 title:     "Claude Settings Bypass Permissions Generic"
-severity:  critical
+severity:  high
 languages: ['generic']
 cwe:       ['CWE-862']
 source:    semgrep/claude-settings-bypass-permissions-generic
@@ -8,3 +8,19 @@ message: |
   Dangerous permission bypass detected in Claude Code or Cursor settings. Settings like "bypassPermissions", "allowUnsandboxedCommands: true", or "enableWeakerNestedSandbox: true" disable critical security controls that protect against malicious tool use. Remove these settings or set them to false to maintain proper sandboxing and permission checks.
 regex: |
   "bypassPermissions"
+paths:
+  include:
+    - '**/.claude/**'
+    - '**/.cursor/**'
+    - '**/.codex/**'
+    - '**/.gemini/**'
+    - '**/.vscode/**'
+    - '**/.cursorrules'
+    - '**/.windsurfrules'
+    - '**/CLAUDE.md'
+    - '**/AGENTS.md'
+    - '**/GEMINI.md'
+    - '**/copilot-instructions.md'
+    - '**/mcp.json'
+    - '**/.mcp.json'
+    - '**/hooks/**'

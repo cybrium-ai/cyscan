@@ -1,6 +1,6 @@
 id:        CBR-GO-GO_SSTI
 title:     "Go Ssti"
-severity:  critical
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-1336']
 source:    semgrep/go-ssti

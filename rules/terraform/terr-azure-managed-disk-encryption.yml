@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_MANAGED_DISK_ENCRYPTION
 title:     "Azure Managed Disk Encryption"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/azure-managed-disk-encryption

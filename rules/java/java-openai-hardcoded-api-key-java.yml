@@ -1,6 +1,6 @@
 id:        CBR-JAVA-OPENAI_HARDCODED_API_KEY_JAVA
 title:     "Openai Hardcoded Api Key Java"
-severity:  critical
+severity:  high
 languages: ['java']
 cwe:       ['CWE-798']
 source:    semgrep/openai-hardcoded-api-key-java

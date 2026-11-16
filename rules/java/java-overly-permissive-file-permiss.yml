@@ -1,6 +1,6 @@
 id:        CBR-JAVA-OVERLY_PERMISSIVE_FILE_PERMISS
 title:     "Overly Permissive File Permission"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-276']
 source:    semgrep/overly-permissive-file-permission

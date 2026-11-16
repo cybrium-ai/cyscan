@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_EVENTGRID_DOMAIN_NETWORK
 title:     "Azure Eventgrid Domain Network Access"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-eventgrid-domain-network-access

@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_EBS_VOLUME_ENCRYPTED_WITH_
 title:     "Aws Ebs Volume Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-ebs-volume-encrypted-with-cmk

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-JWT_SIMPLE_NOVERIFY
 title:     "Jwt Simple Noverify"
-severity:  critical
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-287', 'CWE-345', 'CWE-347']
 source:    semgrep/jwt-simple-noverify

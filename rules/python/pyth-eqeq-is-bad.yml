@@ -1,6 +1,6 @@
 id:        CBR-PYTH-EQEQ_IS_BAD
 title:     "Eqeq Is Bad"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/eqeq-is-bad
 message: |

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-WKHTMLTOIMAGE_INJECTION
 title:     "Wkhtmltoimage Injection"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-918']
 source:    semgrep/wkhtmltoimage-injection

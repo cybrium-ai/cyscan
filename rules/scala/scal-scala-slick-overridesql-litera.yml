@@ -1,6 +1,6 @@
 id:        CBR-SCAL-SCALA_SLICK_OVERRIDESQL_LITERA
 title:     "Scala Slick Overridesql Literal"
-severity:  critical
+severity:  medium
 languages: ['scala']
 cwe:       ['CWE-89']
 source:    semgrep/scala-slick-overrideSql-literal

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-WEAK_RANDOM
 title:     "Weak Random"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-330']
 source:    semgrep/weak-random

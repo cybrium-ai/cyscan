@@ -1,6 +1,6 @@
 id:        CBR-RUBY-RAILS_SKIP_FORGERY_PROTECTION
 title:     "Rails Skip Forgery Protection"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-352']
 source:    semgrep/rails-skip-forgery-protection

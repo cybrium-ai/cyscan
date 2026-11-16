@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_S3_BUCKET_OBJECT_ENCRYPTED
 title:     "Aws S3 Bucket Object Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-s3-bucket-object-encrypted-with-cmk

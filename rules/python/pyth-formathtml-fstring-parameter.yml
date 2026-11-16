@@ -1,6 +1,6 @@
 id:        CBR-PYTH-FORMATHTML_FSTRING_PARAMETER
 title:     "Formathtml Fstring Parameter"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-79']
 source:    semgrep/formathtml-fstring-parameter

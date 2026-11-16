@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_STORAGE_ACCOUNT_DISABLE_
 title:     "Azure Storage Account Disable Public Access"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-storage-account-disable-public-access

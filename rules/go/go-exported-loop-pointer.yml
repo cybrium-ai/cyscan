@@ -1,6 +1,6 @@
 id:        CBR-GO-EXPORTED_LOOP_POINTER
 title:     "Exported Loop Pointer"
-severity:  high
+severity:  info
 languages: ['go']
 source:    semgrep/exported_loop_pointer
 message: |

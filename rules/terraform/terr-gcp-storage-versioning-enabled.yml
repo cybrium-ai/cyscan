@@ -1,9 +1,0 @@
-id:        CBR-TERR-GCP_STORAGE_VERSIONING_ENABLED
-title:     "Gcp Storage Versioning Enabled"
-severity:  high
-languages: ['terraform']
-source:    semgrep/gcp-storage-versioning-enabled
-message: |
-  Ensure Cloud storage has versioning enabled
-pattern: |
-  resource

@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_SUB_NETWORK_PRIVATE_GOOGLE
 title:     "Gcp Sub Network Private Google Enabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-sub-network-private-google-enabled

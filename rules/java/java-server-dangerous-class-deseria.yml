@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SERVER_DANGEROUS_CLASS_DESERIA
 title:     "Server Dangerous Class Deserialization"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-502']
 source:    semgrep/server-dangerous-class-deserialization

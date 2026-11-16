@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_CLOUDTRAIL_ENCRYPTED_WITH_
 title:     "Aws Cloudtrail Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-cloudtrail-encrypted-with-cmk

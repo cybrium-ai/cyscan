@@ -1,6 +1,6 @@
 id:        CBR-TERR-S3_PUBLIC_RW_BUCKET
 title:     "S3 Public Rw Bucket"
-severity:  critical
+severity:  high
 languages: ['terraform']
 cwe:       ['CWE-200']
 source:    semgrep/s3-public-rw-bucket

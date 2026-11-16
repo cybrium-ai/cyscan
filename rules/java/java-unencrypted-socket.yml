@@ -1,6 +1,6 @@
 id:        CBR-JAVA-UNENCRYPTED_SOCKET
 title:     "Unencrypted Socket"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-319']
 source:    semgrep/unencrypted-socket

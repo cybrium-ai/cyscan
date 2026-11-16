@@ -1,6 +1,6 @@
 id:        CBR-JAVA-HTTPGET_HTTP_REQUEST
 title:     "Httpget Http Request"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-319']
 source:    semgrep/httpget-http-request

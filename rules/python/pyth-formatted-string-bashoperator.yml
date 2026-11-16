@@ -1,6 +1,6 @@
 id:        CBR-PYTH-FORMATTED_STRING_BASHOPERATOR
 title:     "Formatted String Bashoperator"
-severity:  critical
+severity:  high
 languages: ['python']
 cwe:       ['CWE-78']
 source:    semgrep/formatted-string-bashoperator

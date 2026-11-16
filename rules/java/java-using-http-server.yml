@@ -1,6 +1,6 @@
 id:        CBR-JAVA-USING_HTTP_SERVER
 title:     "Using Http Server"
-severity:  high
+severity:  medium
 languages: ['javascript']
 cwe:       ['CWE-319']
 source:    semgrep/using-http-server

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-EXEC_INJECTION
 title:     "Exec Injection"
-severity:  critical
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-95']
 source:    semgrep/exec-injection

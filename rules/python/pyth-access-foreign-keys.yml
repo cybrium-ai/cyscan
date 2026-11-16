@@ -1,9 +1,0 @@
-id:        CBR-PYTH-ACCESS_FOREIGN_KEYS
-title:     "Access Foreign Keys"
-severity:  high
-languages: ['python']
-source:    semgrep/access-foreign-keys
-message: |
-  You should use ITEM.user_id rather than ITEM.user.id to prevent running an extra query.
-pattern: |
-  $X.user.id

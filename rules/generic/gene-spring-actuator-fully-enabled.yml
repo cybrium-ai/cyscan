@@ -1,6 +1,6 @@
 id:        CBR-GENE-SPRING_ACTUATOR_FULLY_ENABLED
 title:     "Spring Actuator Fully Enabled"
-severity:  critical
+severity:  high
 languages: ['generic']
 cwe:       ['CWE-200']
 source:    semgrep/spring-actuator-fully-enabled

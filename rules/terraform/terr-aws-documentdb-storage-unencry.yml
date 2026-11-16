@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_DOCUMENTDB_STORAGE_UNENCRY
 title:     "Aws Documentdb Storage Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/aws-documentdb-storage-unencrypted
