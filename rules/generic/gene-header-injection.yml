@@ -1,6 +1,6 @@
 id:        CBR-GENE-HEADER_INJECTION
 title:     "Header Injection"
-severity:  critical
+severity:  high
 languages: ['generic']
 cwe:       ['CWE-113']
 source:    semgrep/header-injection

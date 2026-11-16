@@ -1,6 +1,6 @@
 id:        CBR-TERR-APPSERVICE_ENABLE_HTTP2
 title:     "Appservice Enable Http2"
-severity:  medium
+severity:  low
 languages: ['terraform']
 cwe:       ['CWE-444']
 source:    semgrep/appservice-enable-http2

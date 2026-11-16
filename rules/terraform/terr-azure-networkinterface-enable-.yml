@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_NETWORKINTERFACE_ENABLE_
 title:     "Azure Networkinterface Enable Ip Forwarding"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-networkinterface-enable-ip-forwarding

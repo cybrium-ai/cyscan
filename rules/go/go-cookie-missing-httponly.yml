@@ -1,6 +1,6 @@
 id:        CBR-GO-COOKIE_MISSING_HTTPONLY
 title:     "Cookie Missing Httponly"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-1004']
 source:    semgrep/cookie-missing-httponly

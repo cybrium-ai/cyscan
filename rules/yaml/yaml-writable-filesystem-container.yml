@@ -1,6 +1,6 @@
 id:        CBR-YAML-WRITABLE_FILESYSTEM_CONTAINER
 title:     "Writable Filesystem Container"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-732']
 source:    semgrep/writable-filesystem-container

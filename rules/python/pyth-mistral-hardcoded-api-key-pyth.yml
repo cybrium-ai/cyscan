@@ -1,6 +1,6 @@
 id:        CBR-PYTH-MISTRAL_HARDCODED_API_KEY_PYTH
 title:     "Mistral Hardcoded Api Key Python"
-severity:  critical
+severity:  high
 languages: ['python']
 cwe:       ['CWE-798']
 source:    semgrep/mistral-hardcoded-api-key-python

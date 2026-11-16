@@ -1,6 +1,6 @@
 id:        CBR-RUBY-WEAK_HASHES_SHA1
 title:     "Weak Hashes Sha1"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-328']
 source:    semgrep/weak-hashes-sha1

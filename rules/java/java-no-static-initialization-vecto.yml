@@ -1,6 +1,6 @@
 id:        CBR-JAVA-NO_STATIC_INITIALIZATION_VECTO
 title:     "No Static Initialization Vector"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-329']
 source:    semgrep/no-static-initialization-vector

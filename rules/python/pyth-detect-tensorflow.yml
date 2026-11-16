@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DETECT_TENSORFLOW
 title:     "Detect Tensorflow"
-severity:  medium
+severity:  info
 languages: ['python']
 source:    semgrep/detect-tensorflow
 message: |

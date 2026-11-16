@@ -1,6 +1,6 @@
 id:        CBR-JSON-WILDCARD_ASSUME_ROLE
 title:     "Wildcard Assume Role"
-severity:  critical
+severity:  medium
 languages: ['json']
 cwe:       ['CWE-250']
 source:    semgrep/wildcard-assume-role

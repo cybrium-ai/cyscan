@@ -1,6 +1,6 @@
 id:        CBR-GENE-SPRING_ACTUATOR_DANGEROUS_ENDP
 title:     "Spring Actuator Dangerous Endpoints Enabled"
-severity:  high
+severity:  medium
 languages: ['generic']
 cwe:       ['CWE-200']
 source:    semgrep/spring-actuator-dangerous-endpoints-enabled

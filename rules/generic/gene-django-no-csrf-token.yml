@@ -1,6 +1,6 @@
 id:        CBR-GENE-DJANGO_NO_CSRF_TOKEN
 title:     "Django No Csrf Token"
-severity:  high
+severity:  medium
 languages: ['generic']
 cwe:       ['CWE-352']
 source:    semgrep/django-no-csrf-token

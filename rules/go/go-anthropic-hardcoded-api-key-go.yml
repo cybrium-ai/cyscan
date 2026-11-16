@@ -1,6 +1,6 @@
 id:        CBR-GO-ANTHROPIC_HARDCODED_API_KEY_GO
 title:     "Anthropic Hardcoded Api Key Go"
-severity:  critical
+severity:  high
 languages: ['go']
 cwe:       ['CWE-798']
 source:    semgrep/anthropic-hardcoded-api-key-go

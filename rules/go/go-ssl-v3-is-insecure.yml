@@ -1,6 +1,6 @@
 id:        CBR-GO-SSL_V3_IS_INSECURE
 title:     "Ssl V3 Is Insecure"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-327']
 source:    semgrep/ssl-v3-is-insecure

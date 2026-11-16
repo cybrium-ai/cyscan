@@ -1,6 +1,6 @@
 id:        CBR-PYTH-BATCH_IMPORT
 title:     "Batch Import"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/batch-import
 message: |

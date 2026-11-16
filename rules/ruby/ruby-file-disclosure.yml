@@ -1,6 +1,6 @@
 id:        CBR-RUBY-FILE_DISCLOSURE
 title:     "File Disclosure"
-severity:  critical
+severity:  high
 languages: ['ruby']
 cwe:       ['CWE-22']
 source:    semgrep/file-disclosure

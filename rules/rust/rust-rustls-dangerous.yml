@@ -1,6 +1,6 @@
 id:        CBR-RUST-RUSTLS_DANGEROUS
 title:     "Rustls Dangerous"
-severity:  high
+severity:  medium
 languages: ['rust']
 cwe:       ['CWE-295']
 source:    semgrep/rustls-dangerous

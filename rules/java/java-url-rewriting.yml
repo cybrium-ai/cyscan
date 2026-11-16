@@ -1,6 +1,6 @@
 id:        CBR-JAVA-URL_REWRITING
 title:     "Url Rewriting"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-200']
 source:    semgrep/url-rewriting

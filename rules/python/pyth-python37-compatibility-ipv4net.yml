@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYTHON37_COMPATIBILITY_IPV4NET
 title:     "Python37 Compatibility Ipv4Network1"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/python37-compatibility-ipv4network1
 message: |

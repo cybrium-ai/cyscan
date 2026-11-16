@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SERVER_DANGEROUS_OBJECT_DESERI
 title:     "Server Dangerous Object Deserialization"
-severity:  critical
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-502']
 source:    semgrep/server-dangerous-object-deserialization

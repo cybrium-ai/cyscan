@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SEAM_LOG_INJECTION
 title:     "Seam Log Injection"
-severity:  critical
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-95']
 source:    semgrep/seam-log-injection

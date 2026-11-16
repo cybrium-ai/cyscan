@@ -1,6 +1,6 @@
 id:        CBR-PYTH-NON_LITERAL_IMPORT
 title:     "Non Literal Import"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-706']
 source:    semgrep/non-literal-import

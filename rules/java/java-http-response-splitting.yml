@@ -1,6 +1,6 @@
 id:        CBR-JAVA-HTTP_RESPONSE_SPLITTING
 title:     "Http Response Splitting"
-severity:  medium
+severity:  low
 languages: ['java']
 cwe:       ['CWE-113']
 source:    semgrep/http-response-splitting

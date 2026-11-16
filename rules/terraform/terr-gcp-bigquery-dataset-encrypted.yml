@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_BIGQUERY_DATASET_ENCRYPTED
 title:     "Gcp Bigquery Dataset Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/gcp-bigquery-dataset-encrypted-with-cmk

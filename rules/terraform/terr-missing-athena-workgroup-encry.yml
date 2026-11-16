@@ -1,6 +1,6 @@
 id:        CBR-TERR-MISSING_ATHENA_WORKGROUP_ENCRY
 title:     "Missing Athena Workgroup Encryption"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/missing-athena-workgroup-encryption

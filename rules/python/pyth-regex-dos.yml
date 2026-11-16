@@ -1,6 +1,6 @@
 id:        CBR-PYTH-REGEX_DOS
 title:     "Regex Dos"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-1333']
 source:    semgrep/regex_dos

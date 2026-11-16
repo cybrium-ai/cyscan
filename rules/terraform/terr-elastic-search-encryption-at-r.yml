@@ -1,6 +1,6 @@
 id:        CBR-TERR-ELASTIC_SEARCH_ENCRYPTION_AT_R
 title:     "Elastic Search Encryption At Rest"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/elastic-search-encryption-at-rest

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-MANUAL_COUNTER_CREATE
 title:     "Manual Counter Create"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/manual-counter-create
 message: |

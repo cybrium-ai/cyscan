@@ -1,6 +1,6 @@
 id:        CBR-PHP-OPENSSL_DECRYPT_VALIDATE
 title:     "Openssl Decrypt Validate"
-severity:  high
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-252']
 source:    semgrep/openssl-decrypt-validate

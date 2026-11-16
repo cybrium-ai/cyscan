@@ -1,6 +1,6 @@
 id:        CBR-PYTH-COHERE_HARDCODED_API_KEY_PYTHO
 title:     "Cohere Hardcoded Api Key Python"
-severity:  critical
+severity:  high
 languages: ['python']
 cwe:       ['CWE-798']
 source:    semgrep/cohere-hardcoded-api-key-python

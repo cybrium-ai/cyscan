@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_COMPUTE_IP_FORWARD
 title:     "Gcp Compute Ip Forward"
-severity:  medium
+severity:  low
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-compute-ip-forward

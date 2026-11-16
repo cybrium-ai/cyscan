@@ -1,6 +1,6 @@
 id:        CBR-PYTH-MISSING_THROTTLE_CONFIG
 title:     "Missing Throttle Config"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-770']
 source:    semgrep/missing-throttle-config

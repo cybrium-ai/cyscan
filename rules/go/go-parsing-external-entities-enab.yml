@@ -1,6 +1,6 @@
 id:        CBR-GO-PARSING_EXTERNAL_ENTITIES_ENAB
 title:     "Parsing External Entities Enabled"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-611']
 source:    semgrep/parsing-external-entities-enabled

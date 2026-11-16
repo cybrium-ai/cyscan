@@ -1,6 +1,6 @@
 id:        CBR-PHP-WP_AJAX_NO_AUTH_AND_AUTH_HOOKS
 title:     "Wp Ajax No Auth And Auth Hooks Audit"
-severity:  high
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-285']
 source:    semgrep/wp-ajax-no-auth-and-auth-hooks-audit

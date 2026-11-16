@@ -1,6 +1,6 @@
 id:        CBR-GO-MISSING_SSL_MINVERSION
 title:     "Missing Ssl Minversion"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-327']
 source:    semgrep/missing-ssl-minversion

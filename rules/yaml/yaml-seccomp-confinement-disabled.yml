@@ -1,6 +1,6 @@
 id:        CBR-YAML-SECCOMP_CONFINEMENT_DISABLED
 title:     "Seccomp Confinement Disabled"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-284']
 source:    semgrep/seccomp-confinement-disabled

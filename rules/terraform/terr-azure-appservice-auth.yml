@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_APPSERVICE_AUTH
 title:     "Azure Appservice Auth"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-appservice-auth

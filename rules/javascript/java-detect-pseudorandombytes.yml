@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DETECT_PSEUDORANDOMBYTES
 title:     "Detect Pseudorandombytes"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-338']
 source:    semgrep/detect-pseudoRandomBytes

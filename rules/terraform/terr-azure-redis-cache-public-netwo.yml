@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_REDIS_CACHE_PUBLIC_NETWO
 title:     "Azure Redis Cache Public Network Access Enabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-redis-cache-public-network-access-enabled

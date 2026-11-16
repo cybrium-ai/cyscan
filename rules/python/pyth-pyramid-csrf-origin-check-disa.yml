@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYRAMID_CSRF_ORIGIN_CHECK_DISA
 title:     "Pyramid Csrf Origin Check Disabled Globally"
-severity:  critical
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-352']
 source:    semgrep/pyramid-csrf-origin-check-disabled-globally

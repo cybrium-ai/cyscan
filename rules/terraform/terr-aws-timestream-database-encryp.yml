@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_TIMESTREAM_DATABASE_ENCRYP
 title:     "Aws Timestream Database Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-timestream-database-encrypted-with-cmk

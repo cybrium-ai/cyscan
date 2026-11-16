@@ -1,6 +1,6 @@
 id:        CBR-JAVA-RSA_NO_PADDING
 title:     "Rsa No Padding"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-326']
 source:    semgrep/rsa-no-padding

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-TELNET_REQUEST
 title:     "Telnet Request"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-319']
 source:    semgrep/telnet-request

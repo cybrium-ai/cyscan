@@ -1,6 +1,6 @@
 id:        CBR-TERR-ECR_IMAGE_SCAN_ON_PUSH
 title:     "Ecr Image Scan On Push"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1104']
 source:    semgrep/ecr-image-scan-on-push

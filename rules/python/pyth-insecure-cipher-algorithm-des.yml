@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_CIPHER_ALGORITHM_DES
 title:     "Insecure Cipher Algorithm Des"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-327']
 source:    semgrep/insecure-cipher-algorithm-des

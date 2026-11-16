@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DEBUG_ENABLED
 title:     "Debug Enabled"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-489']
 source:    semgrep/debug-enabled

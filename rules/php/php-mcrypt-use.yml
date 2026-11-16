@@ -1,6 +1,6 @@
 id:        CBR-PHP-MCRYPT_USE
 title:     "Mcrypt Use"
-severity:  critical
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-676']
 source:    semgrep/mcrypt-use

@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_DEFENDERON_KEYVAULTS
-title:     "Azure Defenderon Keyvaults"
-severity:  high
-languages: ['terraform']
-source:    semgrep/azure-defenderon-keyvaults
-message: |
-  Ensure that Azure Defender is set to On for Key Vault
-pattern: |
-  resource

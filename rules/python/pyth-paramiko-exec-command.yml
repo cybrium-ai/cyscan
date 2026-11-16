@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PARAMIKO_EXEC_COMMAND
 title:     "Paramiko Exec Command"
-severity:  critical
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-78']
 source:    semgrep/paramiko-exec-command

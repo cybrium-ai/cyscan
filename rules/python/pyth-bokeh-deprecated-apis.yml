@@ -1,6 +1,6 @@
 id:        CBR-PYTH-BOKEH_DEPRECATED_APIS
 title:     "Bokeh Deprecated Apis"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/bokeh-deprecated-apis
 message: |

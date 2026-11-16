@@ -10,4 +10,4 @@ message: |
   injection scope. Prefer argv lists (shell=False) and never
   concatenate user input into the command string.
 regex: |
-  \bsubprocess\.(run|call|check_call|check_output|Popen)\s*\([^)]*shell\s*=\s*True
+  \bshell\s*=\s*True\b

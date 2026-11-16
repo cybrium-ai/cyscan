@@ -1,6 +1,6 @@
 id:        CBR-RUST-UNSAFE_USAGE
 title:     "Unsafe Usage"
-severity:  medium
+severity:  low
 languages: ['rust']
 cwe:       ['CWE-242']
 source:    semgrep/unsafe-usage

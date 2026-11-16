@@ -1,6 +1,6 @@
 id:        CBR-GENE-DETECT_GENERIC_AI_ANTHPROP
 title:     "Detect Generic Ai Anthprop"
-severity:  medium
+severity:  info
 languages: ['generic']
 source:    semgrep/detect-generic-ai-anthprop
 message: |

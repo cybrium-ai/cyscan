@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_INSECURE_LOAD_BALANCER_TLS
 title:     "Gcp Insecure Load Balancer Tls Version"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-326']
 source:    semgrep/gcp-insecure-load-balancer-tls-version

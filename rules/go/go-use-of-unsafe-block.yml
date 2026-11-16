@@ -1,6 +1,6 @@
 id:        CBR-GO-USE_OF_UNSAFE_BLOCK
 title:     "Use Of Unsafe Block"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-242']
 source:    semgrep/use-of-unsafe-block

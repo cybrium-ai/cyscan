@@ -1,6 +1,6 @@
 id:        CBR-PYTH-SSRF_REQUESTS
 title:     "Ssrf Requests"
-severity:  critical
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-918']
 source:    semgrep/ssrf-requests

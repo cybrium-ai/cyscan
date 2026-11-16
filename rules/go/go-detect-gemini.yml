@@ -1,6 +1,6 @@
 id:        CBR-GO-DETECT_GEMINI
 title:     "Detect Gemini"
-severity:  medium
+severity:  info
 languages: ['go']
 source:    semgrep/detect-gemini
 message: |

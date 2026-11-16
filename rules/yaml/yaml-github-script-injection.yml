@@ -1,6 +1,6 @@
 id:        CBR-YAML-GITHUB_SCRIPT_INJECTION
 title:     "Github Script Injection"
-severity:  critical
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-94']
 source:    semgrep/github-script-injection

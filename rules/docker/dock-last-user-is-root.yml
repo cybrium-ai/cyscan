@@ -1,6 +1,6 @@
 id:        CBR-DOCK-LAST_USER_IS_ROOT
 title:     "Last User Is Root"
-severity:  critical
+severity:  medium
 languages: ['docker']
 cwe:       ['CWE-269']
 source:    semgrep/last-user-is-root

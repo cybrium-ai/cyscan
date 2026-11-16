@@ -1,6 +1,6 @@
 id:        CBR-TERR-FUNCTIONAPP_AUTHENTICATION_ENA
 title:     "Functionapp Authentication Enabled"
-severity:  medium
+severity:  low
 languages: ['terraform']
 cwe:       ['CWE-287']
 source:    semgrep/functionapp-authentication-enabled

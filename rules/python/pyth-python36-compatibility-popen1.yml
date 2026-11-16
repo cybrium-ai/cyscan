@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYTHON36_COMPATIBILITY_POPEN1
 title:     "Python36 Compatibility Popen1"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/python36-compatibility-Popen1
 message: |

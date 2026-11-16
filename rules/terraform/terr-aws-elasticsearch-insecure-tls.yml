@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_ELASTICSEARCH_INSECURE_TLS
 title:     "Aws Elasticsearch Insecure Tls Version"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-326']
 source:    semgrep/aws-elasticsearch-insecure-tls-version

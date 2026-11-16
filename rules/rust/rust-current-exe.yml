@@ -1,6 +1,6 @@
 id:        CBR-RUST-CURRENT_EXE
 title:     "Current Exe"
-severity:  medium
+severity:  low
 languages: ['rust']
 cwe:       ['CWE-807']
 source:    semgrep/current-exe

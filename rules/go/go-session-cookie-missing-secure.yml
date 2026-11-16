@@ -1,6 +1,6 @@
 id:        CBR-GO-SESSION_COOKIE_MISSING_SECURE
 title:     "Session Cookie Missing Secure"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-614']
 source:    semgrep/session-cookie-missing-secure

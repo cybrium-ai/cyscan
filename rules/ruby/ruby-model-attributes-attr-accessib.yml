@@ -1,6 +1,6 @@
 id:        CBR-RUBY-MODEL_ATTRIBUTES_ATTR_ACCESSIB
 title:     "Model Attributes Attr Accessible"
-severity:  critical
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-915']
 source:    semgrep/model-attributes-attr-accessible

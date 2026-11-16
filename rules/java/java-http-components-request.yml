@@ -1,6 +1,6 @@
 id:        CBR-JAVA-HTTP_COMPONENTS_REQUEST
 title:     "Http Components Request"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-319']
 source:    semgrep/http-components-request

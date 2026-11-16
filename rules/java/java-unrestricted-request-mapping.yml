@@ -1,6 +1,6 @@
 id:        CBR-JAVA-UNRESTRICTED_REQUEST_MAPPING
 title:     "Unrestricted Request Mapping"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-352']
 source:    semgrep/unrestricted-request-mapping

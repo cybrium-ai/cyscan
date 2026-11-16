@@ -1,6 +1,6 @@
 id:        CBR-JAVA-UNKNOWN_VALUE_WITH_SCRIPT_TAG
 title:     "Unknown Value With Script Tag"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-79']
 source:    semgrep/unknown-value-with-script-tag

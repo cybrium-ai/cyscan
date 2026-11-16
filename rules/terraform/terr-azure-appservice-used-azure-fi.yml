@@ -1,9 +1,0 @@
-id:        CBR-TERR-AZURE_APPSERVICE_USED_AZURE_FI
-title:     "Azure Appservice Used Azure Files"
-severity:  medium
-languages: ['terraform']
-source:    semgrep/azure-appservice-used-azure-files
-message: |
-  Ensure that app services use Azure Files
-pattern: |
-  resource

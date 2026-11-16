@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_SQL_PUBLIC_DATABASE
 title:     "Gcp Sql Public Database"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-sql-public-database

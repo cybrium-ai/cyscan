@@ -1,6 +1,6 @@
 id:        CBR-PHP-SYMFONY_NON_LITERAL_REDIRECT
 title:     "Symfony Non Literal Redirect"
-severity:  high
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-601']
 source:    semgrep/symfony-non-literal-redirect

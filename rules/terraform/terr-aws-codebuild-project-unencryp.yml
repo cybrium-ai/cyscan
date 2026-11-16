@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_CODEBUILD_PROJECT_UNENCRYP
 title:     "Aws Codebuild Project Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-codebuild-project-unencrypted

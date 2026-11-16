@@ -1,6 +1,6 @@
 id:        CBR-CSHA-STACKTRACE_DISCLOSURE
 title:     "Stacktrace Disclosure"
-severity:  high
+severity:  medium
 languages: ['csharp']
 cwe:       ['CWE-209']
 source:    semgrep/stacktrace-disclosure

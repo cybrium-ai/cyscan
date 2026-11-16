@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_LAMBDA_X_RAY_TRACING_NOT_A
 title:     "Aws Lambda X Ray Tracing Not Active"
-severity:  medium
+severity:  low
 languages: ['terraform']
 cwe:       ['CWE-778']
 source:    semgrep/aws-lambda-x-ray-tracing-not-active

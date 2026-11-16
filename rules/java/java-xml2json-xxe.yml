@@ -1,6 +1,6 @@
 id:        CBR-JAVA-XML2JSON_XXE
 title:     "Xml2Json Xxe"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-611']
 source:    semgrep/xml2json-xxe

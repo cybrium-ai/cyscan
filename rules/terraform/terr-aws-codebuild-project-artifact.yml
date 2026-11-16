@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_CODEBUILD_PROJECT_ARTIFACT
 title:     "Aws Codebuild Project Artifacts Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-codebuild-project-artifacts-unencrypted

@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_EBS_SNAPSHOT_ENCRYPTED_WIT
 title:     "Aws Ebs Snapshot Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-ebs-snapshot-encrypted-with-cmk

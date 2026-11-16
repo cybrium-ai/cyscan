@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DETECT_ANGULAR_RESOURCE_LOADIN
 title:     "Detect Angular Resource Loading"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-79']
 source:    semgrep/detect-angular-resource-loading

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-ASSIGNMENT_COMPARISON
 title:     "Assignment Comparison"
-severity:  critical
+severity:  info
 languages: ['java']
 source:    semgrep/assignment-comparison
 message: |

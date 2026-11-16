@@ -1,6 +1,6 @@
 id:        CBR-PYTH-EVAL_DETECTED
 title:     "Eval Detected"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-95']
 source:    semgrep/eval-detected

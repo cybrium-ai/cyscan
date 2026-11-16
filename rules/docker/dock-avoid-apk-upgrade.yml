@@ -1,6 +1,6 @@
 id:        CBR-DOCK-AVOID_APK_UPGRADE
 title:     "Avoid Apk Upgrade"
-severity:  medium
+severity:  info
 languages: ['docker']
 source:    semgrep/avoid-apk-upgrade
 message: |

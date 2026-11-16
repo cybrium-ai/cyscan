@@ -1,6 +1,6 @@
 id:        CBR-PYTH-USE_DEFUSEDCSV
 title:     "Use Defusedcsv"
-severity:  medium
+severity:  low
 languages: ['python']
 cwe:       ['CWE-1236']
 source:    semgrep/use-defusedcsv

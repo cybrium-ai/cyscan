@@ -1,6 +1,6 @@
 id:        CBR-GENE-CONF_INSECURE_COOKIE_SETTINGS
 title:     "Conf Insecure Cookie Settings"
-severity:  high
+severity:  medium
 languages: ['generic']
 cwe:       ['CWE-614']
 source:    semgrep/conf-insecure-cookie-settings

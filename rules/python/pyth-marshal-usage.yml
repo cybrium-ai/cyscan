@@ -1,6 +1,6 @@
 id:        CBR-PYTH-MARSHAL_USAGE
 title:     "Marshal Usage"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-502']
 source:    semgrep/marshal-usage

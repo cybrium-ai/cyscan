@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYRAMID_AUTHTKT_COOKIE_SAMESIT
 title:     "Pyramid Authtkt Cookie Samesite"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-1275']
 source:    semgrep/pyramid-authtkt-cookie-samesite

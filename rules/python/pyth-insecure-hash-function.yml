@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_HASH_FUNCTION
 title:     "Insecure Hash Function"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-327']
 source:    semgrep/insecure-hash-function

@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_KMS_PREVENT_DESTROY
 title:     "Gcp Kms Prevent Destroy"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-kms-prevent-destroy

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DJANGO_COMPAT_2_0_ASSERT_REDIR
 title:     "Django Compat 2 0 Assert Redirects Helper"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/django-compat-2_0-assert-redirects-helper
 message: |

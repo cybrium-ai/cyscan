@@ -1,6 +1,6 @@
 id:        CBR-GO-GRPC_CLIENT_INSECURE_CONNECTIO
 title:     "Grpc Client Insecure Connection"
-severity:  critical
+severity:  high
 languages: ['go']
 cwe:       ['CWE-300']
 source:    semgrep/grpc-client-insecure-connection

@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_APPSERVICE_HTTPS_ONLY
 title:     "Azure Appservice Https Only"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-319']
 source:    semgrep/azure-appservice-https-only

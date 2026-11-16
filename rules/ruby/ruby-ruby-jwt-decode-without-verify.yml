@@ -1,6 +1,6 @@
 id:        CBR-RUBY-RUBY_JWT_DECODE_WITHOUT_VERIFY
 title:     "Ruby Jwt Decode Without Verify"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-345']
 source:    semgrep/ruby-jwt-decode-without-verify

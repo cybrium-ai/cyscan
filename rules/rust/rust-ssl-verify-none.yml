@@ -1,6 +1,6 @@
 id:        CBR-RUST-SSL_VERIFY_NONE
 title:     "Ssl Verify None"
-severity:  high
+severity:  medium
 languages: ['rust']
 cwe:       ['CWE-295']
 source:    semgrep/ssl-verify-none

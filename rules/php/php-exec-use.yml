@@ -1,6 +1,6 @@
 id:        CBR-PHP-EXEC_USE
 title:     "Exec Use"
-severity:  critical
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-94']
 source:    semgrep/exec-use

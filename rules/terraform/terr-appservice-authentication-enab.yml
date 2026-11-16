@@ -1,6 +1,6 @@
 id:        CBR-TERR-APPSERVICE_AUTHENTICATION_ENAB
 title:     "Appservice Authentication Enabled"
-severity:  critical
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-287']
 source:    semgrep/appservice-authentication-enabled

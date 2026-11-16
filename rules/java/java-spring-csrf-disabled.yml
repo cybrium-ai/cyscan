@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SPRING_CSRF_DISABLED
 title:     "Spring Csrf Disabled"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-352']
 source:    semgrep/spring-csrf-disabled

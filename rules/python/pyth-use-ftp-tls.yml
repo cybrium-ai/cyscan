@@ -1,6 +1,6 @@
 id:        CBR-PYTH-USE_FTP_TLS
 title:     "Use Ftp Tls"
-severity:  medium
+severity:  low
 languages: ['python']
 cwe:       ['CWE-319']
 source:    semgrep/use-ftp-tls

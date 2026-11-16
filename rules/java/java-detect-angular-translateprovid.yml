@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DETECT_ANGULAR_TRANSLATEPROVID
 title:     "Detect Angular Translateprovider Translations Method"
-severity:  high
+severity:  medium
 languages: ['javascript']
 cwe:       ['CWE-79']
 source:    semgrep/detect-angular-translateprovider-translations-method

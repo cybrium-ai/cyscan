@@ -1,6 +1,6 @@
 id:        CBR-PYTH-USE_DEFUSED_XML_PARSE
 title:     "Use Defused Xml Parse"
-severity:  critical
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-611']
 source:    semgrep/use-defused-xml-parse

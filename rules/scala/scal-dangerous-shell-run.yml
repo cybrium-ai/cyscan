@@ -1,6 +1,6 @@
 id:        CBR-SCAL-DANGEROUS_SHELL_RUN
 title:     "Dangerous Shell Run"
-severity:  critical
+severity:  medium
 languages: ['scala']
 cwe:       ['CWE-78']
 source:    semgrep/dangerous-shell-run

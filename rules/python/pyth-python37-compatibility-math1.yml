@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYTHON37_COMPATIBILITY_MATH1
 title:     "Python37 Compatibility Math1"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/python37-compatibility-math1
 message: |

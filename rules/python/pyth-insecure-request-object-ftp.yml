@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_REQUEST_OBJECT_FTP
 title:     "Insecure Request Object Ftp"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-319']
 source:    semgrep/insecure-request-object-ftp

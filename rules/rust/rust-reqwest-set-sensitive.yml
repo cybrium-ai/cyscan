@@ -1,6 +1,6 @@
 id:        CBR-RUST-REQWEST_SET_SENSITIVE
 title:     "Reqwest Set Sensitive"
-severity:  medium
+severity:  low
 languages: ['rust']
 cwe:       ['CWE-921']
 source:    semgrep/reqwest-set-sensitive

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SHELLJS_EXEC_INJECTION
 title:     "Shelljs Exec Injection"
-severity:  critical
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-78']
 source:    semgrep/shelljs-exec-injection

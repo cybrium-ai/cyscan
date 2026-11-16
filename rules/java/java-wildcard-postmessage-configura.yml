@@ -1,6 +1,6 @@
 id:        CBR-JAVA-WILDCARD_POSTMESSAGE_CONFIGURA
 title:     "Wildcard Postmessage Configuration"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-345']
 source:    semgrep/wildcard-postmessage-configuration

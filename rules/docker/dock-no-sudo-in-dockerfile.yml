@@ -1,6 +1,6 @@
 id:        CBR-DOCK-NO_SUDO_IN_DOCKERFILE
 title:     "No Sudo In Dockerfile"
-severity:  high
+severity:  medium
 languages: ['docker']
 cwe:       ['CWE-250']
 source:    semgrep/no-sudo-in-dockerfile

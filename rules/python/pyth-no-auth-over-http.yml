@@ -1,6 +1,6 @@
 id:        CBR-PYTH-NO_AUTH_OVER_HTTP
 title:     "No Auth Over Http"
-severity:  critical
+severity:  high
 languages: ['python']
 cwe:       ['CWE-523']
 source:    semgrep/no-auth-over-http

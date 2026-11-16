@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_ECR_MUTABLE_IMAGE_TAGS
 title:     "Aws Ecr Mutable Image Tags"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-345']
 source:    semgrep/aws-ecr-mutable-image-tags

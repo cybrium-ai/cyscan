@@ -1,6 +1,6 @@
 id:        CBR-RUST-REQWEST_ACCEPT_INVALID
 title:     "Reqwest Accept Invalid"
-severity:  high
+severity:  medium
 languages: ['rust']
 cwe:       ['CWE-295']
 source:    semgrep/reqwest-accept-invalid

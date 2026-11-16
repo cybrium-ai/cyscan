@@ -1,6 +1,6 @@
 id:        CBR-TERR-EKS_PUBLIC_ENDPOINT_ENABLED
 title:     "Eks Public Endpoint Enabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-200']
 source:    semgrep/eks-public-endpoint-enabled

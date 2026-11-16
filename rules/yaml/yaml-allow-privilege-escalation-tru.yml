@@ -1,6 +1,6 @@
 id:        CBR-YAML-ALLOW_PRIVILEGE_ESCALATION_TRU
 title:     "Allow Privilege Escalation True"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-732']
 source:    semgrep/allow-privilege-escalation-true

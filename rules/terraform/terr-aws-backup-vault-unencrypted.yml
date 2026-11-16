@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_BACKUP_VAULT_UNENCRYPTED
 title:     "Aws Backup Vault Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-backup-vault-unencrypted

@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_EFS_FILESYSTEM_ENCRYPTED_W
 title:     "Aws Efs Filesystem Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-efs-filesystem-encrypted-with-cmk

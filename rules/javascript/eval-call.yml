@@ -1,6 +1,6 @@
 id:         CBR-JS-CODE-EVAL
 title:      "eval() / new Function() / setTimeout-string"
-severity:   critical
+severity:   high
 languages:  [javascript, typescript]
 cwe:        [CWE-95, CWE-94]
 fix_recipe: CBR-CODE-AVOID-EVAL
@@ -9,10 +9,23 @@ message: |
   turns it into executable JS. Any attacker influence = script
   injection. Use explicit parsers, JSON.parse, or precompiled handlers.
 query: |
-  (call_expression
-    function: [
-      (identifier) @fn
-      (new_expression constructor: (identifier) @ctor)
-    ]
-    (#match? @fn "^(eval|setTimeout|setInterval)$")
-    (#match? @ctor "^Function$")) @call
+  [
+    (call_expression
+      function: (identifier) @evalfn
+      (#eq? @evalfn "eval")) @call
+    (call_expression
+      function: (identifier) @timerfn
+      arguments: (arguments . (string))
+      (#match? @timerfn "^(setTimeout|setInterval)$")) @call
+    (call_expression
+      function: (identifier) @timerfn2
+      arguments: (arguments . (template_string))
+      (#match? @timerfn2 "^(setTimeout|setInterval)$")) @call
+    (call_expression
+      function: (identifier) @timerfn3
+      arguments: (arguments . (binary_expression))
+      (#match? @timerfn3 "^(setTimeout|setInterval)$")) @call
+    (new_expression
+      constructor: (identifier) @ctor
+      (#eq? @ctor "Function")) @call
+  ]

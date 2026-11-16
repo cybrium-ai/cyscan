@@ -1,6 +1,6 @@
 id:        CBR-BASH-IFS_TAMPERING
 title:     "Ifs Tampering"
-severity:  high
+severity:  medium
 languages: ['bash']
 cwe:       ['CWE-20']
 source:    semgrep/ifs-tampering

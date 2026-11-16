@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_EBS_VOLUME_UNENCRYPTED
 title:     "Aws Ebs Volume Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/aws-ebs-volume-unencrypted

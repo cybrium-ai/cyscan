@@ -2,6 +2,41 @@
 
 All notable changes to cyscan are documented here.
 
+## [1.2.2] — 2026-11-16
+
+### Changed — rule pack quality pass (1,810 → 1,548 rules)
+
+Measured on a 282k-line Python backend: 1,347 findings (1,068 high) in
+1.2.1 → 299 findings (26 high) in 1.2.2. On a TypeScript frontend:
+915 (873 high) → 135 (16 high).
+
+- **Severity recalibrated** for 741 rules imported from pattern-rule sets.
+  Their severity had been collapsed to high/critical on import; it now
+  follows the original rule (error → high, warning → medium, info → low).
+  Rules whose original form had context clauses the import dropped are
+  capped at medium. Non-security rules (best practice, correctness,
+  maintainability) are `info`.
+- **Removed 239 rules that could not work as written**: 170 non-security
+  rules whose context clauses were lost on import, 32 rule-authoring lint
+  rules that fired on any YAML file, 30 "missing parameter" AI-SDK rules that
+  fired on every SDK call, and 7 others. Removed 26 byte-identical duplicate
+  rule files that double-reported findings.
+- **Tightened** the noisiest remaining rules: shell-wildcard, reverse
+  tabnabbing, Okta token, Sourcegraph token (no longer matches any 40-hex
+  string), MongoDB URI (ignores interpolated templates), `eval` /
+  `setTimeout` (string argument required), `alert` / `prompt` / `confirm`,
+  AngularJS open redirect, GCP public storage, mutable GitHub Action refs.
+- **Path-scoped** AI-assistant config and hook rules to config and hook
+  files, and the `.env` secret rule to `.env` files.
+
+### Added
+
+- `CBR-PY-JWT-VERIFY-DISABLED`, `CBR-PY-SQLI-FORMATTED-QUERY`,
+  `CBR-PY-XML-UNSAFE-PARSE`.
+- `CBR-PY-SUBPROCESS-SHELL-TRUE` and `CBR-PY-REQUESTS-VERIFY-FALSE` now match
+  when the keyword argument sits on its own line of a multi-line call.
+- Integration test `fixture_scan_reports_runtime_recall_set`.
+
 ## [1.2.1] — 2026-11-16
 
 ### Fixed — default-pack false positives cut ~95-98%

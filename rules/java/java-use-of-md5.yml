@@ -1,6 +1,6 @@
 id:        CBR-JAVA-USE_OF_MD5
 title:     "Use Of Md5"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-328']
 source:    semgrep/use-of-md5

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DJANGO_SECURE_SET_COOKIE
 title:     "Django Secure Set Cookie"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-614']
 source:    semgrep/django-secure-set-cookie

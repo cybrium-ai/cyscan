@@ -1,6 +1,6 @@
 id:        CBR-JAVA-INSECURE_SMTP_CONNECTION
 title:     "Insecure Smtp Connection"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-297']
 source:    semgrep/insecure-smtp-connection

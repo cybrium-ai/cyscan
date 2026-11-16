@@ -1,6 +1,6 @@
 id:        CBR-GO-OPENAI_HARDCODED_API_KEY_GO
 title:     "Openai Hardcoded Api Key Go"
-severity:  critical
+severity:  high
 languages: ['go']
 cwe:       ['CWE-798']
 source:    semgrep/openai-hardcoded-api-key-go

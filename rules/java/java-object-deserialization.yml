@@ -1,6 +1,6 @@
 id:        CBR-JAVA-OBJECT_DESERIALIZATION
 title:     "Object Deserialization"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-502']
 source:    semgrep/object-deserialization

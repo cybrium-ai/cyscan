@@ -1,6 +1,6 @@
 id:        CBR-PYTH-LOCALS_AS_TEMPLATE_CONTEXT
 title:     "Locals As Template Context"
-severity:  critical
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-96']
 source:    semgrep/locals-as-template-context

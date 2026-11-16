@@ -1,6 +1,6 @@
 id:        CBR-JAVA-PERMISSIVE_CORS
 title:     "Permissive Cors"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-183']
 source:    semgrep/permissive-cors

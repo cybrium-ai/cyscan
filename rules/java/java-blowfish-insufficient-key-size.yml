@@ -1,6 +1,6 @@
 id:        CBR-JAVA-BLOWFISH_INSUFFICIENT_KEY_SIZE
 title:     "Blowfish Insufficient Key Size"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-326']
 source:    semgrep/blowfish-insufficient-key-size

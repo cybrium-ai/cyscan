@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_CIPHER_ALGORITHM_XOR
 title:     "Insecure Cipher Algorithm Xor"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-327']
 source:    semgrep/insecure-cipher-algorithm-xor

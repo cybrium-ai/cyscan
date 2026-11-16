@@ -1,6 +1,6 @@
 id:        CBR-TERR-FUNCTIONAPP_ENABLE_HTTP2
 title:     "Functionapp Enable Http2"
-severity:  medium
+severity:  low
 languages: ['terraform']
 cwe:       ['CWE-444']
 source:    semgrep/functionapp-enable-http2

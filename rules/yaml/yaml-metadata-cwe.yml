@@ -1,9 +1,0 @@
-id:        CBR-YAML-METADATA_CWE
-title:     "Metadata Cwe"
-severity:  critical
-languages: ['yaml']
-source:    semgrep/metadata-cwe
-message: |
-  $...CWE The cwe tag in rule metadata should always be in the format "CWE-000: Title".
-pattern: |
-  cwe: ...

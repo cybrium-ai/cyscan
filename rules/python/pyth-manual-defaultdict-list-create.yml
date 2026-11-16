@@ -1,6 +1,6 @@
 id:        CBR-PYTH-MANUAL_DEFAULTDICT_LIST_CREATE
 title:     "Manual Defaultdict List Create"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/manual-defaultdict-list-create
 message: |

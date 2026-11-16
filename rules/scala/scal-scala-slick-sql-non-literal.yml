@@ -1,6 +1,6 @@
 id:        CBR-SCAL-SCALA_SLICK_SQL_NON_LITERAL
 title:     "Scala Slick Sql Non Literal"
-severity:  critical
+severity:  medium
 languages: ['scala']
 cwe:       ['CWE-89']
 source:    semgrep/scala-slick-sql-non-literal

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DETECT_BUFFER_NOASSERT
 title:     "Detect Buffer Noassert"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-119']
 source:    semgrep/detect-buffer-noassert

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-LIST_MODIFY_WHILE_ITERATE
 title:     "List Modify While Iterate"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/list-modify-while-iterate
 message: |

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-INSECURE_HASH_ALGORITHM_MD4
 title:     "Insecure Hash Algorithm Md4"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-327']
 source:    semgrep/insecure-hash-algorithm-md4

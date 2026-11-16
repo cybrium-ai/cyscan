@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_DATAEXPLORER_DOUBLE_ENCR
 title:     "Azure Dataexplorer Double Encryption Enabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/azure-dataexplorer-double-encryption-enabled

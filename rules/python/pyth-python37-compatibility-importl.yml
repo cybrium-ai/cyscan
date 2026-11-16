@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYTHON37_COMPATIBILITY_IMPORTL
 title:     "Python37 Compatibility Importlib"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/python37-compatibility-importlib
 message: |

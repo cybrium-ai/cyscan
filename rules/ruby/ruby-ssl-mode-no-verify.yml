@@ -1,6 +1,6 @@
 id:        CBR-RUBY-SSL_MODE_NO_VERIFY
 title:     "Ssl Mode No Verify"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-295']
 source:    semgrep/ssl-mode-no-verify

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-AVOID_APP_RUN_WITH_BAD_HOST
 title:     "Avoid App Run With Bad Host"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-668']
 source:    semgrep/avoid_app_run_with_bad_host

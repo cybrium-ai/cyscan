@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_TRANSFER_SERVER_IS_PUBLIC
 title:     "Aws Transfer Server Is Public"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/aws-transfer-server-is-public

@@ -1,6 +1,6 @@
 id:        CBR-TERR-S3_UNENCRYPTED_BUCKET
 title:     "S3 Unencrypted Bucket"
-severity:  medium
+severity:  low
 languages: ['terraform']
 cwe:       ['CWE-311']
 source:    semgrep/s3-unencrypted-bucket

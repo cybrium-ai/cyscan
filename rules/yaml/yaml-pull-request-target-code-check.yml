@@ -1,6 +1,6 @@
 id:        CBR-YAML-PULL_REQUEST_TARGET_CODE_CHECK
 title:     "Pull Request Target Code Checkout"
-severity:  critical
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-829']
 source:    semgrep/pull-request-target-code-checkout

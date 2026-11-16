@@ -1,6 +1,6 @@
 id:        CBR-PYTH-LEN_ALL_COUNT
 title:     "Len All Count"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/len-all-count
 message: |

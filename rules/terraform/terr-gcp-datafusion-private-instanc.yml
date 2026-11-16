@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_DATAFUSION_PRIVATE_INSTANC
 title:     "Gcp Datafusion Private Instance"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-datafusion-private-instance

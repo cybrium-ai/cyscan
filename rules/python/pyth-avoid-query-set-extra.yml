@@ -1,6 +1,6 @@
 id:        CBR-PYTH-AVOID_QUERY_SET_EXTRA
 title:     "Avoid Query Set Extra"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-89']
 source:    semgrep/avoid-query-set-extra

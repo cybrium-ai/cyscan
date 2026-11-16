@@ -1,6 +1,6 @@
 id:        CBR-RUBY-RUBY_JWT_NONE_ALG
 title:     "Ruby Jwt None Alg"
-severity:  critical
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-327']
 source:    semgrep/ruby-jwt-none-alg

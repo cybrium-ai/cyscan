@@ -1,6 +1,6 @@
 id:        CBR-PYTH-SUBPROCESS_SHELL_TRUE
 title:     "Subprocess Shell True"
-severity:  critical
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-78']
 source:    semgrep/subprocess-shell-true

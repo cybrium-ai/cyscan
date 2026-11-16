@@ -1,6 +1,6 @@
 id:        CBR-TERR-ALL_ORIGINS_ALLOWED
 title:     "All Origins Allowed"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-942']
 source:    semgrep/all-origins-allowed

@@ -1,6 +1,6 @@
 id:        CBR-C-INSECURE_USE_STRCAT_FN
 title:     "Insecure Use Strcat Fn"
-severity:  high
+severity:  medium
 languages: ['c']
 cwe:       ['CWE-676']
 source:    semgrep/insecure-use-strcat-fn

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-EXPRESS_COOKIE_SESSION_NO_DOMA
 title:     "Express Cookie Session No Domain"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-522']
 source:    semgrep/express-cookie-session-no-domain

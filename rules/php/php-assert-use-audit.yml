@@ -1,6 +1,6 @@
 id:        CBR-PHP-ASSERT_USE_AUDIT
 title:     "Assert Use Audit"
-severity:  critical
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-95']
 source:    semgrep/assert-use-audit

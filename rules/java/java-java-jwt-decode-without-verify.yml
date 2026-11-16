@@ -1,6 +1,6 @@
 id:        CBR-JAVA-JAVA_JWT_DECODE_WITHOUT_VERIFY
 title:     "Java Jwt Decode Without Verify"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-345']
 source:    semgrep/java-jwt-decode-without-verify

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SAX_XXE
 title:     "Sax Xxe"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-611']
 source:    semgrep/sax-xxe

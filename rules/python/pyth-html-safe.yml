@@ -1,6 +1,6 @@
 id:        CBR-PYTH-HTML_SAFE
 title:     "Html Safe"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-79']
 source:    semgrep/html-safe

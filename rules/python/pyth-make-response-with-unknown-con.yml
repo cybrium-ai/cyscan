@@ -1,6 +1,6 @@
 id:        CBR-PYTH-MAKE_RESPONSE_WITH_UNKNOWN_CON
 title:     "Make Response With Unknown Content"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-79']
 source:    semgrep/make-response-with-unknown-content

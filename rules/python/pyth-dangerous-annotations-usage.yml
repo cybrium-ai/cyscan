@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DANGEROUS_ANNOTATIONS_USAGE
 title:     "Dangerous Annotations Usage"
-severity:  medium
+severity:  low
 languages: ['python']
 cwe:       ['CWE-95']
 source:    semgrep/dangerous-annotations-usage

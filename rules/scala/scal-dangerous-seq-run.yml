@@ -1,6 +1,6 @@
 id:        CBR-SCAL-DANGEROUS_SEQ_RUN
 title:     "Dangerous Seq Run"
-severity:  critical
+severity:  medium
 languages: ['scala']
 cwe:       ['CWE-78']
 source:    semgrep/dangerous-seq-run

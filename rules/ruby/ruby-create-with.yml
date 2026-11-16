@@ -1,6 +1,6 @@
 id:        CBR-RUBY-CREATE_WITH
 title:     "Create With"
-severity:  critical
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-915']
 source:    semgrep/create-with

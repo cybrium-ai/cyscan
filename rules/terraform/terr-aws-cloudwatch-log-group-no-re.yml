@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_CLOUDWATCH_LOG_GROUP_NO_RE
 title:     "Aws Cloudwatch Log Group No Retention"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-cloudwatch-log-group-no-retention

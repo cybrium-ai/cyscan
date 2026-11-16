@@ -1,6 +1,6 @@
 id:        CBR-RUBY-CHECK_PERMIT_ATTRIBUTES_HIGH
 title:     "Check Permit Attributes High"
-severity:  critical
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-915']
 source:    semgrep/check-permit-attributes-high

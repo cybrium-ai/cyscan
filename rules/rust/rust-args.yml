@@ -1,6 +1,6 @@
 id:        CBR-RUST-ARGS
 title:     "Args"
-severity:  medium
+severity:  low
 languages: ['rust']
 cwe:       ['CWE-807']
 source:    semgrep/args

@@ -1,6 +1,6 @@
 id:        CBR-YAML-API_KEY_IN_QUERY_PARAMETER
 title:     "Api Key In Query Parameter"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-598']
 source:    semgrep/api-key-in-query-parameter

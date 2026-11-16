@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_APPSERVICE_IDENTITYPROVI
 title:     "Azure Appservice Identityprovider Enabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-appservice-identityprovider-enabled

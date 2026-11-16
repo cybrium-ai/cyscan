@@ -1,6 +1,6 @@
 id:        CBR-JAVA-ASSIGNED_UNDEFINED
 title:     "Assigned Undefined"
-severity:  high
+severity:  info
 languages: ['javascript', 'typescript']
 source:    semgrep/assigned-undefined
 message: |

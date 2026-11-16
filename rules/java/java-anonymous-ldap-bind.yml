@@ -1,6 +1,6 @@
 id:        CBR-JAVA-ANONYMOUS_LDAP_BIND
 title:     "Anonymous Ldap Bind"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-287']
 source:    semgrep/anonymous-ldap-bind

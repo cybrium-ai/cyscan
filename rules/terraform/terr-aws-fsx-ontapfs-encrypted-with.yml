@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_FSX_ONTAPFS_ENCRYPTED_WITH
 title:     "Aws Fsx Ontapfs Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-fsx-ontapfs-encrypted-with-cmk

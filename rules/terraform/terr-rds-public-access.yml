@@ -1,6 +1,6 @@
 id:        CBR-TERR-RDS_PUBLIC_ACCESS
 title:     "Rds Public Access"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/rds-public-access

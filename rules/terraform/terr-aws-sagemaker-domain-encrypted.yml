@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_SAGEMAKER_DOMAIN_ENCRYPTED
 title:     "Aws Sagemaker Domain Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-sagemaker-domain-encrypted-with-cmk

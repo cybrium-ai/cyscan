@@ -1,6 +1,6 @@
 id:        CBR-SWIF-SWIFT_WEBVIEW_CONFIG_ALLOWS_JS
 title:     "Swift Webview Config Allows Js Open Windows"
-severity:  high
+severity:  medium
 languages: ['swift']
 cwe:       ['CWE-272']
 source:    semgrep/swift-webview-config-allows-js-open-windows

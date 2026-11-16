@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_DATAEXPLORER_USES_DISK_E
 title:     "Azure Dataexplorer Uses Disk Encryption"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/azure-dataexplorer-uses-disk-encryption

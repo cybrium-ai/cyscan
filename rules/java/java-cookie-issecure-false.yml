@@ -1,6 +1,6 @@
 id:        CBR-JAVA-COOKIE_ISSECURE_FALSE
 title:     "Cookie Issecure False"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-319']
 source:    semgrep/cookie-issecure-false

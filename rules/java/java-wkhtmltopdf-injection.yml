@@ -1,6 +1,6 @@
 id:        CBR-JAVA-WKHTMLTOPDF_INJECTION
 title:     "Wkhtmltopdf Injection"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-918']
 source:    semgrep/wkhtmltopdf-injection

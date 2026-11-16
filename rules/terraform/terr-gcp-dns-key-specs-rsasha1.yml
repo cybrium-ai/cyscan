@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_DNS_KEY_SPECS_RSASHA1
 title:     "Gcp Dns Key Specs Rsasha1"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-326']
 source:    semgrep/gcp-dns-key-specs-rsasha1

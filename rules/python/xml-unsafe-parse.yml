@@ -1,0 +1,13 @@
+id:        CBR-PY-XML-UNSAFE-PARSE
+title:     "XML parsed with the standard-library parser"
+severity:  medium
+languages: [python]
+cwe:       [CWE-611, CWE-776]
+message: |
+  The standard-library XML parsers are vulnerable to entity-expansion
+  denial of service and, on older runtimes, external-entity attacks.
+  Parse untrusted XML with defusedxml instead.
+regex: |
+  \b(?:ET|ElementTree|etree|minidom|pulldom)\.(?:parse|fromstring|XML|iterparse|parseString)\(
+pattern_not_regex:
+  - 'defusedxml'

@@ -1,6 +1,6 @@
 id:        CBR-PHP-PHP_PERMISSIVE_CORS
 title:     "Php Permissive Cors"
-severity:  high
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-346']
 source:    semgrep/php-permissive-cors

@@ -1,6 +1,6 @@
 id:        CBR-CSHA-MISSING_OR_BROKEN_AUTHORIZATIO
 title:     "Missing Or Broken Authorization"
-severity:  medium
+severity:  low
 languages: ['csharp']
 cwe:       ['CWE-862']
 source:    semgrep/missing-or-broken-authorization

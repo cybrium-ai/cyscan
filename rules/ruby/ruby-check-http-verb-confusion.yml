@@ -1,6 +1,6 @@
 id:        CBR-RUBY-CHECK_HTTP_VERB_CONFUSION
 title:     "Check Http Verb Confusion"
-severity:  critical
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-650']
 source:    semgrep/check-http-verb-confusion

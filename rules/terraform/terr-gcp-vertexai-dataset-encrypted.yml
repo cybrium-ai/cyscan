@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_VERTEXAI_DATASET_ENCRYPTED
 title:     "Gcp Vertexai Dataset Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/gcp-vertexai-dataset-encrypted-with-cmk

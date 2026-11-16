@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_STORAGE_SYNC_PUBLIC_ACCE
 title:     "Azure Storage Sync Public Access Disabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-storage-sync-public-access-disabled

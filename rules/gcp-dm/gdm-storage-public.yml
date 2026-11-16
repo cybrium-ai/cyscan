@@ -9,4 +9,4 @@ message: |
   
   Remediation: Remove public access and use IAM for fine-grained control.
 regex: |
-  (?:allUsers|allAuthenticatedUsers)
+  (?:entity|members?)\s*:[^\n]*\b(?:allUsers|allAuthenticatedUsers)\b|^\s*-\s*["']?(?:allUsers|allAuthenticatedUsers)\b

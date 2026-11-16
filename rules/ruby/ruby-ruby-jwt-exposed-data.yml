@@ -1,6 +1,6 @@
 id:        CBR-RUBY-RUBY_JWT_EXPOSED_DATA
 title:     "Ruby Jwt Exposed Data"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-522']
 source:    semgrep/ruby-jwt-exposed-data

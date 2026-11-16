@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYTHON36_COMPATIBILITY_SSL
 title:     "Python36 Compatibility Ssl"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/python36-compatibility-ssl
 message: |

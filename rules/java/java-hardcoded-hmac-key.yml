@@ -1,6 +1,6 @@
 id:        CBR-JAVA-HARDCODED_HMAC_KEY
 title:     "Hardcoded Hmac Key"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-798']
 source:    semgrep/hardcoded-hmac-key

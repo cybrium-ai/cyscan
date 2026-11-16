@@ -1,6 +1,6 @@
 id:        CBR-PHP-SHA224_HASH
 title:     "Sha224 Hash"
-severity:  high
+severity:  low
 languages: ['php']
 cwe:       ['CWE-328']
 source:    semgrep/sha224-hash

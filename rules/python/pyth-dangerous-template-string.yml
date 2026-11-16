@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DANGEROUS_TEMPLATE_STRING
 title:     "Dangerous Template String"
-severity:  critical
+severity:  high
 languages: ['python']
 cwe:       ['CWE-96']
 source:    semgrep/dangerous-template-string

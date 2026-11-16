@@ -1,6 +1,6 @@
 id:        CBR-PHP-WP_AUTHORISATION_CHECKS_AUDIT
 title:     "Wp Authorisation Checks Audit"
-severity:  high
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-285']
 source:    semgrep/wp-authorisation-checks-audit

@@ -1,6 +1,6 @@
 id:        CBR-PHP-LARAVEL_COOKIE_HTTP_ONLY
 title:     "Laravel Cookie Http Only"
-severity:  critical
+severity:  medium
 languages: ['php']
 cwe:       ['CWE-1004']
 source:    semgrep/laravel-cookie-http-only

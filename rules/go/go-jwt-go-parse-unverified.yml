@@ -1,6 +1,6 @@
 id:        CBR-GO-JWT_GO_PARSE_UNVERIFIED
 title:     "Jwt Go Parse Unverified"
-severity:  high
+severity:  medium
 languages: ['go']
 cwe:       ['CWE-345']
 source:    semgrep/jwt-go-parse-unverified

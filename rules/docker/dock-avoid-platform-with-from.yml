@@ -1,6 +1,6 @@
 id:        CBR-DOCK-AVOID_PLATFORM_WITH_FROM
 title:     "Avoid Platform With From"
-severity:  medium
+severity:  info
 languages: ['docker']
 source:    semgrep/avoid-platform-with-from
 message: |

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-AEAD_NO_FINAL
 title:     "Aead No Final"
-severity:  critical
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-310']
 source:    semgrep/aead-no-final

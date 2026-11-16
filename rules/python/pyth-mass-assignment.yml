@@ -1,6 +1,6 @@
 id:        CBR-PYTH-MASS_ASSIGNMENT
 title:     "Mass Assignment"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-915']
 source:    semgrep/mass-assignment

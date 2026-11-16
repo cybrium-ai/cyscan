@@ -1,6 +1,6 @@
 id:        CBR-RUBY-DANGEROUS_SUBSHELL
 title:     "Dangerous Subshell"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-94']
 source:    semgrep/dangerous-subshell

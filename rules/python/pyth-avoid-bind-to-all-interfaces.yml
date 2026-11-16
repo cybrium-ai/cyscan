@@ -1,6 +1,6 @@
 id:        CBR-PYTH-AVOID_BIND_TO_ALL_INTERFACES
 title:     "Avoid Bind To All Interfaces"
-severity:  medium
+severity:  low
 languages: ['python']
 cwe:       ['CWE-200']
 source:    semgrep/avoid-bind-to-all-interfaces

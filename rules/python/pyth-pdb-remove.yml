@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PDB_REMOVE
 title:     "Pdb Remove"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/pdb-remove
 message: |

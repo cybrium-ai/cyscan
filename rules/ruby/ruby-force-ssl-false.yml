@@ -1,6 +1,6 @@
 id:        CBR-RUBY-FORCE_SSL_FALSE
 title:     "Force Ssl False"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-311']
 source:    semgrep/force-ssl-false

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SEQUELIZE_ENFORCE_TLS
 title:     "Sequelize Enforce Tls"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-319']
 source:    semgrep/sequelize-enforce-tls

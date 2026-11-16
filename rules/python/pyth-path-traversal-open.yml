@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PATH_TRAVERSAL_OPEN
 title:     "Path Traversal Open"
-severity:  critical
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-22']
 source:    semgrep/path-traversal-open

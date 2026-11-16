@@ -1,6 +1,6 @@
 id:        CBR-JAVA-PUPPETEER_SETCONTENT_INJECTION
 title:     "Puppeteer Setcontent Injection"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-918']
 source:    semgrep/puppeteer-setcontent-injection

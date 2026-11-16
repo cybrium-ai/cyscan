@@ -1,6 +1,6 @@
 id:        CBR-PYTH-USELESS_IF_BODY
 title:     "Useless If Body"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/useless-if-body
 message: |

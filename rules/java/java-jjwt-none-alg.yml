@@ -1,6 +1,6 @@
 id:        CBR-JAVA-JJWT_NONE_ALG
 title:     "Jjwt None Alg"
-severity:  critical
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-327']
 source:    semgrep/jjwt-none-alg

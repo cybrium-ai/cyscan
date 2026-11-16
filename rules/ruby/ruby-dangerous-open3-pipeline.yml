@@ -1,6 +1,6 @@
 id:        CBR-RUBY-DANGEROUS_OPEN3_PIPELINE
 title:     "Dangerous Open3 Pipeline"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-94']
 source:    semgrep/dangerous-open3-pipeline

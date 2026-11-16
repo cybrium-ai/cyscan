@@ -1,6 +1,6 @@
 id:        CBR-RUBY-WEAK_HASHES_MD5
 title:     "Weak Hashes Md5"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-328']
 source:    semgrep/weak-hashes-md5

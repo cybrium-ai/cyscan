@@ -1,6 +1,6 @@
 id:        CBR-RUST-TEMP_DIR
 title:     "Temp Dir"
-severity:  medium
+severity:  low
 languages: ['rust']
 cwe:       ['CWE-807']
 source:    semgrep/temp-dir

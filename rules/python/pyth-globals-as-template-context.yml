@@ -1,6 +1,6 @@
 id:        CBR-PYTH-GLOBALS_AS_TEMPLATE_CONTEXT
 title:     "Globals As Template Context"
-severity:  critical
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-96']
 source:    semgrep/globals-as-template-context

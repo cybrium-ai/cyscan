@@ -1,6 +1,6 @@
 id:        CBR-GO-GEMINI_HARDCODED_API_KEY_GO
 title:     "Gemini Hardcoded Api Key Go"
-severity:  critical
+severity:  high
 languages: ['go']
 cwe:       ['CWE-798']
 source:    semgrep/gemini-hardcoded-api-key-go

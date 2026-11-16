@@ -1,6 +1,6 @@
 id:        CBR-GO-USELESS_IF_BODY
 title:     "Useless If Body"
-severity:  high
+severity:  info
 languages: ['go']
 source:    semgrep/useless-if-body
 message: |

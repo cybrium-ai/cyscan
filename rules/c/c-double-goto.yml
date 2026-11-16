@@ -1,6 +1,6 @@
 id:        CBR-C-DOUBLE_GOTO
 title:     "Double Goto"
-severity:  high
+severity:  info
 languages: ['c']
 source:    semgrep/double_goto
 message: |

@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SPEL_INJECTION
 title:     "Spel Injection"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-94']
 source:    semgrep/spel-injection

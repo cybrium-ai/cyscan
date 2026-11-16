@@ -1,6 +1,6 @@
 id:        CBR-TERR-EKS_INSUFFICIENT_CONTROL_PLANE
 title:     "Eks Insufficient Control Plane Logging"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-778']
 source:    semgrep/eks-insufficient-control-plane-logging

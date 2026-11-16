@@ -1,6 +1,6 @@
 id:        CBR-JAVA-JAVA_JWT_NONE_ALG
 title:     "Java Jwt None Alg"
-severity:  critical
+severity:  high
 languages: ['java']
 cwe:       ['CWE-327']
 source:    semgrep/java-jwt-none-alg

@@ -1,6 +1,6 @@
 id:        CBR-PYTH-PYTHON37_COMPATIBILITY_LOCALE1
 title:     "Python37 Compatibility Locale1"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/python37-compatibility-locale1
 message: |

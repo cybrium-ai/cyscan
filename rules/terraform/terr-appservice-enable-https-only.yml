@@ -1,6 +1,6 @@
 id:        CBR-TERR-APPSERVICE_ENABLE_HTTPS_ONLY
 title:     "Appservice Enable Https Only"
-severity:  critical
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-319']
 source:    semgrep/appservice-enable-https-only

@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_BUILD_WORKERS_PRIVATE
 title:     "Gcp Build Workers Private"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-build-workers-private

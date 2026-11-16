@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DETECT_NO_CSRF_BEFORE_METHOD_O
 title:     "Detect No Csrf Before Method Override"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-352']
 source:    semgrep/detect-no-csrf-before-method-override

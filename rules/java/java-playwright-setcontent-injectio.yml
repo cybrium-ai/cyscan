@@ -1,6 +1,6 @@
 id:        CBR-JAVA-PLAYWRIGHT_SETCONTENT_INJECTIO
 title:     "Playwright Setcontent Injection"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-918']
 source:    semgrep/playwright-setcontent-injection

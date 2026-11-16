@@ -1,6 +1,6 @@
 id:        CBR-PYTH-AVOID_USING_APP_RUN_DIRECTLY
 title:     "Avoid Using App Run Directly"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-668']
 source:    semgrep/avoid_using_app_run_directly

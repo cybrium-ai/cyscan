@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_EBS_UNENCRYPTED
 title:     "Aws Ebs Unencrypted"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-ebs-unencrypted

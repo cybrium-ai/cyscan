@@ -1,6 +1,6 @@
 id:        CBR-PYTH-EXEC_DETECTED
 title:     "Exec Detected"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-95']
 source:    semgrep/exec-detected

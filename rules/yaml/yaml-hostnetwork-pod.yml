@@ -1,6 +1,6 @@
 id:        CBR-YAML-HOSTNETWORK_POD
 title:     "Hostnetwork Pod"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-406']
 source:    semgrep/hostnetwork-pod

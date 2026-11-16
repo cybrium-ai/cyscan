@@ -1,6 +1,6 @@
 id:        CBR-JAVA-FTP_REQUEST
 title:     "Ftp Request"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-319']
 source:    semgrep/ftp-request

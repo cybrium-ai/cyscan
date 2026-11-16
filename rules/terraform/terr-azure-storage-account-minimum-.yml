@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_STORAGE_ACCOUNT_MINIMUM_
 title:     "Azure Storage Account Minimum Tlsversion"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-326']
 source:    semgrep/azure-storage-account-minimum-tlsversion

@@ -1,6 +1,6 @@
 id:        CBR-TERR-WILDCARD_ASSUME_ROLE
 title:     "Wildcard Assume Role"
-severity:  critical
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-250']
 source:    semgrep/wildcard-assume-role

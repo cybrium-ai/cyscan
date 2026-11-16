@@ -1,6 +1,6 @@
 id:        CBR-PYTH-HTTPSCONNECTION_DETECTED
 title:     "Httpsconnection Detected"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-295']
 source:    semgrep/httpsconnection-detected

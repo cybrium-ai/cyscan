@@ -1,6 +1,6 @@
 id:        CBR-RUBY-CHECK_PERMIT_ATTRIBUTES_MEDIUM
 title:     "Check Permit Attributes Medium"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-915']
 source:    semgrep/check-permit-attributes-medium

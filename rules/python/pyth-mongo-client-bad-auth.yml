@@ -1,6 +1,6 @@
 id:        CBR-PYTH-MONGO_CLIENT_BAD_AUTH
 title:     "Mongo Client Bad Auth"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-477']
 source:    semgrep/mongo-client-bad-auth

@@ -1,6 +1,6 @@
 id:        CBR-TERR-GCP_RUN_PRIVATE_SERVICE_IAM_BI
 title:     "Gcp Run Private Service Iam Binding"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/gcp-run-private-service-iam-binding

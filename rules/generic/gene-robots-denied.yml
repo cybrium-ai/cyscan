@@ -1,6 +1,6 @@
 id:        CBR-GENE-ROBOTS_DENIED
 title:     "Robots Denied"
-severity:  medium
+severity:  info
 languages: ['generic']
 source:    semgrep/robots-denied
 message: |

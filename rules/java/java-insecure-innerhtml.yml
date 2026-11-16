@@ -1,6 +1,6 @@
 id:        CBR-JAVA-INSECURE_INNERHTML
 title:     "Insecure Innerhtml"
-severity:  critical
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-79']
 source:    semgrep/insecure-innerhtml

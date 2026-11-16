@@ -1,6 +1,6 @@
 id:        CBR-PYTH-IS_NOT_IS_NOT
 title:     "Is Not Is Not"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/is-not-is-not
 message: |

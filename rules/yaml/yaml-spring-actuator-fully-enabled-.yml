@@ -1,6 +1,6 @@
 id:        CBR-YAML-SPRING_ACTUATOR_FULLY_ENABLED_
 title:     "Spring Actuator Fully Enabled Yaml"
-severity:  high
+severity:  medium
 languages: ['yaml']
 cwe:       ['CWE-200']
 source:    semgrep/spring-actuator-fully-enabled-yaml

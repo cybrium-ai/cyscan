@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_AKS_USES_DISK_ENCRYPTION
 title:     "Azure Aks Uses Disk Encryptionset"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/azure-aks-uses-disk-encryptionset

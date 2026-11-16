@@ -1,6 +1,6 @@
 id:        CBR-JAVA-DISALLOW_OLD_TLS_VERSIONS1
 title:     "Disallow Old Tls Versions1"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-319']
 source:    semgrep/disallow-old-tls-versions1

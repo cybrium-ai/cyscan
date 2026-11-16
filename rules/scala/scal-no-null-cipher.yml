@@ -1,6 +1,6 @@
 id:        CBR-SCAL-NO_NULL_CIPHER
 title:     "No Null Cipher"
-severity:  high
+severity:  medium
 languages: ['scala']
 cwe:       ['CWE-327']
 source:    semgrep/no-null-cipher

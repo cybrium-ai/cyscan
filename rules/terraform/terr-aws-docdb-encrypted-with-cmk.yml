@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_DOCDB_ENCRYPTED_WITH_CMK
 title:     "Aws Docdb Encrypted With Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/aws-docdb-encrypted-with-cmk

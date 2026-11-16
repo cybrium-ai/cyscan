@@ -8,3 +8,19 @@ message: |
   "enableAllProjectMcpServers" is set to true in settings. This automatically enables all MCP servers defined in project configuration without user confirmation, allowing malicious repositories to register arbitrary MCP servers that execute code on your machine. Remove this setting or set it to false so that MCP servers require explicit approval.
 regex: |
   "enableAllProjectMcpServers"\s*:\s*true
+paths:
+  include:
+    - '**/.claude/**'
+    - '**/.cursor/**'
+    - '**/.codex/**'
+    - '**/.gemini/**'
+    - '**/.vscode/**'
+    - '**/.cursorrules'
+    - '**/.windsurfrules'
+    - '**/CLAUDE.md'
+    - '**/AGENTS.md'
+    - '**/GEMINI.md'
+    - '**/copilot-instructions.md'
+    - '**/mcp.json'
+    - '**/.mcp.json'
+    - '**/hooks/**'

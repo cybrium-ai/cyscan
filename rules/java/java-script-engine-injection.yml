@@ -1,6 +1,6 @@
 id:        CBR-JAVA-SCRIPT_ENGINE_INJECTION
 title:     "Script Engine Injection"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-94']
 source:    semgrep/script-engine-injection

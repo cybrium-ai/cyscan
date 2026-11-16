@@ -1,6 +1,6 @@
 id:        CBR-TERR-KEYVAULT_SPECIFY_NETWORK_ACL
 title:     "Keyvault Specify Network Acl"
-severity:  critical
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/keyvault-specify-network-acl

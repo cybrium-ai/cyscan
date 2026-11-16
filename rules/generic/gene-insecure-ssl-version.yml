@@ -1,6 +1,6 @@
 id:        CBR-GENE-INSECURE_SSL_VERSION
 title:     "Insecure Ssl Version"
-severity:  high
+severity:  medium
 languages: ['generic']
 cwe:       ['CWE-326']
 source:    semgrep/insecure-ssl-version

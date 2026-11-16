@@ -1,6 +1,6 @@
 id:        CBR-JAVA-USE_OF_WEAK_RSA_KEY
 title:     "Use Of Weak Rsa Key"
-severity:  high
+severity:  medium
 languages: ['java']
 cwe:       ['CWE-326']
 source:    semgrep/use-of-weak-rsa-key

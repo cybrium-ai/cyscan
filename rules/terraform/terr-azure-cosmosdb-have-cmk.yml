@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_COSMOSDB_HAVE_CMK
 title:     "Azure Cosmosdb Have Cmk"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-320']
 source:    semgrep/azure-cosmosdb-have-cmk

@@ -1,6 +1,6 @@
 id:        CBR-TERR-AZURE_SEARCH_PUBLICNETWORK_ACC
 title:     "Azure Search Publicnetwork Access Disabled"
-severity:  high
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-1220']
 source:    semgrep/azure-search-publicnetwork-access-disabled

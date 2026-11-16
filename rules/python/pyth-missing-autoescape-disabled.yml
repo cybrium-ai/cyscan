@@ -1,6 +1,6 @@
 id:        CBR-PYTH-MISSING_AUTOESCAPE_DISABLED
 title:     "Missing Autoescape Disabled"
-severity:  high
+severity:  medium
 languages: ['python']
 cwe:       ['CWE-116']
 source:    semgrep/missing-autoescape-disabled

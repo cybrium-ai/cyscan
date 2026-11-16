@@ -1,6 +1,6 @@
 id:        CBR-PYTH-TEMPFILE_INSECURE
 title:     "Tempfile Insecure"
-severity:  critical
+severity:  info
 languages: ['python']
 source:    semgrep/tempfile-insecure
 message: |

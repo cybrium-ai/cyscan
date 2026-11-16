@@ -1,6 +1,6 @@
 id:        CBR-JAVA-EXPRESS_JWT_NOT_REVOKED
 title:     "Express Jwt Not Revoked"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-522']
 source:    semgrep/express-jwt-not-revoked

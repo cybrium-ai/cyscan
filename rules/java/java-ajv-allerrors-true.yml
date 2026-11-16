@@ -1,6 +1,6 @@
 id:        CBR-JAVA-AJV_ALLERRORS_TRUE
 title:     "Ajv Allerrors True"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-400']
 source:    semgrep/ajv-allerrors-true

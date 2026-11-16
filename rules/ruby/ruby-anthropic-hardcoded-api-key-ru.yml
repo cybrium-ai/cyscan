@@ -1,6 +1,6 @@
 id:        CBR-RUBY-ANTHROPIC_HARDCODED_API_KEY_RU
 title:     "Anthropic Hardcoded Api Key Ruby"
-severity:  critical
+severity:  high
 languages: ['ruby']
 cwe:       ['CWE-798']
 source:    semgrep/anthropic-hardcoded-api-key-ruby

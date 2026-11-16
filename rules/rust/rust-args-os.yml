@@ -1,6 +1,6 @@
 id:        CBR-RUST-ARGS_OS
 title:     "Args Os"
-severity:  medium
+severity:  low
 languages: ['rust']
 cwe:       ['CWE-807']
 source:    semgrep/args-os

@@ -1,6 +1,6 @@
 id:        CBR-GENE-NET_WEBCONFIG_DEBUG
 title:     "Net Webconfig Debug"
-severity:  high
+severity:  medium
 languages: ['generic']
 cwe:       ['CWE-11']
 source:    semgrep/net-webconfig-debug

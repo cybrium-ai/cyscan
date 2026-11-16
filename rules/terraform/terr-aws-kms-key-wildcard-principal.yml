@@ -1,6 +1,6 @@
 id:        CBR-TERR-AWS_KMS_KEY_WILDCARD_PRINCIPAL
 title:     "Aws Kms Key Wildcard Principal"
-severity:  critical
+severity:  medium
 languages: ['terraform']
 cwe:       ['CWE-732']
 source:    semgrep/aws-kms-key-wildcard-principal

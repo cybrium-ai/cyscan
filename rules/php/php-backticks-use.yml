@@ -1,6 +1,6 @@
 id:        CBR-PHP-BACKTICKS_USE
 title:     "Backticks Use"
-severity:  critical
+severity:  high
 languages: ['php']
 cwe:       ['CWE-94']
 source:    semgrep/backticks-use

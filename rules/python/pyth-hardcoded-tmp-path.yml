@@ -1,6 +1,6 @@
 id:        CBR-PYTH-HARDCODED_TMP_PATH
 title:     "Hardcoded Tmp Path"
-severity:  high
+severity:  info
 languages: ['python']
 source:    semgrep/hardcoded-tmp-path
 message: |

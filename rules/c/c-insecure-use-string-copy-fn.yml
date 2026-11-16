@@ -1,6 +1,6 @@
 id:        CBR-C-INSECURE_USE_STRING_COPY_FN
 title:     "Insecure Use String Copy Fn"
-severity:  high
+severity:  medium
 languages: ['c']
 cwe:       ['CWE-676']
 source:    semgrep/insecure-use-string-copy-fn

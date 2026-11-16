@@ -1,6 +1,6 @@
 id:        CBR-GENE-DANGEROUS_LINK_TO
 title:     "Dangerous Link To"
-severity:  high
+severity:  medium
 languages: ['generic']
 cwe:       ['CWE-79']
 source:    semgrep/dangerous-link-to

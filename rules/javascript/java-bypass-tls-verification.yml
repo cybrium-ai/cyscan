@@ -1,6 +1,6 @@
 id:        CBR-JAVA-BYPASS_TLS_VERIFICATION
 title:     "Bypass Tls Verification"
-severity:  high
+severity:  medium
 languages: ['javascript', 'typescript']
 cwe:       ['CWE-319']
 source:    semgrep/bypass-tls-verification

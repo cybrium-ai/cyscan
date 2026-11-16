@@ -1,6 +1,6 @@
 id:        CBR-GO-USELESS_IF_CONDITIONAL
 title:     "Useless If Conditional"
-severity:  high
+severity:  info
 languages: ['go']
 source:    semgrep/useless-if-conditional
 message: |

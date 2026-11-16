@@ -1,6 +1,6 @@
 id:        CBR-RUBY-AVOID_RENDER_INLINE
 title:     "Avoid Render Inline"
-severity:  high
+severity:  medium
 languages: ['ruby']
 cwe:       ['CWE-79']
 source:    semgrep/avoid-render-inline

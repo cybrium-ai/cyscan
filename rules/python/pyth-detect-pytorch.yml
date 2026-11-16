@@ -1,6 +1,6 @@
 id:        CBR-PYTH-DETECT_PYTORCH
 title:     "Detect Pytorch"
-severity:  medium
+severity:  info
 languages: ['python']
 source:    semgrep/detect-pytorch
 message: |
