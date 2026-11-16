@@ -2,6 +2,27 @@
 
 All notable changes to cyscan are documented here.
 
+## [1.2.1] — 2026-11-16
+
+### Fixed — default-pack false positives cut ~95-98%
+
+Engine-level fix; no per-rule editing.
+
+- **Pattern specificity gate.** A Semgrep-style `pattern:` lowered to a line
+  regex is skipped when it has no literal anchor, when its only anchor is a
+  common keyword (`return`, `raise`), or when it is a bare member access.
+  Hand-written `regex:` rules and tree-sitter `query:` rules are never gated.
+  81 rules that could only match noise no longer fire.
+- **Entropy secret detector.** Generic high-entropy strings are reported only
+  next to a secret-suggestive key name; the string-prefix-as-key bug is fixed.
+  Provider-shaped secrets stay covered by the dedicated secret rules.
+- **Default path exclusions.** Vendored, generated and cache directories,
+  minified bundles, source maps and lockfiles are skipped. `cyscan supply`
+  reads lockfiles through its own path and is unaffected.
+
+Measured on a 6.2 MB Python tree: 5,224 findings before, 96 after. All
+fixture-asserted detections still fire.
+
 ## [1.2.0] — 2026-07-28
 
 ### Added — Android APK scanning (`cyscan app *.apk`)
